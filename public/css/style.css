@@ -105,3 +105,26 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #0078d7; border-radius: 50%; animation: spin 1s linear infinite; }
 .loading-text { font-weight: bold; color: #0078d7; font-size: 16px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+
+/* --- Configurações: metas por loja --- */
+.btn-config { background: #fff; color: #333; border: 1px solid #ccc; font-size: 20px; line-height: 1; padding: 6px 10px; border-radius: 6px; }
+.btn-config:hover { background: #f0f0f0; color: #0078d7; }
+.cfg-modal { width: 760px; max-width: 95vw; max-height: 90vh; }
+.cfg-btn-fechar { background: transparent; color: #666; font-size: 18px; padding: 2px 8px; }
+.cfg-btn-fechar:hover { background: #eee; color: #333; }
+.cfg-btn-pequeno { padding: 6px 10px; font-size: 12px; }
+.cfg-btn-mini { background: #f1f3f5; color: #333; padding: 3px 7px; font-size: 13px; border: 1px solid #ddd; }
+.cfg-btn-mini:hover { background: #e2e6ea; }
+.cfg-btn-perigo:hover { background: #fdecea; border-color: #f5c2c0; }
+.cfg-mensagem { border: 1px solid; border-radius: 4px; padding: 8px 10px; font-size: 13px; margin-bottom: 10px; }
+.cfg-form { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; }
+.cfg-form-titulo { font-weight: bold; font-size: 13px; color: #0078d7; margin-bottom: 8px; }
+.cfg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cfg-col2 { grid-column: span 2; }
+.cfg-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: bold; color: #555; }
+.cfg-label input { font-weight: normal; }
+@media (max-width: 640px) {
+  .cfg-grid { grid-template-columns: 1fr; }
+  .cfg-col2 { grid-column: auto; }
+}
