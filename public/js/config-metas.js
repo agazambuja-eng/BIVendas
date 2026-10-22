@@ -2,14 +2,19 @@
  * ⚙ Configurações > Metas por Loja
  * Incluir, alterar e excluir registros da tabela `metas_loja` (Supabase).
  *
- * Leitura é pública (chave publishable). Gravar exige login: o usuário é
- * criado no painel do Supabase (Authentication > Users) e as políticas RLS
- * do script database/02_metas_vendedor_e_edicao.sql liberam a gravação
- * apenas para usuários autenticados.
+ * Por enquanto sem login (CFG_EXIGE_LOGIN = false): as políticas RLS do
+ * script database/02_metas_vendedor_e_edicao.sql liberam leitura e gravação
+ * com a chave publishable. Quando existir o cadastro de usuários, ligar o
+ * login e trocar as políticas para "somente autenticado".
  *
  * Depende de metas.js (metasClient, escaparHTML, nomeCompetencia,
  * recarregarAbaMetas) e de main.js (formatarMoedaBR, lojasDisponiveis).
  */
+
+// Login desligado por enquanto: o acesso à configuração será controlado pela
+// futura tela de login/cadastro de usuários. Para religar, troque para true e
+// rode o bloco "COM LOGIN" de database/02_metas_vendedor_e_edicao.sql.
+const CFG_EXIGE_LOGIN = false;
 
 let cfgMetasEmEdicao = null;   // id do registro sendo alterado (null = inclusão)
 let cfgMetasLista = [];
@@ -60,7 +65,7 @@ function traduzirErro(error) {
   if (!error) return '';
   if (error.code === '23505') return 'Já existe meta para esta loja nesta competência. Use "Alterar" na lista.';
   if (error.code === '42501' || /row-level security/i.test(error.message)) {
-    return 'Sem permissão para gravar. Faça login novamente ou confira as políticas RLS no Supabase.';
+    return 'Sem permissão para gravar. Rode o script database/02_metas_vendedor_e_edicao.sql no Supabase.';
   }
   if (/Invalid login credentials/i.test(error.message)) return 'E-mail ou senha inválidos.';
   return error.message;
@@ -82,8 +87,17 @@ function fecharConfigMetas() {
 
 // ---------- login ----------
 async function cfgAtualizarSessao() {
+  if (!CFG_EXIGE_LOGIN) {
+    cfgEl('cfgAreaLogin').style.display = 'none';
+    cfgEl('cfgAreaMetas').style.display = 'flex';
+    cfgEl('cfgBarraUsuario').style.display = 'none';
+    cfgLimparFormulario();
+    await cfgCarregarMetas();
+    return;
+  }
   const { data } = await metasClient.auth.getSession();
   const logado = !!(data && data.session);
+  cfgEl('cfgBarraUsuario').style.display = logado ? 'flex' : 'none';
   cfgEl('cfgAreaLogin').style.display = logado ? 'none' : 'block';
   cfgEl('cfgAreaMetas').style.display = logado ? 'flex' : 'none';
   cfgEl('cfgUsuarioLogado').textContent = logado ? data.session.user.email : '';
