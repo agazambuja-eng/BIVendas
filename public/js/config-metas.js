@@ -63,6 +63,9 @@ function cfgMensagem(texto, tipo = 'info') {
 
 function traduzirErro(error) {
   if (!error) return '';
+  if (/valor_meta_ticket/.test(error.message || '')) {
+    return 'A coluna valor_meta_ticket ainda não existe. Rode database/03_meta_ticket_medio.sql no Supabase.';
+  }
   if (error.code === '23505') return 'Já existe meta para esta loja nesta competência. Use "Alterar" na lista.';
   if (error.code === '42501' || /row-level security/i.test(error.message)) {
     return 'Sem permissão para gravar. Rode o script database/02_metas_vendedor_e_edicao.sql no Supabase.';
@@ -135,7 +138,7 @@ async function cfgCarregarMetas() {
 
   const { data, error } = await metasClient
     .from('metas_loja')
-    .select('id, codigo, descricao, valor_meta, valor_meta_vendedor, competencia')
+    .select('*')
     .eq('competencia', competencia)
     .order('codigo', { ascending: true });
 
@@ -159,6 +162,7 @@ async function cfgCarregarMetas() {
       <td style="padding:6px 8px;"><strong>${escaparHTML(m.codigo)}</strong> – ${escaparHTML(m.descricao)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_vendedor)}</td>
+      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_ticket)}</td>
       <td style="padding:6px 8px; text-align:center; white-space:nowrap;">
         <button type="button" class="cfg-btn-mini" onclick="cfgEditar(${m.id})" title="Alterar">✏️</button>
         <button type="button" class="cfg-btn-mini cfg-btn-perigo" onclick="cfgExcluir(${m.id})" title="Excluir">🗑️</button>
@@ -177,6 +181,7 @@ function cfgLimparFormulario() {
   cfgEl('cfgDescricao').value = '';
   cfgEl('cfgValorMeta').value = '';
   cfgEl('cfgValorMetaVendedor').value = '';
+  cfgEl('cfgValorMetaTicket').value = '';
   cfgEl('cfgCompetencia').value = cfgEl('cfgFiltroCompetencia').value || mesAtualInput();
   cfgEl('cfgCompetencia').disabled = false;
 }
@@ -203,6 +208,7 @@ function cfgEditar(id) {
   cfgEl('cfgDescricao').value = m.descricao || '';
   cfgEl('cfgValorMeta').value = m.valor_meta ?? '';
   cfgEl('cfgValorMetaVendedor').value = m.valor_meta_vendedor ?? '';
+  cfgEl('cfgValorMetaTicket').value = m.valor_meta_ticket ?? '';
   cfgEl('cfgCompetencia').value = competenciaParaMes(m.competencia);
   cfgMensagem('');
   cfgCarregarMetas(); // destaca a linha em edição
@@ -216,13 +222,23 @@ async function cfgSalvar(event) {
     descricao: cfgEl('cfgDescricao').value.trim(),
     competencia: mesParaCompetencia(cfgEl('cfgCompetencia').value),
     valor_meta: numeroOuNulo(cfgEl('cfgValorMeta').value),
-    valor_meta_vendedor: numeroOuNulo(cfgEl('cfgValorMetaVendedor').value)
+    valor_meta_vendedor: numeroOuNulo(cfgEl('cfgValorMetaVendedor').value),
+    valor_meta_ticket: numeroOuNulo(cfgEl('cfgValorMetaTicket').value)
   };
+
+  // Se a coluna de ticket ainda não existe no banco e o campo está vazio, não envia
+  const linhaAtual = cfgMetasEmEdicao ? cfgMetasLista.find(x => x.id === cfgMetasEmEdicao) : cfgMetasLista[0];
+  if (registro.valor_meta_ticket === null && !(linhaAtual && 'valor_meta_ticket' in linhaAtual)) {
+    delete registro.valor_meta_ticket;
+  }
 
   if (isNaN(registro.codigo)) return cfgMensagem('Informe o código da loja.', 'erro');
   if (!registro.descricao) return cfgMensagem('Informe a descrição da loja.', 'erro');
   if (!registro.competencia) return cfgMensagem('Informe a competência (mês/ano).', 'erro');
   if (registro.valor_meta === null || registro.valor_meta < 0) return cfgMensagem('Informe a meta da loja (R$).', 'erro');
+  if (registro.valor_meta_ticket !== null && registro.valor_meta_ticket < 0) {
+    return cfgMensagem('A meta de ticket médio não pode ser negativa.', 'erro');
+  }
   if (registro.valor_meta_vendedor !== null && registro.valor_meta_vendedor < 0) {
     return cfgMensagem('A meta do vendedor não pode ser negativa.', 'erro');
   }
@@ -269,7 +285,7 @@ async function cfgCopiarMesAnterior() {
 
   const { data: anteriores, error } = await metasClient
     .from('metas_loja')
-    .select('codigo, descricao, valor_meta, valor_meta_vendedor')
+    .select('*')
     .eq('competencia', origem);
   if (error) return cfgMensagem(traduzirErro(error), 'erro');
   if (!anteriores || !anteriores.length) {
@@ -279,7 +295,7 @@ async function cfgCopiarMesAnterior() {
   const jaExistem = new Set(cfgMetasLista.map(m => m.codigo));
   const novos = anteriores
     .filter(m => !jaExistem.has(m.codigo))
-    .map(m => ({ ...m, competencia: destino }));
+    .map(({ id, created_at, ...resto }) => ({ ...resto, competencia: destino }));
   if (!novos.length) {
     return cfgMensagem(`Todas as lojas de ${nomeCompetencia(origem)} já têm meta em ${nomeCompetencia(destino)}.`, 'info');
   }

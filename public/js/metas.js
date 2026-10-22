@@ -90,7 +90,7 @@ async function renderizarMetas(totaisPorLoja) {
 
   let query = metasClient
     .from('metas_loja')
-    .select('codigo, descricao, valor_meta, valor_meta_vendedor, competencia')
+    .select('*')   // '*' para não quebrar se alguma coluna nova ainda não existir
     .in('competencia', competencias);
   if (lojasFiltro.length) query = query.in('codigo', lojasFiltro);
 
@@ -104,13 +104,18 @@ async function renderizarMetas(totaisPorLoja) {
   const porLoja = {};
   (metas || []).forEach(m => {
     const id = String(m.codigo);
-    if (!porLoja[id]) porLoja[id] = { id, descricao: m.descricao, meta: 0, metaVendedor: 0, realizado: 0 };
+    if (!porLoja[id]) porLoja[id] = novoRegistroLoja(id, m.descricao);
     porLoja[id].meta += Number(m.valor_meta) || 0;
     porLoja[id].metaVendedor += Number(m.valor_meta_vendedor) || 0;
+    // Ticket é média, não soma: se o período cobrir 2 meses, usa a média das metas
+    if (Number(m.valor_meta_ticket) > 0) {
+      porLoja[id].metaTicketSoma += Number(m.valor_meta_ticket);
+      porLoja[id].metaTicketQtd++;
+    }
     if (m.descricao) porLoja[id].descricao = m.descricao;
   });
   Object.keys(totaisPorLoja || {}).forEach(id => {
-    if (!porLoja[id]) porLoja[id] = { id, descricao: '', meta: 0, metaVendedor: 0, realizado: 0 };
+    if (!porLoja[id]) porLoja[id] = novoRegistroLoja(id, '');
     porLoja[id].realizado = totaisPorLoja[id].liquido || 0;
   });
 
@@ -135,7 +140,62 @@ async function renderizarMetas(totaisPorLoja) {
   renderizarTabelaComparativo('tabelaMetasCorpo', lista,
     l => `${escaparHTML(l.id)}${l.descricao ? ' – ' + escaparHTML(l.descricao) : ''}`);
 
+  renderizarMetasTicket(porLoja);
   renderizarMetasVendedores(porLoja);
+}
+
+function novoRegistroLoja(id, descricao) {
+  return { id, descricao, meta: 0, metaVendedor: 0, metaTicketSoma: 0, metaTicketQtd: 0, realizado: 0 };
+}
+
+/**
+ * Ticket médio por loja = valor líquido ÷ quantidade de vendas (OS com valor
+ * bruto > 0), mesma regra do card "Ticket Médio" da aba Visão Geral.
+ * Meta: coluna valor_meta_ticket da metas_loja (opcional).
+ */
+function renderizarMetasTicket(porLoja) {
+  const osPorLoja = {};
+  const liquidoPorLoja = {};
+  (typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : []).forEach(item => {
+    const textoLoja = String(item.LOJANOME ?? item.CODIGOLOJA ?? item.LOJA ?? '').trim();
+    const m = textoLoja.match(/^0*(\d+)/);
+    const idLoja = m ? m[1] : textoLoja;
+    liquidoPorLoja[idLoja] = (liquidoPorLoja[idLoja] || 0) + parseNumeroBR(item.LIQUIDOPRODUTO);
+    const os = String(item.OS || '').trim();
+    if (os) {
+      if (!osPorLoja[idLoja]) osPorLoja[idLoja] = {};
+      osPorLoja[idLoja][os] = (osPorLoja[idLoja][os] || 0) + parseNumeroBR(item.VALORBRUTOPRODUTO);
+    }
+  });
+
+  const lista = Object.keys(liquidoPorLoja).map(id => {
+    const qtdVendas = Object.values(osPorLoja[id] || {}).filter(v => v > 0).length;
+    const ticket = qtdVendas > 0 ? liquidoPorLoja[id] / qtdVendas : 0;
+    const reg = porLoja[id] || novoRegistroLoja(id, '');
+    const metaTicket = reg.metaTicketQtd > 0 ? reg.metaTicketSoma / reg.metaTicketQtd : 0;
+    return {
+      id, descricao: reg.descricao, qtdVendas,
+      meta: metaTicket, realizado: ticket,
+      atingimento: metaTicket > 0 ? (ticket / metaTicket) * 100 : null
+    };
+  });
+  lista.sort((a, b) => b.realizado - a.realizado);
+
+  const totalLiquido = Object.values(liquidoPorLoja).reduce((s, v) => s + v, 0);
+  const totalVendas = lista.reduce((s, l) => s + l.qtdVendas, 0);
+  const ticketRede = totalVendas > 0 ? totalLiquido / totalVendas : 0;
+  const comMeta = lista.filter(l => l.atingimento !== null);
+  const naMeta = comMeta.filter(l => l.atingimento >= 100).length;
+
+  const resumo = document.getElementById('resumoMetasTicket');
+  if (resumo) {
+    resumo.innerHTML = lista.length
+      ? `Ticket médio da rede: <strong>${formatarMoedaBR(ticketRede)}</strong> (${totalVendas} vendas)` +
+        (comMeta.length ? ` · ${naMeta} de ${comMeta.length} loja(s) na meta de ticket` : ' · nenhuma meta de ticket cadastrada')
+      : 'Nenhuma venda no período.';
+  }
+
+  renderizarGraficoComparativo('graficoMetasTicket', lista, rotuloLoja, null, 'Ticket médio');
 }
 
 /**
@@ -315,7 +375,7 @@ const pluginRotuloAtingimento = {
   }
 };
 
-function renderizarGraficoComparativo(canvasId, lista, funcRotulo, funcGrupo = null) {
+function renderizarGraficoComparativo(canvasId, lista, funcRotulo, funcGrupo = null, rotuloRealizado = 'Realizado (líquido)') {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   if (graficosMetas[canvasId]) graficosMetas[canvasId].destroy();
@@ -327,7 +387,7 @@ function renderizarGraficoComparativo(canvasId, lista, funcRotulo, funcGrupo = n
       datasets: [
         { label: 'Meta', data: lista.map(l => l.meta), backgroundColor: COR_META, borderRadius: 4 },
         {
-          label: 'Realizado (líquido)',
+          label: rotuloRealizado,
           data: lista.map(l => l.realizado),
           backgroundColor: lista.map(l => l.atingimento === null ? COR_SEM_META : (l.atingimento >= 100 ? COR_ACIMA : COR_ABAIXO)),
           borderRadius: 4

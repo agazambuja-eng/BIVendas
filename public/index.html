@@ -52,9 +52,9 @@
 <!-- BOTÕES DE ABAS (Invisíveis até efetuar a consulta) -->
 <div class="bi-tabs-header" style="display: none; margin-bottom: 15px; gap: 10px;" id="biTabsHeader">
   <button type="button" onclick="mudarAba('dashboard')" id="btnAbaDashboard" style="padding: 8px 16px; background: #0078d7; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🚀 Dashboard Executivo</button>
+  <button type="button" onclick="mudarAba('metas')" id="btnAbaMetas" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🎯 Metas</button>
   <button type="button" onclick="mudarAba('cards')" id="btnAbaCards" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📊 Visão Geral & Pagamentos</button>
   <button type="button" onclick="mudarAba('detalhes')" id="btnAbaDetalhes" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Detalhes de Vendas (Auditoria)</button>
-  <button type="button" onclick="mudarAba('metas')" id="btnAbaMetas" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🎯 Metas</button>
 </div>
   
 <!-- CONTAINER PRINCIPAL DAS ABAS -->
@@ -234,6 +234,15 @@
       </table>
     </div>
 
+    <!-- TICKET MÉDIO POR LOJA -->
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <h3 style="margin: 0; color: #333; font-size: 16px;">Ticket Médio por Loja</h3>
+      <div id="resumoMetasTicket" style="font-size: 12px; color: #666; margin: 4px 0 10px;"></div>
+      <div style="position: relative; width: 100%; height: 340px;">
+        <canvas id="graficoMetasTicket"></canvas>
+      </div>
+    </div>
+
     <!-- METAS POR VENDEDOR -->
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
       <h3 style="margin: 0; color: #333; font-size: 16px;">Metas x Realizado por Vendedor</h3>
@@ -395,6 +404,7 @@
             <label class="cfg-label">Competência <input type="month" id="cfgCompetencia"></label>
             <label class="cfg-label">Meta da loja (R$) <input type="number" id="cfgValorMeta" min="0" step="0.01" placeholder="185000"></label>
             <label class="cfg-label">Meta por vendedor (R$) <input type="number" id="cfgValorMetaVendedor" min="0" step="0.01" placeholder="95000"></label>
+            <label class="cfg-label">Meta ticket médio (R$) <input type="number" id="cfgValorMetaTicket" min="0" step="0.01" placeholder="1500"></label>
           </div>
           <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
             <button type="button" id="cfgBtnCancelarEdicao" class="btn-secundario" onclick="cfgLimparFormulario(); cfgCarregarMetas();" style="display: none;">Cancelar alteração</button>
@@ -417,6 +427,7 @@
                   <th style="padding: 6px 8px; text-align: left;">Loja</th>
                   <th style="padding: 6px 8px; text-align: right;">Meta loja</th>
                   <th style="padding: 6px 8px; text-align: right;">Meta vendedor</th>
+                  <th style="padding: 6px 8px; text-align: right;">Meta ticket</th>
                   <th style="padding: 6px 8px; text-align: center;">Ações</th>
                 </tr>
               </thead>
