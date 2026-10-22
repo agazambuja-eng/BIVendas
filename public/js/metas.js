@@ -12,7 +12,7 @@
 // Projeto Supabase onde ficam as metas. A chave publishable pode ficar no
 // navegador: a tabela só permite LEITURA para esta chave (política RLS).
 const METAS_SUPABASE_URL = 'https://uumttubexjtgzeualqnz.supabase.co';
-const METAS_SUPABASE_KEY = 'COLE_AQUI_A_PUBLISHABLE_KEY';
+const METAS_SUPABASE_KEY = 'sb_publishable_o177jMO-LmlRF6sY-cx4tA_fv5KIEKa';
 
 const metasClient = supabase.createClient(METAS_SUPABASE_URL, METAS_SUPABASE_KEY);
 let meuGraficoMetas = null;
