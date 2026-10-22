@@ -1,0 +1,107 @@
+/* Estilos Gerais */
+body { font-family: "Segoe UI", Arial, sans-serif; margin: 20px; background: #f4f6f9; }
+
+.header-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 10px solid #0078d7;
+}
+
+h2 { color: #333; margin: 0; }
+.titulo-aga { font-style: italic; color: #333; font-size: 1.2em; font-weight: bold; }
+
+.filtros { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.linha { display: flex; gap: 20px; margin-top: 10px; }
+.linha label { flex: 1; font-weight: bold; }
+input, select { padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+button { padding: 10px 15px; background: #0078d7; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+button:hover { background: #005a9e; }
+.btn-acao { margin-top: 15px; width: 100%; font-size: 15px; }
+
+.input-grupo { display: flex; gap: 10px; align-items: center; }
+.btn-modal { background: #6c757d; white-space: nowrap; }
+.btn-modal:hover { background: #5a6268; }
+
+/* --- Cards de BI Ajustados (Grid com 4 colunas / Reposicionamento) --- */
+.bi-cards-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.bi-card {
+  background: #ffffff;
+  padding: 16px 18px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid #0078d7;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.bi-card-title {
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.bi-card-value {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Regra específica para o card de Resumo de Pagamentos descer para a linha de baixo ocupando todo o espaço */
+.bi-card-pagamentos {
+  grid-column: 1 / -1;
+}
+
+/* Modal Lojas */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+.modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 500px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+.modal-header { font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #0078d7; display: flex; justify-content: space-between; align-items: center; }
+
+.modal-busca-container { margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
+.modal-busca-container label { font-size: 12px; font-weight: bold; color: #555; }
+
+.modal-body { overflow-y: auto; max-height: 45vh; border: 1px solid #eee; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+.modal-body label { display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; cursor: pointer; font-weight: normal; border-bottom: 1px solid #f9f9f9; font-size: 13px; }
+.modal-body label:hover { background: #f1f1f1; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+.btn-secundario { background: #6c757d; }
+.btn-secundario:hover { background: #5a6268; }
+
+/* Grid Dinâmico e Rodapé Fixo (Caso a tabela seja reexibida no futuro) */
+.grid-container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+.grid-container h3 { margin-top: 0; color: #0078d7; font-size: 1.1em; display: flex; justify-content: space-between; align-items: center; }
+.table-wrapper { max-height: 65vh; overflow: auto; border: 1px solid #ddd; border-radius: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+th, td { padding: 8px 12px; border-bottom: 1px solid #eee; border-right: 1px solid #eee; white-space: nowrap; }
+th { background: #0078d7; color: #fff; position: sticky; top: 0; z-index: 10; text-transform: uppercase; font-size: 12px; }
+tr:nth-child(even) { background-color: #f9f9f9; }
+tr:hover { background-color: #f1f1f1; }
+
+tfoot tr { background-color: #e9ecef; font-weight: bold; position: sticky; bottom: 0; z-index: 9; }
+tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
+.text-right { text-align: right; }
+
+.erro { color: red; font-weight: bold; margin-top: 15px; text-align: center; }
+
+.loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; gap: 15px; }
+.spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #0078d7; border-radius: 50%; animation: spin 1s linear infinite; }
+.loading-text { font-weight: bold; color: #0078d7; font-size: 16px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
