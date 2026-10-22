@@ -50,10 +50,14 @@ function mudarAba(aba) {
   const conteudoCards = document.getElementById("conteudoAbaCards");
   const conteudoDashboard = document.getElementById("conteudoAbaDashboard");
   const conteudoDetalhes = document.getElementById("conteudoAbaDetalhes");
+  const btnMetas = document.getElementById("btnAbaMetas");
+  const conteudoMetas = document.getElementById("conteudoAbaMetas");
 
   conteudoCards.style.display = "none";
   conteudoDashboard.style.display = "none";
   if (conteudoDetalhes) conteudoDetalhes.style.display = "none";
+  if (conteudoMetas) conteudoMetas.style.display = "none";
+  if (btnMetas) { btnMetas.style.background = "#e0e0e0"; btnMetas.style.color = "#333"; }
 
   btnCards.style.background = "#e0e0e0"; btnCards.style.color = "#333";
   btnDashboard.style.background = "#e0e0e0"; btnDashboard.style.color = "#333";
@@ -67,6 +71,12 @@ function mudarAba(aba) {
     conteudoDashboard.style.display = "flex";
     btnDashboard.style.background = "#0078d7";
     btnDashboard.style.color = "#fff";
+  } else if (aba === 'metas') {
+    if (conteudoMetas) conteudoMetas.style.display = "flex";
+    if (btnMetas) {
+      btnMetas.style.background = "#0078d7";
+      btnMetas.style.color = "#fff";
+    }
   } else if (aba === 'detalhes') {
     if (conteudoDetalhes) conteudoDetalhes.style.display = "flex";
     if (btnDetalhes) {
@@ -877,6 +887,9 @@ function processarDadosBI(dados, dadosPagamentos) {
   }
 
   renderizarDashboard(totaisPorLoja, totalLiquidoGeral, pagamentosFiltrados);
+  if (typeof renderizarMetas === 'function') {
+    renderizarMetas(totaisPorLoja).catch(err => console.error("Erro na aba Metas:", err));
+  }
 }
 
 // --- FUNÇÃO PARA RENDERIZAR O DASHBOARD ---

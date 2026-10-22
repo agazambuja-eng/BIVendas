@@ -48,9 +48,10 @@
 
 <!-- BOTÕES DE ABAS (Invisíveis até efetuar a consulta) -->
 <div class="bi-tabs-header" style="display: none; margin-bottom: 15px; gap: 10px;" id="biTabsHeader">
-  <button type="button" onclick="mudarAba('dashboard')" id="btnAbaDashboard" style="padding: 8px 16px; background: #0078d7; color: #fff; border: nosne; border-radius: 4px; cursor: pointer; font-weight: bold;">🚀 Dashboard Executivo</button>
+  <button type="button" onclick="mudarAba('dashboard')" id="btnAbaDashboard" style="padding: 8px 16px; background: #0078d7; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🚀 Dashboard Executivo</button>
   <button type="button" onclick="mudarAba('cards')" id="btnAbaCards" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📊 Visão Geral & Pagamentos</button>
   <button type="button" onclick="mudarAba('detalhes')" id="btnAbaDetalhes" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Detalhes de Vendas (Auditoria)</button>
+  <button type="button" onclick="mudarAba('metas')" id="btnAbaMetas" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🎯 Metas</button>
 </div>
   
 <!-- CONTAINER PRINCIPAL DAS ABAS -->
@@ -177,6 +178,61 @@
 
   </div>
 
+  <!-- === ABA 4: METAS (Meta do mês x Realizado por loja) === -->
+  <div id="conteudoAbaMetas" style="display: none; flex-direction: column; gap: 15px;">
+
+    <div style="background: #fff; padding: 12px 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <h3 style="margin: 0; color: #333; font-size: 16px;">Metas x Realizado por Loja</h3>
+      <div id="subtituloMetas" style="font-size: 12px; color: #666; margin-top: 4px;"></div>
+      <div id="avisoMetas" style="display: none; margin-top: 8px; padding: 8px 10px; background: #fff8e1; border: 1px solid #ffe08a; border-radius: 4px; font-size: 12px; color: #6b5300;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;">
+      <div class="bi-card" style="border-left-color: #6c757d; padding: 10px;">
+        <div class="bi-card-title" style="font-size: 11px;">META DO MÊS</div>
+        <div class="bi-card-value" id="cardMetaTotal">R$ 0,00</div>
+      </div>
+      <div class="bi-card" style="border-left-color: #0078d7; padding: 10px;">
+        <div class="bi-card-title" style="font-size: 11px;">REALIZADO (LÍQUIDO)</div>
+        <div class="bi-card-value" id="cardMetaRealizado">R$ 0,00</div>
+      </div>
+      <div class="bi-card" style="border-left-color: #28a745; padding: 10px;">
+        <div class="bi-card-title" style="font-size: 11px;">ATINGIMENTO</div>
+        <div class="bi-card-value" id="cardMetaAtingimento">0,0%</div>
+      </div>
+      <div class="bi-card" style="border-left-color: #d9534f; padding: 10px;">
+        <div class="bi-card-title" style="font-size: 11px;">DIFERENÇA P/ META</div>
+        <div class="bi-card-value" id="cardMetaGap">R$ 0,00</div>
+      </div>
+      <div class="bi-card" style="border-left-color: #f0ad4e; padding: 10px;">
+        <div class="bi-card-title" style="font-size: 11px;">LOJAS NA META</div>
+        <div class="bi-card-value" id="cardMetaLojasAcima">0 de 0</div>
+      </div>
+    </div>
+
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <div style="position: relative; width: 100%; height: 380px;">
+        <canvas id="graficoMetas"></canvas>
+      </div>
+    </div>
+
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead style="background: #f5f5f5;">
+          <tr>
+            <th style="padding: 8px; text-align: left;">Loja</th>
+            <th style="padding: 8px; text-align: right;">Meta</th>
+            <th style="padding: 8px; text-align: right;">Realizado</th>
+            <th style="padding: 8px; text-align: right;">Diferença</th>
+            <th style="padding: 8px; text-align: right;">Atingimento</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaMetasCorpo"></tbody>
+      </table>
+    </div>
+
+  </div>
+
   <!-- === ABA 3: DETALHES DE VENDAS / AUDITORIA DE PRODUTOS === -->
   <div id="conteudoAbaDetalhes" style="display: none; flex-direction: column; gap: 15px; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
@@ -278,5 +334,6 @@
 
   <script src="/js/lojas-modal.js"></script>
   <script src="/js/main.js"></script>
+  <script src="/js/metas.js"></script>
 </body>
 </html>
