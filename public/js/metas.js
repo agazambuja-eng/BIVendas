@@ -158,7 +158,10 @@ function renderizarMetasVendedores(porLoja) {
     const meta = porLoja[v.idLoja] ? porLoja[v.idLoja].metaVendedor : 0;
     return { ...v, meta, atingimento: meta > 0 ? (v.realizado / meta) * 100 : null };
   });
-  lista.sort((a, b) => (b.atingimento ?? -1) - (a.atingimento ?? -1) || b.realizado - a.realizado);
+  // Agrupado por loja (código crescente); dentro da loja, maior atingimento primeiro
+  lista.sort((a, b) =>
+    (Number(a.idLoja) - Number(b.idLoja)) || String(a.idLoja).localeCompare(String(b.idLoja)) ||
+    ((b.atingimento ?? -1) - (a.atingimento ?? -1)) || (b.realizado - a.realizado));
 
   const comMeta = lista.filter(l => l.meta > 0);
   const acima = comMeta.filter(l => l.atingimento >= 100).length;
@@ -174,9 +177,8 @@ function renderizarMetasVendedores(porLoja) {
   const area = document.getElementById('areaGraficoMetasVendedores');
   if (area) area.style.width = Math.max(lista.length * 120, 600) + 'px';
 
-  renderizarGraficoComparativo('graficoMetasVendedores', lista, rotuloVendedor);
-  renderizarTabelaComparativo('tabelaMetasVendedoresCorpo', lista,
-    l => `${escaparHTML(l.vendedor)} <span style="color:#888">(Loja ${escaparHTML(l.idLoja)})</span>`);
+  renderizarGraficoComparativo('graficoMetasVendedores', lista, rotuloVendedor, l => l.idLoja);
+  renderizarTabelaVendedoresPorLoja(lista, porLoja);
 }
 
 function rotuloVariacao(l) {
@@ -186,8 +188,89 @@ function rotuloVariacao(l) {
 }
 
 function rotuloVendedor(l) {
-  return [`${l.vendedor} (${l.idLoja})`, rotuloVariacao(l)];
+  return [l.vendedor, rotuloVariacao(l)];
 }
+
+/** Tabela de vendedores com um cabeçalho e um subtotal por loja. */
+function renderizarTabelaVendedoresPorLoja(lista, porLoja) {
+  const corpo = document.getElementById('tabelaMetasVendedoresCorpo');
+  if (!corpo) return;
+  const grupos = [];
+  lista.forEach(l => {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.idLoja === l.idLoja) ultimo.itens.push(l);
+    else grupos.push({ idLoja: l.idLoja, itens: [l] });
+  });
+
+  const cor = at => at === null ? '#666' : (at >= 100 ? COR_ACIMA : COR_ABAIXO);
+  corpo.innerHTML = grupos.map(g => {
+    const loja = porLoja[g.idLoja] || {};
+    const nomeLoja = `Loja ${escaparHTML(g.idLoja)}${loja.descricao ? ' – ' + escaparHTML(loja.descricao) : ''}`;
+    const metaInd = loja.metaVendedor > 0 ? `meta individual ${formatarMoedaBR(loja.metaVendedor)}` : 'sem meta individual';
+    const naMeta = g.itens.filter(l => l.atingimento !== null && l.atingimento >= 100).length;
+    const totalReal = g.itens.reduce((s, l) => s + l.realizado, 0);
+
+    const cabecalho = `<tr style="background:#eef4fb;">
+      <td colspan="5" style="padding:7px 8px; font-weight:bold; color:#0b4f8a; border-top:2px solid #cfe0f3;">
+        🏬 ${nomeLoja}
+        <span style="font-weight:normal; color:#555; font-size:12px;">
+          · ${metaInd} · ${g.itens.length} vendedor(es) · ${naMeta} na meta · total ${formatarMoedaBR(totalReal)}
+        </span>
+      </td></tr>`;
+
+    const linhas = g.itens.map(l => {
+      const dif = l.realizado - l.meta;
+      return `<tr>
+        <td style="padding-left:24px;">${escaparHTML(l.vendedor)}</td>
+        <td style="text-align:right">${l.meta ? formatarMoedaBR(l.meta) : '—'}</td>
+        <td style="text-align:right">${formatarMoedaBR(l.realizado)}</td>
+        <td style="text-align:right; color:${cor(l.atingimento)}">${l.meta ? (dif >= 0 ? '+' : '') + formatarMoedaBR(dif) : '—'}</td>
+        <td style="text-align:right; color:${cor(l.atingimento)}; font-weight:bold">${l.atingimento === null ? 'sem meta' : formatarPct(l.atingimento)}</td>
+      </tr>`;
+    }).join('');
+    return cabecalho + linhas;
+  }).join('');
+}
+
+/**
+ * Desenha faixas alternadas atrás das barras, uma por grupo (loja),
+ * com o nome do grupo no topo. Usado no gráfico de vendedores.
+ */
+const pluginFaixasGrupo = {
+  id: 'faixasGrupo',
+  beforeDatasetsDraw(chart) {
+    const funcGrupo = chart.$funcGrupo;
+    const lista = chart.$listaMetas || [];
+    if (!funcGrupo || !lista.length) return;
+    const { ctx, chartArea, scales: { x } } = chart;
+    const meiaLargura = lista.length > 1
+      ? (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2
+      : (chartArea.right - chartArea.left) / 2;
+
+    let inicio = 0, alterna = false;
+    ctx.save();
+    for (let i = 1; i <= lista.length; i++) {
+      if (i === lista.length || funcGrupo(lista[i]) !== funcGrupo(lista[inicio])) {
+        const esq = Math.max(chartArea.left, x.getPixelForValue(inicio) - meiaLargura);
+        const dir = Math.min(chartArea.right, x.getPixelForValue(i - 1) + meiaLargura);
+        ctx.fillStyle = alterna ? 'rgba(0,120,215,0.06)' : 'rgba(0,0,0,0.025)';
+        ctx.fillRect(esq, chartArea.top, dir - esq, chartArea.bottom - chartArea.top);
+        if (inicio > 0) {
+          ctx.strokeStyle = '#c9d6e3';
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath(); ctx.moveTo(esq, chartArea.top); ctx.lineTo(esq, chartArea.bottom); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.fillStyle = '#0b4f8a';
+        ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Loja ${funcGrupo(lista[inicio])}`, (esq + dir) / 2, chartArea.top + 14);
+        inicio = i; alterna = !alterna;
+      }
+    }
+    ctx.restore();
+  }
+};
 
 function renderizarCardsMetas(lista) {
   const comMeta = lista.filter(l => l.meta > 0);
@@ -232,7 +315,7 @@ const pluginRotuloAtingimento = {
   }
 };
 
-function renderizarGraficoComparativo(canvasId, lista, funcRotulo) {
+function renderizarGraficoComparativo(canvasId, lista, funcRotulo, funcGrupo = null) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   if (graficosMetas[canvasId]) graficosMetas[canvasId].destroy();
@@ -254,7 +337,7 @@ function renderizarGraficoComparativo(canvasId, lista, funcRotulo) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      layout: { padding: { top: 24 } },
+      layout: { padding: { top: funcGrupo ? 8 : 24 } },
       plugins: {
         legend: {
           position: 'top',
@@ -286,13 +369,15 @@ function renderizarGraficoComparativo(canvasId, lista, funcRotulo) {
         },
         y: {
           beginAtZero: true,
+          grace: funcGrupo ? '20%' : '5%',   // espaço para o nome da loja e o % no topo
           ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR') }
         }
       }
     },
-    plugins: [pluginRotuloAtingimento]
+    plugins: funcGrupo ? [pluginFaixasGrupo, pluginRotuloAtingimento] : [pluginRotuloAtingimento]
   });
   grafico.$listaMetas = lista;
+  grafico.$funcGrupo = funcGrupo;
   grafico.update();
   graficosMetas[canvasId] = grafico;
 }
