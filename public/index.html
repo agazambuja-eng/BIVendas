@@ -12,7 +12,10 @@
 
   <div class="header-titulo">
     <h2>Auditoria: BI</h2>
-    <span class="titulo-aga">by AGA</span>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="titulo-aga">by AGA</span>
+      <button type="button" class="btn-config" onclick="abrirConfigMetas()" title="Configurações: metas por loja" aria-label="Configurações">⚙</button>
+    </div>
   </div>
 
   <div class="filtros">
@@ -231,6 +234,32 @@
       </table>
     </div>
 
+    <!-- METAS POR VENDEDOR -->
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <h3 style="margin: 0; color: #333; font-size: 16px;">Metas x Realizado por Vendedor</h3>
+      <div id="resumoMetasVendedores" style="font-size: 12px; color: #666; margin: 4px 0 10px;"></div>
+      <div style="overflow-x: auto;">
+        <div id="areaGraficoMetasVendedores" style="position: relative; min-width: 100%; height: 380px;">
+          <canvas id="graficoMetasVendedores"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead style="background: #f5f5f5;">
+          <tr>
+            <th style="padding: 8px; text-align: left;">Vendedor</th>
+            <th style="padding: 8px; text-align: right;">Meta individual</th>
+            <th style="padding: 8px; text-align: right;">Realizado</th>
+            <th style="padding: 8px; text-align: right;">Diferença</th>
+            <th style="padding: 8px; text-align: right;">Atingimento</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaMetasVendedoresCorpo"></tbody>
+      </table>
+    </div>
+
   </div>
 
   <!-- === ABA 3: DETALHES DE VENDAS / AUDITORIA DE PRODUTOS === -->
@@ -332,8 +361,76 @@
   </div>
 </div>
 
+
+  <!-- MODAL DE CONFIGURAÇÕES: METAS POR LOJA (incluir / alterar / excluir) -->
+  <div id="modalConfigMetas" class="modal-overlay" style="display: none;">
+    <div class="modal-content cfg-modal">
+      <div class="modal-header">
+        <span>⚙ Configurações · Metas por Loja</span>
+        <button type="button" class="cfg-btn-fechar" onclick="fecharConfigMetas()" title="Fechar">✕</button>
+      </div>
+
+      <div id="cfgMetasMensagem" class="cfg-mensagem" style="display: none;"></div>
+
+      <!-- Login -->
+      <form id="cfgAreaLogin" onsubmit="cfgEntrar(event)" style="display: none;">
+        <p style="font-size: 13px; color: #555; margin-top: 0;">Para alterar metas, entre com seu usuário do Supabase.</p>
+        <label class="cfg-label">E-mail <input type="email" id="cfgEmail" autocomplete="username"></label>
+        <label class="cfg-label">Senha <input type="password" id="cfgSenha" autocomplete="current-password"></label>
+        <button type="submit" style="margin-top: 10px; width: 100%;">Entrar</button>
+      </form>
+
+      <!-- Cadastro de metas -->
+      <div id="cfgAreaMetas" style="display: none; flex-direction: column; gap: 12px; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
+          <span>Conectado: <strong id="cfgUsuarioLogado"></strong></span>
+          <button type="button" class="btn-secundario cfg-btn-pequeno" onclick="cfgSair()">Sair</button>
+        </div>
+
+        <form class="cfg-form" onsubmit="cfgSalvar(event)">
+          <div id="cfgFormTitulo" class="cfg-form-titulo">Incluir meta</div>
+          <div class="cfg-grid">
+            <label class="cfg-label">Código loja <input type="number" id="cfgCodigo" min="1" step="1" placeholder="520" onblur="cfgSugerirDescricao()"></label>
+            <label class="cfg-label cfg-col2">Descrição <input type="text" id="cfgDescricao" maxlength="120" placeholder="Nome da loja"></label>
+            <label class="cfg-label">Competência <input type="month" id="cfgCompetencia"></label>
+            <label class="cfg-label">Meta da loja (R$) <input type="number" id="cfgValorMeta" min="0" step="0.01" placeholder="185000"></label>
+            <label class="cfg-label">Meta por vendedor (R$) <input type="number" id="cfgValorMetaVendedor" min="0" step="0.01" placeholder="95000"></label>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
+            <button type="button" id="cfgBtnCancelarEdicao" class="btn-secundario" onclick="cfgLimparFormulario(); cfgCarregarMetas();" style="display: none;">Cancelar alteração</button>
+            <button type="submit" id="cfgBtnSalvar">Incluir</button>
+          </div>
+        </form>
+
+        <div>
+          <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px;">
+            <label class="cfg-label" style="flex: 0 0 170px;">Ver competência
+              <input type="month" id="cfgFiltroCompetencia" onchange="cfgLimparFormulario(); cfgCarregarMetas();">
+            </label>
+            <button type="button" class="btn-secundario cfg-btn-pequeno" onclick="cfgCopiarMesAnterior()" title="Copia as metas do mês anterior para as lojas que ainda não têm meta neste mês">📋 Copiar do mês anterior</button>
+          </div>
+          <div id="cfgTituloLista" style="font-weight: bold; font-size: 13px; color: #333; margin-bottom: 6px;"></div>
+          <div style="border: 1px solid #e0e0e0; border-radius: 4px; overflow: auto; max-height: 35vh;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead style="background: #f5f5f5; position: sticky; top: 0;">
+                <tr>
+                  <th style="padding: 6px 8px; text-align: left;">Loja</th>
+                  <th style="padding: 6px 8px; text-align: right;">Meta loja</th>
+                  <th style="padding: 6px 8px; text-align: right;">Meta vendedor</th>
+                  <th style="padding: 6px 8px; text-align: center;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="cfgTabelaMetasCorpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/lojas-modal.js"></script>
   <script src="/js/main.js"></script>
   <script src="/js/metas.js"></script>
+  <script src="/js/config-metas.js"></script>
 </body>
 </html>
