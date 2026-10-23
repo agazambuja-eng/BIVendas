@@ -3,9 +3,7 @@
  * Atualizado: Adicionado Ticket Médio ordenado do maior para o menor no card de resumo do modal de zoom.
  */
 
-const SUPABASE_URL = 'https://cwmofpwuihrnifsvqhik.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_biWjIRo9x6maeZXcoKX6Lw_l-fjV0wP';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Conexão com o Supabase: ver supabase-config.js (supabaseBI, buscarLojasSupabase)
 
 let lojasDisponiveis = [];
 let meuGraficoLojas = null;             
@@ -89,13 +87,7 @@ function mudarAba(aba) {
 // --- FUNÇÕES DO MODAL DE LOJAS ---
 async function carregarLojasSupabase() {
   try {
-    const { data, error } = await supabaseClient
-      .from('lojas')
-      .select('id, nome, gerente')
-      .order('id', { ascending: true });
-    
-    if (error) throw error;
-    lojasDisponiveis = data || [];
+    lojasDisponiveis = await buscarLojasSupabase();
   } catch (err) {
     console.error("Erro ao carregar lojas do Supabase:", err.message);
   }
@@ -850,6 +842,7 @@ function processarDadosBI(dados, dadosPagamentos) {
 
   if (tabelaDetalhesCorpo) {
     let htmlTabelaDetalhes = "";
+    const tot = { qtd: 0, bruto: 0, desconto: 0, liquido: 0, os: new Set(), clientes: new Set(), vendedores: new Set(), lojas: new Set() };
     dadosFiltrados.forEach(item => {
       const lojaNome = item.LOJA || "-";
       const os = item.OS || item.CODIGODAVENDA || "-";
@@ -862,6 +855,15 @@ function processarDadosBI(dados, dadosPagamentos) {
       const desconto = parseNumeroBR(item.DESCPRODUTO);
       const liquido = parseNumeroBR(item.LIQUIDOPRODUTO);
       const tipoVenda = item.TIPOVENDA || "-";
+
+      tot.qtd += parseNumeroBR(qtd);
+      tot.bruto += bruto;
+      tot.desconto += desconto;
+      tot.liquido += liquido;
+      if (os !== "-") tot.os.add(String(os));
+      if (cliente !== "-") tot.clientes.add(String(cliente));
+      if (vendedor !== "-") tot.vendedores.add(String(vendedor));
+      if (lojaNome !== "-") tot.lojas.add(String(lojaNome));
 
       htmlTabelaDetalhes += `
         <tr style="border-bottom: 1px solid #eee;">
@@ -883,6 +885,28 @@ function processarDadosBI(dados, dadosPagamentos) {
     tabelaDetalhesCorpo.innerHTML = htmlTabelaDetalhes || "<tr><td colspan='11' style='text-align:center; padding: 20px;'>Nenhum registro encontrado.</td></tr>";
     if (contadorRegistrosDetalhe) {
       contadorRegistrosDetalhe.innerText = `Exibindo ${dadosFiltrados.length} registros`;
+    }
+
+    // --- LINHA DE TOTAIS (rodapé fixo da tabela) ---
+    const tabelaDetalhesTotais = document.getElementById("tabelaDetalhesTotais");
+    if (tabelaDetalhesTotais) {
+      const pctDesc = tot.bruto > 0 ? (tot.desconto / tot.bruto) * 100 : 0;
+      const qtdFmt = tot.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+      const cel = "padding: 8px; border-top: 2px solid #b8daff; white-space: nowrap;";
+      tabelaDetalhesTotais.innerHTML = dadosFiltrados.length ? `
+        <tr>
+          <td style="${cel}">TOTAL · ${tot.lojas.size} loja(s)</td>
+          <td style="${cel} color: #0078d7;">${tot.os.size} OS</td>
+          <td style="${cel}"></td>
+          <td style="${cel}">${tot.clientes.size} cliente(s)</td>
+          <td style="${cel}">${tot.vendedores.size} vendedor(es)</td>
+          <td style="${cel}">${dadosFiltrados.length} item(ns)</td>
+          <td style="${cel} text-align: center;">${qtdFmt}</td>
+          <td style="${cel} text-align: right;">${formatarMoedaBR(tot.bruto)}</td>
+          <td style="${cel} text-align: right; color: #d9534f;">${formatarMoedaBR(tot.desconto)}</td>
+          <td style="${cel} text-align: right; color: #28a745;">${formatarMoedaBR(tot.liquido)}</td>
+          <td style="${cel} font-size: 11px; color: #d9534f;" title="Desconto sobre o valor bruto">${pctDesc.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% desc.</td>
+        </tr>` : "";
     }
   }
 
