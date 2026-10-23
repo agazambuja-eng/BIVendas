@@ -9,12 +9,8 @@
  *   competencia int4     -> AAAAMM (ex.: 202610 = outubro/2026)
  */
 
-// Projeto Supabase onde ficam as metas. A chave publishable pode ficar no
-// navegador: a tabela só permite LEITURA para esta chave (política RLS).
-const METAS_SUPABASE_URL = 'https://uumttubexjtgzeualqnz.supabase.co';
-const METAS_SUPABASE_KEY = 'sb_publishable_o177jMO-LmlRF6sY-cx4tA_fv5KIEKa';
-
-const metasClient = supabase.createClient(METAS_SUPABASE_URL, METAS_SUPABASE_KEY);
+// Conexão com o Supabase: ver supabase-config.js
+const metasClient = supabaseBI;
 const graficosMetas = {};          // canvasId -> instância Chart
 let ultimosTotaisPorLoja = null;   // para recarregar a aba após editar metas
 
@@ -78,10 +74,6 @@ async function renderizarMetas(totaisPorLoja) {
       : 'Informe a data inicial para buscar as metas.';
   }
 
-  if (METAS_SUPABASE_KEY.startsWith('COLE_AQUI')) {
-    mostrarAvisoMetas('⚠️ Chave do Supabase das metas ainda não configurada em <code>public/js/metas.js</code>.');
-    return;
-  }
   if (!competencias.length) return;
 
   // Lojas digitadas no filtro (se vazio, considera todas que têm meta)

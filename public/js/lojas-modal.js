@@ -5,16 +5,12 @@
  */
 
 (function () {
-  // Configuração e Inicialização do Cliente Supabase
-  const SUPABASE_URL = 'https://cwmofpwuihrnifsvqhik.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_biWjIRo9x6maeZXcoKX6Lw_l-fjV0wP';
-  
-  if (typeof supabase === 'undefined') {
-    console.error("A biblioteca do Supabase não foi carregada no HTML.");
+  // Conexão com o Supabase vem de supabase-config.js (buscarLojasSupabase)
+  if (typeof buscarLojasSupabase !== 'function') {
+    console.error("supabase-config.js não foi carregado no HTML.");
     return;
   }
 
-  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let lojasDisponiveis = [];
 
   /**
@@ -22,13 +18,7 @@
    */
   async function carregarLojasSupabase() {
     try {
-      const { data, error } = await supabaseClient
-        .from('lojas')
-        .select('id, nome, gerente')
-        .order('id', { ascending: true });
-      
-      if (error) throw error;
-      lojasDisponiveis = data || [];
+      lojasDisponiveis = await buscarLojasSupabase();
     } catch (err) {
       console.error("Falha crítica ao carregar lojas do Supabase:", err.message);
       lojasDisponiveis = [];
@@ -140,7 +130,7 @@
     });
 
     const inputLojas = document.getElementById("lojas");
-    if (inputLojas) inputLojas.value = idsSelecionados.join(",");
+    if (inputLojas) inputLojas.value = normalizarListaLojas(idsSelecionados.join(","));
     
     window.fecharModalLojas();
   };
