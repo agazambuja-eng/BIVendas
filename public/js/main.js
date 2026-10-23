@@ -153,7 +153,7 @@ function confirmarSelecaoLojas() {
     if (cb.checked) ids.push(cb.value); 
   });
   const inputLojas = document.getElementById("lojas");
-  if (inputLojas) inputLojas.value = ids.join(",");
+  if (inputLojas) inputLojas.value = normalizarListaLojas(ids.join(","));
   fecharModalLojas();
 }
 // ---------------------------------
@@ -435,7 +435,10 @@ async function consultar() {
 
   const dataInicial = formatarDataISOparaBR(document.getElementById("dataInicial").value);
   const dataFinal = formatarDataISOparaBR(document.getElementById("dataFinal").value);
-  const lojas = document.getElementById("lojas").value;
+  // A API só aceita números: "520,521". Limpa o campo antes de consultar.
+  const campoLojas = document.getElementById("lojas");
+  campoLojas.value = normalizarListaLojas(campoLojas.value);
+  const lojas = campoLojas.value;
   const tipodata = document.getElementById("tipodata").value || "VENDA";
 
   const bodyReq = {

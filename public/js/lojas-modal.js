@@ -130,7 +130,7 @@
     });
 
     const inputLojas = document.getElementById("lojas");
-    if (inputLojas) inputLojas.value = idsSelecionados.join(",");
+    if (inputLojas) inputLojas.value = normalizarListaLojas(idsSelecionados.join(","));
     
     window.fecharModalLojas();
   };
