@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Usuários · Auditoria BI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Configurações<span>usuários e acessos</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+
+  <main class="acesso-conteudo so-logado">
+    <div class="usuarios-cabecalho">
+      <h2>Usuários</h2>
+      <div class="usuarios-filtros">
+        <input type="search" id="buscaUsuario" placeholder="Buscar por nome ou login..." oninput="renderizarUsuarios()">
+        <label><input type="checkbox" id="mostrarInativos" onchange="renderizarUsuarios()"> Mostrar inativos</label>
+        <button type="button" class="acesso-btn" onclick="abrirFormUsuario()">+ Novo usuário</button>
+      </div>
+    </div>
+    <div id="msgUsuarios" class="acesso-msg"></div>
+
+    <div class="tabela-card">
+      <table class="tabela-usuarios">
+        <thead>
+          <tr><th>Nome</th><th>Login</th><th>Acessos</th><th>Situação</th><th>Ações</th></tr>
+        </thead>
+        <tbody id="corpoUsuarios"><tr><td colspan="5">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Formulário: novo / editar usuário -->
+  <div id="modalUsuario" class="acesso-modal-fundo">
+    <form class="acesso-modal largo" id="formUsuario" autocomplete="off">
+      <h3 id="tituloFormUsuario">Novo usuário</h3>
+      <div class="acesso-grade">
+        <label class="inteiro">Nome completo <input type="text" id="usuNome" maxlength="80" required placeholder="ex.: Darllan Moreira"></label>
+        <label>Login (para entrar)
+          <input type="text" id="usuLogin" maxlength="30" autocapitalize="none" spellcheck="false" placeholder="ex.: darllan.moreira">
+        </label>
+        <label>E-mail de contato (opcional) <input type="email" id="usuEmail" maxlength="120" placeholder="nome@empresa.com.br"></label>
+        <p class="acesso-ajuda inteiro" id="ajudaLogin">Letras minúsculas, números, ponto ou hífen, sem espaço e sem acento. Sugestão: nome.sobrenome</p>
+
+        <div class="inteiro" id="blocoSenha">
+          <label>Senha provisória
+            <div class="senha-sugerida">
+              <input type="text" id="usuSenha" autocomplete="new-password">
+              <button type="button" class="acesso-btn-sec" onclick="document.getElementById('usuSenha').value = gerarSenhaProvisoria()">Gerar</button>
+            </div>
+          </label>
+          <p class="acesso-ajuda">Passe essa senha ao usuário. No primeiro acesso ele será obrigado a criar a própria senha.</p>
+        </div>
+      </div>
+
+      <fieldset class="permissoes-caixa">
+        <legend>Acessos</legend>
+        <label class="check"><input type="checkbox" id="perm_acessar_bi"> 📊 Acessar o BI</label>
+        <label class="check"><input type="checkbox" id="perm_criar_metas"> ➕ Incluir metas</label>
+        <label class="check"><input type="checkbox" id="perm_alterar_metas"> ✏️ Alterar metas</label>
+        <label class="check"><input type="checkbox" id="perm_excluir_metas"> 🗑️ Excluir metas</label>
+        <label class="check"><input type="checkbox" id="perm_gerenciar_usuarios"> ⚙️ Criar usuários e dar acessos (administrador)</label>
+      </fieldset>
+
+      <label class="check"><input type="checkbox" id="usuAtivo" checked> Usuário ativo (desmarque para bloquear o acesso)</label>
+
+      <div id="msgFormUsuario" class="acesso-msg"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" onclick="fecharModal('modalUsuario')">Cancelar</button>
+        <button type="submit" class="acesso-btn" id="btnSalvarUsuario">Salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Redefinir senha de um usuário -->
+  <div id="modalResetSenha" class="acesso-modal-fundo">
+    <form class="acesso-modal" id="formResetSenha" autocomplete="off">
+      <h3>Redefinir senha</h3>
+      <p class="acesso-ajuda" id="textoResetSenha"></p>
+      <label>Nova senha provisória
+        <div class="senha-sugerida">
+          <input type="text" id="resetSenha" autocomplete="new-password">
+          <button type="button" class="acesso-btn-sec" onclick="document.getElementById('resetSenha').value = gerarSenhaProvisoria()">Gerar</button>
+        </div>
+      </label>
+      <p class="acesso-ajuda">O usuário terá que trocar essa senha no próximo acesso.</p>
+      <div id="msgResetSenha" class="acesso-msg"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" onclick="fecharModal('modalResetSenha')">Fechar</button>
+        <button type="submit" class="acesso-btn" id="btnResetSenha">Redefinir</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/usuarios.js"></script>
+</body>
+</html>

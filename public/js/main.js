@@ -20,6 +20,15 @@ const CORES_PALETA = [
 ];
 
 window.onload = async () => {
+  // Só entra no BI quem está logado, ativo e com acesso ao BI
+  await exigirLogin('acessar_bi');
+  montarBarraUsuario(document.getElementById('barraUsuarioBI'));
+
+  // ⚙ de metas só aparece para quem pode incluir, alterar ou excluir metas
+  const podeMetas = ['criar_metas', 'alterar_metas', 'excluir_metas'].some(p => temPermissao(p));
+  const btnConfig = document.getElementById('btnConfigMetas');
+  if (btnConfig) btnConfig.style.display = podeMetas ? '' : 'none';
+
   await carregarLojasSupabase();
 };
 
@@ -451,12 +460,12 @@ async function consultar() {
 
   try {
     const [resGrid, resPagamentos] = await Promise.all([
-      fetch("/consulta", {
+      fetchAutenticado("/consulta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyReq)
       }),
-      fetch("/consultapagamentos", {
+      fetchAutenticado("/consultapagamentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyReq)
