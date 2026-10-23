@@ -1,20 +1,25 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const { exigirUsuario, registrarRotasUsuarios } = require("./acesso-servidor");
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(cors());
 
-// Servir arquivos estáticos da pasta public
-app.use(express.static(path.join(__dirname, 'public')));
+// Servir arquivos estáticos da pasta public (sem abrir o BI direto em "/")
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
+// Endereço principal abre a tela de login
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.redirect("/login.html");
 });
 
+// Criar usuário / redefinir senha (precisa de SUPABASE_SECRET_KEY no Render)
+registrarRotasUsuarios(app);
+
 // 1. Rota Principal da Grid (ProdutosPorOSGRID)
-app.post("/consulta", async (req, res) => {
+app.post("/consulta", exigirUsuario("acessar_bi"), async (req, res) => {
   const body = {
     DATAINICIAL: req.body.DATAINICIAL || "",
     DATAFINAL: req.body.DATAFINAL || "",
@@ -47,7 +52,7 @@ app.post("/consulta", async (req, res) => {
 });
 
 // 2. Rota Dedicada para Devoluções (ProdutosPorOS com TIPOVENDA = DEVOLUCAO)
-app.post("/consultadevolucoes", async (req, res) => {
+app.post("/consultadevolucoes", exigirUsuario("acessar_bi"), async (req, res) => {
   const body = {
     DATAINICIAL: req.body.DATAINICIAL || "",
     DATAFINAL: req.body.DATAFINAL || "",
@@ -80,7 +85,7 @@ app.post("/consultadevolucoes", async (req, res) => {
 });
 
 // 3. Rota Dedicada para Resumo de Formas de Pagamento e Parcelas (APIVendaResumoTodasFormasPagamento)
-app.post("/consultapagamentos", async (req, res) => {
+app.post("/consultapagamentos", exigirUsuario("acessar_bi"), async (req, res) => {
   // Mapeia os dados recebidos do front-end para o contrato exato que a API externa exige
   const body = {
     DATAVENDAINICIO: req.body.DATAINICIAL || "",

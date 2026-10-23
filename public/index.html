@@ -7,14 +7,17 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/acesso.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body>
+<body class="so-logado">
 
   <div class="header-titulo">
     <h2>Auditoria: BI</h2>
-    <div style="display: flex; align-items: center; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end;">
+      <nav class="barra-usuario" id="barraUsuarioBI"></nav>
       <span class="titulo-aga">by AGA</span>
-      <button type="button" class="btn-config" onclick="abrirConfigMetas()" title="Configurações: metas por loja" aria-label="Configurações">⚙</button>
+      <button type="button" class="btn-config" id="btnConfigMetas" style="display: none;" onclick="abrirConfigMetas()" title="Configurações: metas por loja" aria-label="Configurações de metas">⚙</button>
     </div>
   </div>
 
@@ -384,22 +387,10 @@
 
       <div id="cfgMetasMensagem" class="cfg-mensagem" style="display: none;"></div>
 
-      <!-- Login -->
-      <form id="cfgAreaLogin" onsubmit="cfgEntrar(event)" style="display: none;">
-        <p style="font-size: 13px; color: #555; margin-top: 0;">Para alterar metas, entre com seu usuário do Supabase.</p>
-        <label class="cfg-label">E-mail <input type="email" id="cfgEmail" autocomplete="username"></label>
-        <label class="cfg-label">Senha <input type="password" id="cfgSenha" autocomplete="current-password"></label>
-        <button type="submit" style="margin-top: 10px; width: 100%;">Entrar</button>
-      </form>
-
       <!-- Cadastro de metas -->
       <div id="cfgAreaMetas" style="display: none; flex-direction: column; gap: 12px; overflow-y: auto;">
-        <div id="cfgBarraUsuario" style="display: none; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
-          <span>Conectado: <strong id="cfgUsuarioLogado"></strong></span>
-          <button type="button" class="btn-secundario cfg-btn-pequeno" onclick="cfgSair()">Sair</button>
-        </div>
 
-        <form class="cfg-form" onsubmit="cfgSalvar(event)">
+        <form class="cfg-form" id="cfgFormMetas" onsubmit="cfgSalvar(event)">
           <div id="cfgFormTitulo" class="cfg-form-titulo">Incluir meta</div>
           <div class="cfg-grid">
             <label class="cfg-label">Código loja <input type="number" id="cfgCodigo" min="1" step="1" placeholder="520" onblur="cfgSugerirDescricao()"></label>
@@ -420,7 +411,7 @@
             <label class="cfg-label" style="flex: 0 0 170px;">Ver competência
               <input type="month" id="cfgFiltroCompetencia" onchange="cfgLimparFormulario(); cfgCarregarMetas();">
             </label>
-            <button type="button" class="btn-secundario cfg-btn-pequeno" onclick="cfgCopiarMesAnterior()" title="Copia as metas do mês anterior para as lojas que ainda não têm meta neste mês">📋 Copiar do mês anterior</button>
+            <button type="button" id="cfgBtnCopiar" class="btn-secundario cfg-btn-pequeno" onclick="cfgCopiarMesAnterior()" title="Copia as metas do mês anterior para as lojas que ainda não têm meta neste mês">📋 Copiar do mês anterior</button>
           </div>
           <div id="cfgTituloLista" style="font-weight: bold; font-size: 13px; color: #333; margin-bottom: 6px;"></div>
           <div style="border: 1px solid #e0e0e0; border-radius: 4px; overflow: auto; max-height: 35vh;">
@@ -443,6 +434,7 @@
   </div>
 
   <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
   <script src="/js/lojas-modal.js"></script>
   <script src="/js/main.js"></script>
   <script src="/js/metas.js"></script>

@@ -1,0 +1,186 @@
+/* ===== Telas de acesso: login, início, usuários e troca de senha ===== */
+:root {
+  --azul: #0078d7;
+  --azul-escuro: #005a9e;
+  --fundo: #f4f6f9;
+  --texto: #2b2f33;
+  --texto-suave: #6b7280;
+  --borda: #dde2e8;
+  --verde: #28a745;
+  --vermelho: #d9534f;
+}
+
+.acesso-pagina {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+/* ---- Login ---- */
+.login-centro {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: linear-gradient(160deg, #e8f1fb 0%, var(--fundo) 60%);
+}
+.login-caixa {
+  width: 100%;
+  max-width: 380px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 40, 90, 0.12);
+  padding: 32px 28px 26px;
+  box-sizing: border-box;
+  border-top: 6px solid var(--azul);
+}
+.login-marca { font-size: 26px; font-weight: 700; margin: 0; }
+.login-marca span { font-style: italic; font-size: 15px; color: var(--texto-suave); font-weight: 600; margin-left: 6px; }
+.login-sub { color: var(--texto-suave); margin: 4px 0 24px; font-size: 14px; }
+
+.acesso-form label,
+.acesso-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 14px;
+}
+.acesso-form input,
+.acesso-modal input[type="text"],
+.acesso-modal input[type="password"],
+.acesso-modal input[type="email"] {
+  padding: 10px 12px;
+  border: 1px solid #c9d1da;
+  border-radius: 6px;
+  font-size: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.acesso-form input:focus,
+.acesso-modal input:focus { outline: 2px solid #b8daff; border-color: var(--azul); }
+
+.senha-campo { position: relative; }
+.senha-campo input { padding-right: 70px; }
+.senha-mostrar {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--azul); font-size: 12px; font-weight: 600;
+  cursor: pointer; padding: 6px;
+}
+
+.acesso-btn,
+.acesso-btn-sec {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.acesso-btn { background: var(--azul); color: #fff; }
+.acesso-btn:hover { background: var(--azul-escuro); }
+.acesso-btn:disabled { opacity: 0.6; cursor: wait; }
+.acesso-btn-sec { background: #e9ecef; color: #333; }
+.acesso-btn-sec:hover { background: #dde1e5; }
+.acesso-btn-largo { width: 100%; padding: 12px; font-size: 15px; }
+
+.acesso-msg { min-height: 18px; font-size: 13px; margin: 4px 0 10px; color: var(--texto-suave); }
+.acesso-msg.erro { color: var(--vermelho); }
+.acesso-msg.ok { color: var(--verde); }
+.acesso-ajuda { font-size: 12px; color: var(--texto-suave); margin: -6px 0 12px; }
+.login-rodape { margin-top: 18px; font-size: 12px; color: var(--texto-suave); text-align: center; }
+
+/* ---- Topo das páginas internas ---- */
+.acesso-topo {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding: 14px 20px; background: #fff; border-bottom: 6px solid var(--azul);
+}
+.acesso-topo h1 { font-size: 22px; margin: 0; }
+.acesso-topo h1 span { font-style: italic; font-size: 14px; color: var(--texto-suave); margin-left: 6px; }
+
+.barra-usuario { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 13px; }
+.usuario-nome { font-weight: 600; margin-right: 6px; }
+.usuario-link {
+  background: none; border: none; color: var(--azul); font-weight: 600; font-size: 13px;
+  padding: 6px 8px; border-radius: 4px; cursor: pointer; text-decoration: none; font-family: inherit;
+}
+.usuario-link:hover { background: #eef4fb; }
+
+.acesso-conteudo { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+
+/* ---- Início (escolha BI / Configurações) ---- */
+.inicio-saudacao { font-size: 20px; margin: 0 0 4px; }
+.inicio-sub { color: var(--texto-suave); margin: 0 0 22px; }
+.inicio-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.inicio-opcao {
+  display: block; background: #fff; border: 1px solid var(--borda); border-radius: 10px;
+  padding: 22px; text-decoration: none; color: inherit; transition: box-shadow .15s, transform .15s;
+  border-left: 6px solid var(--azul);
+}
+.inicio-opcao:hover { box-shadow: 0 6px 20px rgba(0, 40, 90, 0.12); transform: translateY(-2px); }
+.inicio-opcao .icone { font-size: 30px; }
+.inicio-opcao h2 { margin: 8px 0 4px; font-size: 18px; }
+.inicio-opcao p { margin: 0; color: var(--texto-suave); font-size: 13px; }
+.inicio-opcao.config { border-left-color: #6f42c1; }
+.inicio-aviso {
+  background: #fff8e1; border: 1px solid #ffe08a; color: #6b5300; padding: 10px 12px;
+  border-radius: 6px; margin-bottom: 16px; font-size: 13px;
+}
+
+/* ---- Usuários ---- */
+.usuarios-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.usuarios-cabecalho h2 { margin: 0; font-size: 20px; }
+.usuarios-filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.usuarios-filtros input[type="search"] { padding: 8px 10px; border: 1px solid #c9d1da; border-radius: 6px; min-width: 220px; }
+.tabela-card { background: #fff; border: 1px solid var(--borda); border-radius: 8px; overflow-x: auto; }
+.tabela-usuarios { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabela-usuarios th { text-align: left; background: #f5f7fa; padding: 10px; color: #444; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+.tabela-usuarios td { padding: 10px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+.tabela-usuarios tr.inativo td { color: #9aa0a6; }
+.chip { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #eef4fb; color: #0b4f8a; margin: 2px 4px 2px 0; white-space: nowrap; }
+.chip.admin { background: #f1e9fb; color: #5a2d91; }
+.situacao { font-weight: 600; font-size: 12px; }
+.situacao.ativo { color: var(--verde); }
+.situacao.inativo { color: var(--vermelho); }
+.acoes { white-space: nowrap; }
+.acoes button { background: #f1f3f5; border: 1px solid #dde1e5; border-radius: 4px; padding: 5px 8px; font-size: 12px; cursor: pointer; margin-right: 4px; font-family: inherit; }
+.acoes button:hover { background: #e2e6ea; }
+
+/* ---- Modais ---- */
+.acesso-modal-fundo {
+  display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+  z-index: 2000; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;
+}
+.acesso-modal {
+  background: #fff; border-radius: 10px; padding: 22px; width: 100%; max-width: 420px;
+  max-height: 92vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); box-sizing: border-box;
+}
+.acesso-modal.largo { max-width: 560px; }
+.acesso-modal h3 { margin: 0 0 6px; color: var(--azul); }
+.acesso-botoes { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.acesso-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.acesso-grade .inteiro { grid-column: 1 / -1; }
+.permissoes-caixa { border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.permissoes-caixa legend { font-size: 13px; font-weight: 700; color: #444; padding: 0 4px; }
+.acesso-modal .check {
+  flex-direction: row; align-items: center; gap: 8px; font-weight: normal; margin-bottom: 6px; cursor: pointer;
+}
+.acesso-modal .check input { width: auto; margin: 0; }
+.senha-sugerida { display: flex; gap: 6px; }
+.senha-sugerida input { flex: 1; font-family: Consolas, monospace; }
+
+@media (max-width: 560px) {
+  .acesso-grade { grid-template-columns: 1fr; }
+  .usuarios-filtros input[type="search"] { min-width: 0; width: 100%; }
+}
+
+/* Esconde o conteúdo das páginas protegidas até confirmar o login */
+html:not(.logado) .so-logado { visibility: hidden; }
