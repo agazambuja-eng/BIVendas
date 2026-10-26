@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Início · Auditoria BI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Auditoria: BI<span>by AGA</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+
+  <main class="acesso-conteudo so-logado">
+    <div id="avisoInicio" class="inicio-aviso" style="display: none;"></div>
+    <p class="inicio-saudacao" id="saudacao"></p>
+    <p class="inicio-sub">Escolha para onde ir:</p>
+
+    <div class="inicio-opcoes">
+      <a class="inicio-opcao" id="opcaoBI" href="/index.html" style="display: none;">
+        <div class="icone">📊</div>
+        <h2>BI</h2>
+        <p>Dashboard, metas, pagamentos e auditoria de vendas.</p>
+      </a>
+      <a class="inicio-opcao config" id="opcaoConfig" href="/usuarios.html" style="display: none;">
+        <div class="icone">⚙️</div>
+        <h2>Configurações</h2>
+        <p>Criar usuários, dar ou retirar acessos e redefinir senhas.</p>
+      </a>
+    </div>
+  </main>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    (async () => {
+      const perfil = await exigirLogin();
+      montarBarraUsuario(document.getElementById('barraUsuario'), { mostrarInicio: false });
+
+      const hora = new Date().getHours();
+      const cumprimento = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+      document.getElementById('saudacao').textContent = `${cumprimento}, ${perfil.nome.split(' ')[0]}!`;
+
+      const podeBI = temPermissao('acessar_bi');
+      const podeConfig = temPermissao('gerenciar_usuarios');
+      document.getElementById('opcaoBI').style.display = podeBI ? '' : 'none';
+      document.getElementById('opcaoConfig').style.display = podeConfig ? '' : 'none';
+
+      const aviso = document.getElementById('avisoInicio');
+      const semAcesso = new URLSearchParams(location.search).get('semAcesso');
+      if (semAcesso) {
+        aviso.textContent = `Você não tem permissão para "${NOMES_PERMISSOES[semAcesso] || semAcesso}". Fale com o administrador.`;
+        aviso.style.display = '';
+      } else if (!podeBI && !podeConfig) {
+        aviso.textContent = 'Seu usuário ainda não tem nenhum acesso liberado. Fale com o administrador.';
+        aviso.style.display = '';
+      }
+    })();
+  </script>
+</body>
+</html>

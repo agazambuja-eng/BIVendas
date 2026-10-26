@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · Auditoria BI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <main class="login-centro">
+    <form class="login-caixa acesso-form" id="formLogin" autocomplete="on">
+      <h1 class="login-marca">Auditoria: BI<span>by AGA</span></h1>
+      <p class="login-sub">Entre com seu usuário e senha.</p>
+
+      <label>Usuário
+        <input type="text" id="loginUsuario" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="login ou e-mail" required>
+      </label>
+
+      <label>Senha
+        <div class="senha-campo">
+          <input type="password" id="loginSenha" autocomplete="current-password" required>
+          <button type="button" class="senha-mostrar" id="btnMostrarSenha">Mostrar</button>
+        </div>
+      </label>
+
+      <div id="loginMsg" class="acesso-msg"></div>
+      <button type="submit" class="acesso-btn acesso-btn-largo" id="btnEntrar">Entrar</button>
+      <p class="login-rodape">Esqueceu a senha? Peça ao administrador para redefinir.</p>
+    </form>
+  </main>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    const msg = document.getElementById('loginMsg');
+    const mostrar = (texto, tipo = '') => { msg.textContent = texto; msg.className = 'acesso-msg ' + tipo; };
+
+    const params = new URLSearchParams(location.search);
+    if (params.has('inativo')) mostrar('Seu usuário está inativo. Fale com o administrador.', 'erro');
+
+    // Já está logado? Vai direto para o início.
+    obterPerfil().then(perfil => {
+      if (perfil && perfil.ativo) location.replace('/inicio.html');
+    });
+
+    document.getElementById('btnMostrarSenha').onclick = (e) => {
+      const campo = document.getElementById('loginSenha');
+      const visivel = campo.type === 'text';
+      campo.type = visivel ? 'password' : 'text';
+      e.target.textContent = visivel ? 'Mostrar' : 'Ocultar';
+    };
+
+    document.getElementById('formLogin').onsubmit = async (e) => {
+      e.preventDefault();
+      const usuario = document.getElementById('loginUsuario').value.trim();
+      const senha = document.getElementById('loginSenha').value;
+      if (!usuario || !senha) return mostrar('Informe usuário e senha.', 'erro');
+
+      const btn = document.getElementById('btnEntrar');
+      btn.disabled = true;
+      mostrar('Entrando...');
+      try {
+        const email = await resolverEmailLogin(usuario);
+        const { error } = await supabaseBI.auth.signInWithPassword({ email, password: senha });
+        if (error) throw new Error('Usuário ou senha inválidos.');
+
+        const perfil = await obterPerfil();
+        if (!perfil) {
+          await supabaseBI.auth.signOut();
+          throw new Error('Usuário sem cadastro de acesso. Fale com o administrador.');
+        }
+        if (!perfil.ativo) {
+          await supabaseBI.auth.signOut();
+          throw new Error('Seu usuário está inativo. Fale com o administrador.');
+        }
+        location.replace('/inicio.html');
+      } catch (err) {
+        mostrar(err.message, 'erro');
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

@@ -2,19 +2,13 @@
  * ⚙ Configurações > Metas por Loja
  * Incluir, alterar e excluir registros da tabela `metas_loja` (Supabase).
  *
- * Por enquanto sem login (CFG_EXIGE_LOGIN = false): as políticas RLS do
- * script database/02_metas_vendedor_e_edicao.sql liberam leitura e gravação
- * com a chave publishable. Quando existir o cadastro de usuários, ligar o
- * login e trocar as políticas para "somente autenticado".
+ * Quem pode o quê vem do cadastro de usuários (auth.js / tabela usuarios):
+ * pode_criar_metas, pode_alterar_metas, pode_excluir_metas. O Supabase
+ * também confere essas permissões (RLS), então esconder botões é só conforto.
  *
  * Depende de metas.js (metasClient, escaparHTML, nomeCompetencia,
  * recarregarAbaMetas) e de main.js (formatarMoedaBR, lojasDisponiveis).
  */
-
-// Login desligado por enquanto: o acesso à configuração será controlado pela
-// futura tela de login/cadastro de usuários. Para religar, troque para true e
-// rode o bloco "COM LOGIN" de database/02_metas_vendedor_e_edicao.sql.
-const CFG_EXIGE_LOGIN = false;
 
 let cfgMetasEmEdicao = null;   // id do registro sendo alterado (null = inclusão)
 let cfgMetasLista = [];
@@ -63,14 +57,13 @@ function cfgMensagem(texto, tipo = 'info') {
 
 function traduzirErro(error) {
   if (!error) return '';
+  if (error.code === '42501' || /row-level security/i.test(error.message || '')) {
+    return 'Seu usuário não tem permissão para esta operação nas metas.';
+  }
   if (/valor_meta_ticket/.test(error.message || '')) {
     return 'A coluna valor_meta_ticket ainda não existe. Rode database/03_meta_ticket_medio.sql no Supabase.';
   }
   if (error.code === '23505') return 'Já existe meta para esta loja nesta competência. Use "Alterar" na lista.';
-  if (error.code === '42501' || /row-level security/i.test(error.message)) {
-    return 'Sem permissão para gravar. Rode o script database/02_metas_vendedor_e_edicao.sql no Supabase.';
-  }
-  if (/Invalid login credentials/i.test(error.message)) return 'E-mail ou senha inválidos.';
   return error.message;
 }
 
@@ -90,43 +83,13 @@ function fecharConfigMetas() {
 
 // ---------- login ----------
 async function cfgAtualizarSessao() {
-  if (!CFG_EXIGE_LOGIN) {
-    cfgEl('cfgAreaLogin').style.display = 'none';
-    cfgEl('cfgAreaMetas').style.display = 'flex';
-    cfgEl('cfgBarraUsuario').style.display = 'none';
-    cfgLimparFormulario();
-    await cfgCarregarMetas();
-    return;
-  }
-  const { data } = await metasClient.auth.getSession();
-  const logado = !!(data && data.session);
-  cfgEl('cfgBarraUsuario').style.display = logado ? 'flex' : 'none';
-  cfgEl('cfgAreaLogin').style.display = logado ? 'none' : 'block';
-  cfgEl('cfgAreaMetas').style.display = logado ? 'flex' : 'none';
-  cfgEl('cfgUsuarioLogado').textContent = logado ? data.session.user.email : '';
-  if (logado) {
-    cfgLimparFormulario();
-    await cfgCarregarMetas();
-  }
-}
-
-async function cfgEntrar(event) {
-  if (event) event.preventDefault();
-  const email = cfgEl('cfgEmail').value.trim();
-  const senha = cfgEl('cfgSenha').value;
-  if (!email || !senha) { cfgMensagem('Informe e-mail e senha.', 'erro'); return; }
-  cfgMensagem('Entrando...');
-  const { error } = await metasClient.auth.signInWithPassword({ email, password: senha });
-  if (error) { cfgMensagem(traduzirErro(error), 'erro'); return; }
-  cfgEl('cfgSenha').value = '';
-  cfgMensagem('');
-  await cfgAtualizarSessao();
-}
-
-async function cfgSair() {
-  await metasClient.auth.signOut();
-  cfgMensagem('Sessão encerrada.', 'info');
-  await cfgAtualizarSessao();
+  const podeCriar = temPermissao('criar_metas');
+  cfgEl('cfgAreaMetas').style.display = 'flex';
+  // Formulário aparece para incluir (criar) ou ao clicar em ✏️ (alterar)
+  cfgEl('cfgFormMetas').style.display = podeCriar ? '' : 'none';
+  cfgEl('cfgBtnCopiar').style.display = podeCriar ? '' : 'none';
+  cfgLimparFormulario();
+  await cfgCarregarMetas();
 }
 
 // ---------- listar ----------
@@ -164,8 +127,8 @@ async function cfgCarregarMetas() {
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_vendedor)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_ticket)}</td>
       <td style="padding:6px 8px; text-align:center; white-space:nowrap;">
-        <button type="button" class="cfg-btn-mini" onclick="cfgEditar(${m.id})" title="Alterar">✏️</button>
-        <button type="button" class="cfg-btn-mini cfg-btn-perigo" onclick="cfgExcluir(${m.id})" title="Excluir">🗑️</button>
+        ${temPermissao('alterar_metas') ? `<button type="button" class="cfg-btn-mini" onclick="cfgEditar(${m.id})" title="Alterar">✏️</button>` : ''}
+        ${temPermissao('excluir_metas') ? `<button type="button" class="cfg-btn-mini cfg-btn-perigo" onclick="cfgExcluir(${m.id})" title="Excluir">🗑️</button>` : ''}
       </td>
     </tr>`).join('');
 }
@@ -173,6 +136,7 @@ async function cfgCarregarMetas() {
 // ---------- formulário ----------
 function cfgLimparFormulario() {
   cfgMetasEmEdicao = null;
+  cfgEl('cfgFormMetas').style.display = temPermissao('criar_metas') ? '' : 'none';
   cfgEl('cfgFormTitulo').textContent = 'Incluir meta';
   cfgEl('cfgBtnSalvar').textContent = 'Incluir';
   cfgEl('cfgBtnCancelarEdicao').style.display = 'none';
@@ -201,6 +165,7 @@ function cfgEditar(id) {
   const m = cfgMetasLista.find(x => x.id === id);
   if (!m) return;
   cfgMetasEmEdicao = id;
+  cfgEl('cfgFormMetas').style.display = '';
   cfgEl('cfgFormTitulo').textContent = `Alterar meta – Loja ${m.codigo}`;
   cfgEl('cfgBtnSalvar').textContent = 'Salvar alteração';
   cfgEl('cfgBtnCancelarEdicao').style.display = 'inline-block';
