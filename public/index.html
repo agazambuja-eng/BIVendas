@@ -23,10 +23,12 @@
 
   <div class="filtros">
     <div class="linha">
-      <label>Lojas (IDs separados por vírgula):
+      <label>Lojas:
         <div class="input-grupo" style="margin-top: 5px;">
-          <input type="text" id="lojas" placeholder="Ex: 540,541 ou selecione no botão">
+          <input type="text" id="lojas" readonly class="campo-lojas" onclick="abrirModalLojas()"
+                 placeholder="Todas as lojas — clique em Selecionar Lojas para escolher" title="Escolha as lojas pelo botão Selecionar Lojas">
           <button type="button" class="btn-modal" onclick="abrirModalLojas()">Selecionar Lojas</button>
+          <button type="button" class="btn-secundario" id="btnLimparLojas" onclick="limparLojasSelecionadas()" title="Limpar seleção (todas as lojas)">✕</button>
         </div>
       </label>
     </div>

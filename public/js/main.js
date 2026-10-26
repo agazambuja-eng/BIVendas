@@ -30,7 +30,30 @@ window.onload = async () => {
   if (btnConfig) btnConfig.style.display = podeMetas ? '' : 'none';
 
   await carregarLojasSupabase();
+  prepararCampoLojas();
 };
+
+/** Ajusta o campo de lojas conforme as lojas liberadas para o usuário. */
+function prepararCampoLojas() {
+  const campo = document.getElementById("lojas");
+  if (!campo) return;
+  const restrito = perfilAtual && perfilAtual.todas_lojas !== true;
+  if (restrito) {
+    if (lojasDisponiveis.length === 0) {
+      campo.placeholder = "Nenhuma loja liberada para o seu usuário";
+    } else if (lojasDisponiveis.length === 1) {
+      campo.value = String(lojasDisponiveis[0].id);   // uma loja só: já vem selecionada
+    } else {
+      campo.placeholder = `Todas as suas ${lojasDisponiveis.length} lojas — clique em Selecionar Lojas para escolher`;
+    }
+  }
+}
+
+function limparLojasSelecionadas() {
+  const campo = document.getElementById("lojas");
+  if (campo) campo.value = "";
+  prepararCampoLojas();
+}
 
 // --- FUNÇÃO GLOBAL DA SANFONA (ACORDEON) ---
 function toggleAcordeon(idUnico) {
@@ -447,6 +470,15 @@ async function consultar() {
   // A API só aceita números: "520,521". Limpa o campo antes de consultar.
   const campoLojas = document.getElementById("lojas");
   campoLojas.value = normalizarListaLojas(campoLojas.value);
+  // Usuário com lojas restritas: vazio = todas as lojas dele (o servidor também confere)
+  if (!campoLojas.value && perfilAtual && perfilAtual.todas_lojas !== true) {
+    if (!lojasDisponiveis.length) {
+      document.getElementById("loadingOverlay").style.display = "none";
+      if (containerResultado) containerResultado.innerHTML = "<p class='erro'>Nenhuma loja liberada para o seu usuário. Fale com o administrador.</p>";
+      return;
+    }
+    campoLojas.value = lojasDisponiveis.map(l => l.id).join(",");
+  }
   const lojas = campoLojas.value;
   const tipodata = document.getElementById("tipodata").value || "VENDA";
 
@@ -472,7 +504,10 @@ async function consultar() {
       })
     ]);
 
-    if (!resGrid.ok) throw new Error("Erro na requisição dos dados de produtos: " + resGrid.status);
+    if (!resGrid.ok) {
+      const corpoErro = await resGrid.json().catch(() => ({}));
+      throw new Error(corpoErro.error || ("Erro na requisição dos dados de produtos: " + resGrid.status));
+    }
     
     const dadosBrutos = await resGrid.json();
     let dadosPagamentos = [];

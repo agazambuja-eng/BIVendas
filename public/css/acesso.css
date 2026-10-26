@@ -184,3 +184,9 @@
 
 /* Esconde o conteúdo das páginas protegidas até confirmar o login */
 html:not(.logado) .so-logado { visibility: hidden; }
+
+/* Lojas do usuário (tela de usuários) */
+.lista-lojas-usuario { display: grid; grid-template-columns: 1fr; gap: 0; max-height: 190px; overflow-y: auto; margin-top: 4px; }
+.lista-lojas-usuario.desativada { opacity: 0.45; pointer-events: none; }
+.lista-lojas-usuario .check small { color: var(--texto-suave); }
+@media (max-width: 560px) { .lista-lojas-usuario { grid-template-columns: 1fr; } }

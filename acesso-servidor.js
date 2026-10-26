@@ -67,6 +67,21 @@ async function perfilDoToken(token) {
   const linhas = await resp.json();
   const perfil = Array.isArray(linhas) && linhas[0] ? linhas[0] : null;
 
+  // Lojas liberadas (se não tiver "todas as lojas")
+  if (perfil && perfil.todas_lojas !== true) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/minhas_lojas`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
+    });
+    const lojas = r.ok ? await r.json() : [];
+    perfil.lojas_liberadas = (Array.isArray(lojas) ? lojas : []).map(n => String(parseInt(n, 10)));
+  }
+
   if (cachePerfis.size > 500) cachePerfis.clear();
   cachePerfis.set(token, { perfil, expira: agora + CACHE_MS });
   return perfil;
@@ -98,6 +113,33 @@ function exigirUsuario(permissao) {
       res.status(500).json({ error: 'Não foi possível validar o usuário.' });
     }
   };
+}
+
+/**
+ * Middleware: limita o campo LOJAS da consulta às lojas do usuário.
+ *  - "todas as lojas": passa como veio.
+ *  - senão: mantém só as lojas liberadas; vazio = todas as liberadas.
+ */
+function restringirLojas(req, res, next) {
+  const perfil = req.usuario;
+  if (!perfil || perfil.todas_lojas === true) return next();
+
+  const liberadas = perfil.lojas_liberadas || [];
+  if (!liberadas.length) {
+    return res.status(403).json({ error: 'Nenhuma loja liberada para o seu usuário. Fale com o administrador.' });
+  }
+  const pedidas = String((req.body && req.body.LOJAS) || '')
+    .split(/[,;\s]+/)
+    .map(t => t.replace(/\D/g, ''))
+    .filter(Boolean)
+    .map(t => String(parseInt(t, 10)));
+
+  const permitidas = pedidas.length ? pedidas.filter(c => liberadas.includes(c)) : liberadas;
+  if (!permitidas.length) {
+    return res.status(403).json({ error: 'Você não tem acesso a essa(s) loja(s).' });
+  }
+  req.body = { ...(req.body || {}), LOJAS: [...new Set(permitidas)].join(',') };
+  next();
 }
 
 // ------------------------------------------- chamadas com a chave secreta
@@ -176,6 +218,7 @@ function registrarRotasUsuarios(app) {
           ativo: corpo.ativo !== false,
           trocar_senha: corpo.trocar_senha !== false,
           pode_acessar_bi: true,
+          ...(corpo.todas_lojas === true ? { todas_lojas: true } : {}),
           ...permissoesDoCorpo(corpo)
         }
       });
@@ -215,6 +258,7 @@ function registrarRotasUsuarios(app) {
 
 module.exports = {
   exigirUsuario,
+  restringirLojas,
   registrarRotasUsuarios,
   // exportados para testes
   validarLogin, validarSenha, normalizarLogin, emailDoLogin, temPermissao, perfilDoToken, cachePerfis
