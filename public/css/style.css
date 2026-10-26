@@ -128,3 +128,6 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
   .cfg-grid { grid-template-columns: 1fr; }
   .cfg-col2 { grid-column: auto; }
 }
+
+/* Campo de lojas: só aceita o que vem do botão "Selecionar Lojas" */
+.campo-lojas[readonly] { background: #f5f7fa; cursor: pointer; color: #222; }

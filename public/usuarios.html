@@ -27,9 +27,9 @@
     <div class="tabela-card">
       <table class="tabela-usuarios">
         <thead>
-          <tr><th>Nome</th><th>Login</th><th>Acessos</th><th>Situação</th><th>Ações</th></tr>
+          <tr><th>Nome</th><th>Login</th><th>Acessos</th><th>Lojas</th><th>Situação</th><th>Ações</th></tr>
         </thead>
-        <tbody id="corpoUsuarios"><tr><td colspan="5">Carregando...</td></tr></tbody>
+        <tbody id="corpoUsuarios"><tr><td colspan="6">Carregando...</td></tr></tbody>
       </table>
     </div>
   </main>
@@ -64,6 +64,12 @@
         <label class="check"><input type="checkbox" id="perm_alterar_metas"> ✏️ Alterar metas</label>
         <label class="check"><input type="checkbox" id="perm_excluir_metas"> 🗑️ Excluir metas</label>
         <label class="check"><input type="checkbox" id="perm_gerenciar_usuarios"> ⚙️ Criar usuários e dar acessos (administrador)</label>
+      </fieldset>
+
+      <fieldset class="permissoes-caixa">
+        <legend>Lojas que pode ver</legend>
+        <label class="check"><input type="checkbox" id="usuTodasLojas" onchange="atualizarListaLojasForm()"> 🏬 Todas as lojas (inclusive as cadastradas no futuro)</label>
+        <div id="listaLojasUsuario" class="lista-lojas-usuario"></div>
       </fieldset>
 
       <label class="check"><input type="checkbox" id="usuAtivo" checked> Usuário ativo (desmarque para bloquear o acesso)</label>

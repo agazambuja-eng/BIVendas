@@ -16,6 +16,8 @@ const CHIPS = {
 };
 
 let usuarios = [];
+let lojasCadastro = [];          // todas as lojas (para marcar no formulário)
+let lojasPorUsuario = {};        // usuario_id -> [codigos]
 let usuarioEmEdicao = null;   // null = novo
 let usuarioResetSenha = null;
 
@@ -42,13 +44,67 @@ function sugerirLogin(nome) {
 
 // ------------------------------------------------------------- listar
 async function carregarUsuarios() {
-  const { data, error } = await supabaseBI.from('usuarios').select('*').order('nome');
-  if (error) {
+  const [resUsu, resLojasUsu] = await Promise.all([
+    supabaseBI.from('usuarios').select('*').order('nome'),
+    supabaseBI.from('usuarios_lojas').select('usuario_id, loja_codigo')
+  ]);
+  if (resUsu.error) {
     $('corpoUsuarios').innerHTML = '';
-    return mensagem('msgUsuarios', 'Erro ao carregar usuários: ' + error.message, 'erro');
+    return mensagem('msgUsuarios', 'Erro ao carregar usuários: ' + resUsu.error.message, 'erro');
   }
-  usuarios = data || [];
+  if (resLojasUsu.error) {
+    mensagem('msgUsuarios', 'Lojas por usuário indisponíveis. Rode database/06_lojas_por_usuario.sql no Supabase.', 'erro');
+  }
+  usuarios = resUsu.data || [];
+  lojasPorUsuario = {};
+  (resLojasUsu.data || []).forEach(r => {
+    (lojasPorUsuario[r.usuario_id] = lojasPorUsuario[r.usuario_id] || []).push(Number(r.loja_codigo));
+  });
+  Object.values(lojasPorUsuario).forEach(l => l.sort((a, b) => a - b));
   renderizarUsuarios();
+}
+
+async function carregarLojasCadastro() {
+  const { data, error } = await supabaseBI.rpc('lojas_para_cadastro');
+  lojasCadastro = error ? [] : (data || []);
+}
+
+function textoLojasUsuario(u) {
+  if (u.todas_lojas) return '<span class="chip">🏬 Todas</span>';
+  const lista = lojasPorUsuario[u.id] || [];
+  if (!lista.length) return '<span style="color:#d9534f">nenhuma</span>';
+  return lista.map(c => `<span class="chip">${c}</span>`).join('');
+}
+
+function atualizarListaLojasForm() {
+  $('listaLojasUsuario').classList.toggle('desativada', $('usuTodasLojas').checked);
+}
+
+function montarListaLojasForm(marcadas) {
+  const set = new Set((marcadas || []).map(Number));
+  $('listaLojasUsuario').innerHTML = lojasCadastro.length
+    ? lojasCadastro.map(l => `
+        <label class="check" title="${escHTML(l.nome)}">
+          <input type="checkbox" class="chkLojaUsuario" value="${l.codigo}" ${set.has(Number(l.codigo)) ? 'checked' : ''}>
+          <span><strong>${l.codigo}</strong> ${escHTML(String(l.nome || '').replace(/^0*\d+\s*/, ''))}
+            <small>${l.gerente ? '· ' + escHTML(l.gerente) : ''}</small></span>
+        </label>`).join('')
+    : '<span class="acesso-ajuda">Nenhuma loja cadastrada (tabela lojas).</span>';
+  atualizarListaLojasForm();
+}
+
+function lojasMarcadasForm() {
+  return [...document.querySelectorAll('.chkLojaUsuario:checked')].map(c => Number(c.value));
+}
+
+/** Grava as lojas do usuário (apaga as antigas e insere as marcadas). */
+async function salvarLojasUsuario(usuarioId, todas, codigos) {
+  const { error: errDel } = await supabaseBI.from('usuarios_lojas').delete().eq('usuario_id', usuarioId);
+  if (errDel) throw new Error('Erro ao gravar lojas: ' + errDel.message);
+  if (todas || !codigos.length) return;
+  const { error: errIns } = await supabaseBI.from('usuarios_lojas')
+    .insert(codigos.map(c => ({ usuario_id: usuarioId, loja_codigo: c })));
+  if (errIns) throw new Error('Erro ao gravar lojas: ' + errIns.message);
 }
 
 function renderizarUsuarios() {
@@ -59,7 +115,7 @@ function renderizarUsuarios() {
     (!busca || u.nome.toLowerCase().includes(busca) || u.login.includes(busca)));
 
   if (!lista.length) {
-    $('corpoUsuarios').innerHTML = `<tr><td colspan="5" style="color:#6b7280">Nenhum usuário encontrado.</td></tr>`;
+    $('corpoUsuarios').innerHTML = `<tr><td colspan="6" style="color:#6b7280">Nenhum usuário encontrado.</td></tr>`;
     return;
   }
   $('corpoUsuarios').innerHTML = lista.map(u => {
@@ -72,6 +128,7 @@ function renderizarUsuarios() {
         ${u.trocar_senha ? '<br><small style="color:#b07a00">senha provisória</small>' : ''}</td>
       <td>${escHTML(u.login)}</td>
       <td>${chips}</td>
+      <td>${textoLojasUsuario(u)}</td>
       <td><span class="situacao ${u.ativo ? 'ativo' : 'inativo'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
       <td class="acoes">
         <button type="button" onclick="abrirFormUsuario('${u.id}')">Editar</button>
@@ -100,6 +157,8 @@ function abrirFormUsuario(id = null) {
   $('usuSenha').value = u ? '' : gerarSenhaProvisoria();
   PERMS.forEach(p => { $('perm_' + p).checked = u ? !!u['pode_' + p] : p === 'acessar_bi'; });
   $('usuAtivo').checked = u ? u.ativo : true;
+  $('usuTodasLojas').checked = u ? !!u.todas_lojas : false;
+  montarListaLojasForm(u ? (lojasPorUsuario[u.id] || []) : []);
 
   // Não deixa o administrador tirar o próprio acesso de administrador/ativo
   const souEu = u && perfilAtual && u.id === perfilAtual.id;
@@ -126,15 +185,20 @@ $('formUsuario').onsubmit = async (e) => {
   const perms = {};
   PERMS.forEach(p => { perms['pode_' + p] = $('perm_' + p).checked; });
   const ativo = $('usuAtivo').checked;
+  const todasLojas = $('usuTodasLojas').checked;
+  const lojasMarcadas = lojasMarcadasForm();
 
   if (!nome) return mensagem('msgFormUsuario', 'Informe o nome.', 'erro');
+  if (perms.pode_acessar_bi && !todasLojas && !lojasMarcadas.length) {
+    return mensagem('msgFormUsuario', 'Marque pelo menos uma loja ou "Todas as lojas".', 'erro');
+  }
 
   const btn = $('btnSalvarUsuario');
   btn.disabled = true;
   mensagem('msgFormUsuario', 'Salvando...');
   try {
     if (usuarioEmEdicao) {
-      const alteracao = { nome, email_contato: email || null, ...perms, ativo };
+      const alteracao = { nome, email_contato: email || null, ...perms, ativo, todas_lojas: todasLojas };
       if (usuarioEmEdicao.id === perfilAtual.id) {  // proteção extra
         alteracao.pode_gerenciar_usuarios = true;
         alteracao.ativo = true;
@@ -143,6 +207,7 @@ $('formUsuario').onsubmit = async (e) => {
         .update(alteracao).eq('id', usuarioEmEdicao.id).select();
       if (error) throw error;
       if (!data || !data.length) throw new Error('Nada foi alterado (sem permissão?).');
+      await salvarLojasUsuario(usuarioEmEdicao.id, todasLojas, lojasMarcadas);
       mensagem('msgUsuarios', `Usuário ${nome} atualizado.`, 'ok');
     } else {
       if (!/^[a-z0-9._-]{3,30}$/.test(login)) throw new Error('Login inválido: use de 3 a 30 letras minúsculas, números, ponto ou hífen.');
@@ -152,10 +217,11 @@ $('formUsuario').onsubmit = async (e) => {
       const resp = await fetchAutenticado('/api/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, login, senha, email_contato: email, ativo, trocar_senha: true, ...perms })
+        body: JSON.stringify({ nome, login, senha, email_contato: email, ativo, trocar_senha: true, todas_lojas: todasLojas, ...perms })
       });
       const corpo = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(corpo.error || `Erro ${resp.status}`);
+      if (corpo && corpo.id) await salvarLojasUsuario(corpo.id, todasLojas, lojasMarcadas);
       mensagem('msgUsuarios', `Usuário criado. Login: ${login} · Senha provisória: ${senha}`, 'ok');
     }
     fecharModal('modalUsuario');
@@ -224,5 +290,5 @@ document.addEventListener('keydown', e => {
 (async () => {
   await exigirLogin('gerenciar_usuarios');
   montarBarraUsuario($('barraUsuario'));
-  await carregarUsuarios();
+  await Promise.all([carregarLojasCadastro(), carregarUsuarios()]);
 })();

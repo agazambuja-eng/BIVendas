@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const { exigirUsuario, registrarRotasUsuarios } = require("./acesso-servidor");
+const { exigirUsuario, restringirLojas, registrarRotasUsuarios } = require("./acesso-servidor");
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -19,7 +19,7 @@ app.get("/", (req, res) => {
 registrarRotasUsuarios(app);
 
 // 1. Rota Principal da Grid (ProdutosPorOSGRID)
-app.post("/consulta", exigirUsuario("acessar_bi"), async (req, res) => {
+app.post("/consulta", exigirUsuario("acessar_bi"), restringirLojas, async (req, res) => {
   const body = {
     DATAINICIAL: req.body.DATAINICIAL || "",
     DATAFINAL: req.body.DATAFINAL || "",
@@ -52,7 +52,7 @@ app.post("/consulta", exigirUsuario("acessar_bi"), async (req, res) => {
 });
 
 // 2. Rota Dedicada para Devoluções (ProdutosPorOS com TIPOVENDA = DEVOLUCAO)
-app.post("/consultadevolucoes", exigirUsuario("acessar_bi"), async (req, res) => {
+app.post("/consultadevolucoes", exigirUsuario("acessar_bi"), restringirLojas, async (req, res) => {
   const body = {
     DATAINICIAL: req.body.DATAINICIAL || "",
     DATAFINAL: req.body.DATAFINAL || "",
@@ -85,7 +85,7 @@ app.post("/consultadevolucoes", exigirUsuario("acessar_bi"), async (req, res) =>
 });
 
 // 3. Rota Dedicada para Resumo de Formas de Pagamento e Parcelas (APIVendaResumoTodasFormasPagamento)
-app.post("/consultapagamentos", exigirUsuario("acessar_bi"), async (req, res) => {
+app.post("/consultapagamentos", exigirUsuario("acessar_bi"), restringirLojas, async (req, res) => {
   // Mapeia os dados recebidos do front-end para o contrato exato que a API externa exige
   const body = {
     DATAVENDAINICIO: req.body.DATAINICIAL || "",
