@@ -455,6 +455,20 @@ function parseNumeroBR(valor) {
   return isNaN(n) ? 0 : n;
 }
 
+/** "10 - PARCELAS" -> 10 ; "A VISTA" -> 1 ; "1 - PARCELA" -> 1 */
+function numeroParcelas(texto) {
+  const m = String(texto || '').match(/\d+/);
+  return m ? parseInt(m[0], 10) : 1;
+}
+
+/** Cor pela quantidade de parcelas: 1 = verde, vai amarelando, 10 ou mais = vermelho. */
+function corParcelas(texto) {
+  const n = Math.min(Math.max(numeroParcelas(texto), 1), 10);
+  const matiz = Math.round(120 - ((n - 1) / 9) * 120);   // 120 verde -> 60 amarelo -> 0 vermelho
+  const luz = n >= 4 && n <= 7 ? 36 : 38;                 // amarelos um pouco mais escuros p/ leitura
+  return `hsl(${matiz}, 85%, ${luz}%)`;
+}
+
 function formatarMoedaBR(valor) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -686,7 +700,14 @@ function processarDadosBI(dados, dadosPagamentos) {
 
     dadosPagamentosPorLojaGlobal = agrupadoPagamentos;
 
-    htmlPagamentos = Object.keys(agrupadoPagamentos).map(chaveReal => {
+    // Ordena pela quantidade de parcelas: à vista / 1 parcela primeiro ... 10 parcelas por último
+    const chavesOrdenadas = Object.keys(agrupadoPagamentos).sort((a, b) => {
+      const pa = numeroParcelas(agrupadoPagamentos[a].nParcelas);
+      const pb = numeroParcelas(agrupadoPagamentos[b].nParcelas);
+      return pa - pb || agrupadoPagamentos[a].meioPagamento.localeCompare(agrupadoPagamentos[b].meioPagamento);
+    });
+
+    htmlPagamentos = chavesOrdenadas.map(chaveReal => {
       const item = agrupadoPagamentos[chaveReal];
       let totalGeralValorGrupo = 0;
       let totalGeralQtdGrupo = 0;
@@ -716,7 +737,7 @@ function processarDadosBI(dados, dadosPagamentos) {
           <div onclick="toggleAcordeon('${idUnico}')" style="padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #fdfdfd; user-select: none;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span id="seta_${idUnico}" style="font-size: 12px; font-weight: bold; transition: transform 0.2s; display: inline-block;">▶</span>
-              <span style="font-size: 12px; font-weight: bold; color: #333;">${item.meioPagamento} <span style="color: #666; font-weight: normal; font-size: 11px;">(${item.nParcelas})</span></span>
+              <span style="font-size: 12px; font-weight: bold; color: ${corParcelas(item.nParcelas)};">${item.meioPagamento} <span style="font-weight: normal; font-size: 11px;">(${item.nParcelas})</span></span>
             </div>
             
             <div style="display: flex; gap: 12px; align-items: center; font-size: 12px;">
