@@ -461,12 +461,28 @@ function numeroParcelas(texto) {
   return m ? parseInt(m[0], 10) : 1;
 }
 
-/** Cor pela quantidade de parcelas: 1 = verde, vai amarelando, 10 ou mais = vermelho. */
-function corParcelas(texto) {
-  const n = Math.min(Math.max(numeroParcelas(texto), 1), 10);
-  const matiz = Math.round(120 - ((n - 1) / 9) * 120);   // 120 verde -> 60 amarelo -> 0 vermelho
-  const luz = n >= 4 && n <= 7 ? 36 : 38;                 // amarelos um pouco mais escuros p/ leitura
-  return `hsl(${matiz}, 85%, ${luz}%)`;
+/** Posição do meio de pagamento na lista: Dinheiro, Pix, Débito, Cartão, outros. */
+function ordemMeioPagamento(meio) {
+  const m = String(meio || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  if (m.includes('DINHEIRO')) return 0;
+  if (m.includes('PIX')) return 1;
+  if (m.includes('DEBITO')) return 2;
+  if (m.includes('CARTAO') || m.includes('CREDITO')) return 3;
+  return 4;
+}
+
+/**
+ * Cor do nome conforme as parcelas:
+ *  Dinheiro, Pix, Débito e 1 a 2 parcelas = verde · 3 a 5 = amarelo
+ *  6 a 8 = laranja · 9 ou mais = vermelho
+ */
+function corParcelas(texto, meio) {
+  if (ordemMeioPagamento(meio) <= 2) return '#1e8e3e';
+  const n = numeroParcelas(texto);
+  if (n <= 2) return '#1e8e3e';   // verde
+  if (n <= 5) return '#b8960b';   // amarelo (escurecido para leitura)
+  if (n <= 8) return '#e8710a';   // laranja
+  return '#d93025';               // vermelho
 }
 
 function formatarMoedaBR(valor) {
@@ -700,11 +716,12 @@ function processarDadosBI(dados, dadosPagamentos) {
 
     dadosPagamentosPorLojaGlobal = agrupadoPagamentos;
 
-    // Ordena pela quantidade de parcelas: à vista / 1 parcela primeiro ... 10 parcelas por último
+    // Ordem: Dinheiro, Pix, Débito, depois Cartão 1x, 2x ... 10x, e outros no fim
     const chavesOrdenadas = Object.keys(agrupadoPagamentos).sort((a, b) => {
-      const pa = numeroParcelas(agrupadoPagamentos[a].nParcelas);
-      const pb = numeroParcelas(agrupadoPagamentos[b].nParcelas);
-      return pa - pb || agrupadoPagamentos[a].meioPagamento.localeCompare(agrupadoPagamentos[b].meioPagamento);
+      const ia = agrupadoPagamentos[a], ib = agrupadoPagamentos[b];
+      return ordemMeioPagamento(ia.meioPagamento) - ordemMeioPagamento(ib.meioPagamento)
+        || numeroParcelas(ia.nParcelas) - numeroParcelas(ib.nParcelas)
+        || ia.meioPagamento.localeCompare(ib.meioPagamento);
     });
 
     htmlPagamentos = chavesOrdenadas.map(chaveReal => {
@@ -737,7 +754,7 @@ function processarDadosBI(dados, dadosPagamentos) {
           <div onclick="toggleAcordeon('${idUnico}')" style="padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #fdfdfd; user-select: none;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span id="seta_${idUnico}" style="font-size: 12px; font-weight: bold; transition: transform 0.2s; display: inline-block;">▶</span>
-              <span style="font-size: 12px; font-weight: bold; color: ${corParcelas(item.nParcelas)};">${item.meioPagamento} <span style="font-weight: normal; font-size: 11px;">(${item.nParcelas})</span></span>
+              <span style="font-size: 12px; font-weight: bold; color: ${corParcelas(item.nParcelas, item.meioPagamento)};">${item.meioPagamento} <span style="font-weight: normal; font-size: 11px;">(${item.nParcelas})</span></span>
             </div>
             
             <div style="display: flex; gap: 12px; align-items: center; font-size: 12px;">
