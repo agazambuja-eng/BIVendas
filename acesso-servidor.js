@@ -143,30 +143,48 @@ function restringirLojas(req, res, next) {
 }
 
 // ------------------------------------------- chamadas com a chave secreta
+function tipoDaChave(chave) {
+  if (!chave) return 'vazia';
+  if (chave.startsWith('sb_secret_')) return 'secreta nova (sb_secret_)';
+  if (chave.startsWith('sb_publishable_')) return 'PUBLICÁVEL (sb_publishable_) - errada';
+  if (chave.startsWith('eyJ')) return 'JWT (service_role legada?)';
+  return 'formato desconhecido';
+}
+
+/**
+ * Chamada ao Supabase com a chave secreta.
+ * Chave nova (sb_secret_...): primeiro só no "apikey"; se o Supabase pedir
+ * Bearer (401), repete também com "Authorization: Bearer". Chave legada
+ * service_role (JWT eyJ...): sempre nos dois cabeçalhos.
+ */
 async function chamarSupabaseAdmin(caminho, { method = 'GET', body, prefer } = {}) {
   const chave = chaveSecreta();
-  const headers = {
-    apikey: chave,
-    'Content-Type': 'application/json'
-  };
-  // Chave nova (sb_secret_...): vai SÓ no apikey; o Supabase gera o token interno.
-  // Chave antiga (service_role, um JWT "eyJ..."): vai também como Bearer.
-  if (chave.startsWith('eyJ')) headers.Authorization = `Bearer ${chave}`;
-  if (prefer) headers.Prefer = prefer;
-  const resp = await fetch(`${SUPABASE_URL}${caminho}`, {
-    method, headers, body: body === undefined ? undefined : JSON.stringify(body)
-  });
-  const texto = await resp.text();
-  let dados = null;
-  try { dados = texto ? JSON.parse(texto) : null; } catch { dados = texto; }
-  if (!resp.ok) {
+  const tentativas = chave.startsWith('eyJ') ? [true] : [false, true];
+  let ultimoErro = null;
+
+  for (const comBearer of tentativas) {
+    const headers = { apikey: chave, 'Content-Type': 'application/json' };
+    if (comBearer) headers.Authorization = `Bearer ${chave}`;
+    if (prefer) headers.Prefer = prefer;
+
+    const resp = await fetch(`${SUPABASE_URL}${caminho}`, {
+      method, headers, body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    const texto = await resp.text();
+    let dados = null;
+    try { dados = texto ? JSON.parse(texto) : null; } catch { dados = texto; }
+    if (resp.ok) return dados;
+
     const msg = (dados && (dados.msg || dados.message || dados.error_description || dados.error)) || `HTTP ${resp.status}`;
-    const erro = new Error(msg);
-    erro.status = resp.status;
-    erro.dados = dados;
-    throw erro;
+    ultimoErro = new Error(msg);
+    ultimoErro.status = resp.status;
+    ultimoErro.dados = dados;
+    if (resp.status !== 401) break;   // só repete quando o problema é de autenticação
   }
-  return dados;
+  if (ultimoErro.status === 401 || ultimoErro.status === 403) {
+    ultimoErro.message += ` [HTTP ${ultimoErro.status}, chave no Render: ${tipoDaChave(chave)}]`;
+  }
+  throw ultimoErro;
 }
 
 function permissoesDoCorpo(corpo) {
@@ -185,6 +203,11 @@ function registrarRotasUsuarios(app) {
     if (!chaveSecreta()) {
       return res.status(503).json({
         error: 'Servidor sem a chave secreta do Supabase. Configure SUPABASE_SECRET_KEY nas variáveis de ambiente do Render.'
+      });
+    }
+    if (chaveSecreta().startsWith('sb_publishable_')) {
+      return res.status(503).json({
+        error: 'A SUPABASE_SECRET_KEY no Render é a chave PUBLICÁVEL (sb_publishable_). Troque pela chave secreta (sb_secret_) ou pela service_role.'
       });
     }
     next();
