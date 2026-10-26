@@ -14,7 +14,7 @@
       <p class="login-sub">Entre com seu usuário e senha.</p>
 
       <label>Usuário
-        <input type="text" id="loginUsuario" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ex.: darllan" required>
+        <input type="text" id="loginUsuario" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="login ou e-mail" required>
       </label>
 
       <label>Senha
@@ -61,7 +61,8 @@
       btn.disabled = true;
       mostrar('Entrando...');
       try {
-        const { error } = await supabaseBI.auth.signInWithPassword({ email: emailDoLogin(usuario), password: senha });
+        const email = await resolverEmailLogin(usuario);
+        const { error } = await supabaseBI.auth.signInWithPassword({ email, password: senha });
         if (error) throw new Error('Usuário ou senha inválidos.');
 
         const perfil = await obterPerfil();

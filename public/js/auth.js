@@ -23,6 +23,21 @@ function emailDoLogin(login) {
   return l.includes('@') ? l : `${l}@${DOMINIO_LOGIN}`;
 }
 
+/**
+ * Descobre o e-mail usado no login: se a pessoa digitou o login (sem @),
+ * pergunta ao banco qual e-mail está ligado a ele (ex.: agazambuja ->
+ * agazambuja@gmail.com). Se não achar, usa login@bivendas.local.
+ */
+async function resolverEmailLogin(usuario) {
+  const u = String(usuario || '').trim().toLowerCase();
+  if (u.includes('@')) return u;
+  try {
+    const { data, error } = await supabaseBI.rpc('email_do_login', { p_login: u });
+    if (!error && typeof data === 'string' && data) return data;
+  } catch (e) { /* função ainda não criada no banco: segue o padrão */ }
+  return emailDoLogin(u);
+}
+
 /** Regra de senha (igual à do servidor): 8+ caracteres com letras e números. */
 function validarSenhaNova(senha) {
   const s = String(senha || '');
@@ -169,7 +184,9 @@ function abrirTrocarSenha(obrigatorio = false) {
       msg.textContent = 'Salvando...'; msg.className = 'acesso-msg';
       try {
         // Confere a senha atual antes de trocar
-        const email = emailDoLogin(perfilAtual.login);
+        // E-mail real do login (pode ser @bivendas.local ou um e-mail de verdade)
+        const { data: sess } = await supabaseBI.auth.getSession();
+        const email = (sess && sess.session && sess.session.user && sess.session.user.email) || emailDoLogin(perfilAtual.login);
         const { error: errLogin } = await supabaseBI.auth.signInWithPassword({ email, password: atual });
         if (errLogin) throw new Error('Senha atual incorreta.');
         const { error } = await supabaseBI.auth.updateUser({ password: nova });

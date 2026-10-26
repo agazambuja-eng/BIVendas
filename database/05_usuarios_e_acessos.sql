@@ -84,6 +84,21 @@ as $$
   update public.usuarios set trocar_senha = false where id = auth.uid();
 $$;
 
+-- Login pelo nome: devolve o e-mail ligado ao login (só de usuário ativo).
+-- Usado na tela de login, antes de entrar (por isso liberado para anon).
+create or replace function public.email_do_login(p_login text)
+returns text
+language sql stable security definer set search_path = public, auth
+as $$
+  select au.email
+  from public.usuarios u
+  join auth.users au on au.id = u.id
+  where u.login = lower(trim(p_login)) and u.ativo
+  limit 1;
+$$;
+revoke all on function public.email_do_login(text) from public;
+grant execute on function public.email_do_login(text) to anon, authenticated;
+
 revoke all on function public.tem_permissao(text)    from public, anon;
 revoke all on function public.meu_usuario()          from public, anon;
 revoke all on function public.marcar_senha_trocada() from public, anon;
