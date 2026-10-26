@@ -18,7 +18,7 @@ const DOMINIO_LOGIN = 'bivendas.local';
 const PERMISSOES = ['acessar_bi', 'gerenciar_usuarios', 'criar_metas', 'alterar_metas', 'excluir_metas'];
 
 function chaveSecreta() {
-  return process.env.SUPABASE_SECRET_KEY || '';
+  return String(process.env.SUPABASE_SECRET_KEY || '').trim();
 }
 
 // ---------------------------------------------------------------- regras
@@ -147,9 +147,11 @@ async function chamarSupabaseAdmin(caminho, { method = 'GET', body, prefer } = {
   const chave = chaveSecreta();
   const headers = {
     apikey: chave,
-    Authorization: `Bearer ${chave}`,
     'Content-Type': 'application/json'
   };
+  // Chave nova (sb_secret_...): vai SÓ no apikey; o Supabase gera o token interno.
+  // Chave antiga (service_role, um JWT "eyJ..."): vai também como Bearer.
+  if (chave.startsWith('eyJ')) headers.Authorization = `Bearer ${chave}`;
   if (prefer) headers.Prefer = prefer;
   const resp = await fetch(`${SUPABASE_URL}${caminho}`, {
     method, headers, body: body === undefined ? undefined : JSON.stringify(body)
