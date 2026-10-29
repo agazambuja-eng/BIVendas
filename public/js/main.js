@@ -1124,6 +1124,13 @@ function renderizarDashboard(totaisPorLoja, totalLiquidoGeral, pagamentosFiltrad
     const labelsPgto = listaPagamentosOrdenada.map(item => item.rotulo);
     const dadosPgtoPorcentagem = listaPagamentosOrdenada.map(item => item.participacao.toFixed(2));
 
+    // Para o "Comparar lojas": mesmos dados e mesma cor de cada forma de pagamento
+    if (typeof pagamentosParaComparar !== 'undefined') {
+      pagamentosParaComparar = pagamentosFiltrados;
+      coresPagamentoGlobal = {};
+      labelsPgto.forEach((r, i) => { coresPagamentoGlobal[r] = CORES_PALETA[i % CORES_PALETA.length]; });
+    }
+
     if (meuGraficoPagamentos) meuGraficoPagamentos.destroy();
 
     meuGraficoPagamentos = new Chart(containerPagamentosGrafico, {
