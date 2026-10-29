@@ -198,7 +198,7 @@
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;">
       <div class="bi-card" style="border-left-color: #6c757d; padding: 10px;">
-        <div class="bi-card-title" style="font-size: 11px;">META DO MÊS</div>
+        <div class="bi-card-title" style="font-size: 11px;">META DO PERÍODO</div>
         <div class="bi-card-value" id="cardMetaTotal">R$ 0,00</div>
       </div>
       <div class="bi-card" style="border-left-color: #0078d7; padding: 10px;">
@@ -438,7 +438,8 @@
           <div class="cfg-grid">
             <label class="cfg-label">Código loja <input type="number" id="cfgCodigo" min="1" step="1" placeholder="520" onblur="cfgSugerirDescricao()"></label>
             <label class="cfg-label cfg-col2">Descrição <input type="text" id="cfgDescricao" maxlength="120" placeholder="Nome da loja"></label>
-            <label class="cfg-label">Competência <input type="month" id="cfgCompetencia"></label>
+            <label class="cfg-label">Data inicial da meta <input type="date" id="cfgDataInicio"></label>
+            <label class="cfg-label">Data final da meta <input type="date" id="cfgDataFim"></label>
             <label class="cfg-label">Meta da loja (R$) <input type="number" id="cfgValorMeta" min="0" step="0.01" placeholder="185000"></label>
             <label class="cfg-label">🥉 Vendedor Bronze (R$) <input type="number" id="cfgValorMetaBronze" min="0" step="0.01" placeholder="90000"></label>
             <label class="cfg-label">🥈 Vendedor Prata (R$) <input type="number" id="cfgValorMetaPrata" min="0" step="0.01" placeholder="110000"></label>
@@ -452,7 +453,7 @@
 
         <div>
           <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px;">
-            <label class="cfg-label" style="flex: 0 0 170px;">Ver competência
+            <label class="cfg-label" style="flex: 0 0 210px;">Ver mês (período de 26 a 25)
               <input type="month" id="cfgFiltroCompetencia" onchange="cfgLimparFormulario(); cfgCarregarMetas();">
             </label>
             <button type="button" id="cfgBtnCopiar" class="btn-secundario cfg-btn-pequeno" onclick="cfgCopiarMesAnterior()" title="Copia as metas do mês anterior para as lojas que ainda não têm meta neste mês">📋 Copiar do mês anterior</button>
@@ -463,6 +464,7 @@
               <thead style="background: #f5f5f5; position: sticky; top: 0;">
                 <tr>
                   <th style="padding: 6px 8px; text-align: left;">Loja</th>
+                  <th style="padding: 6px 8px; text-align: left;">Período</th>
                   <th style="padding: 6px 8px; text-align: right;">Meta loja</th>
                   <th style="padding: 6px 8px; text-align: right;">🥉 Bronze</th>
                   <th style="padding: 6px 8px; text-align: right;">🥈 Prata</th>
