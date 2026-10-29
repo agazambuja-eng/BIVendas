@@ -16,23 +16,24 @@ let cfgMetasLista = [];
 // ---------- utilidades ----------
 function cfgEl(id) { return document.getElementById(id); }
 
-/** "2026-10" (input month) -> 202610 */
-function mesParaCompetencia(valorMes) {
+/**
+ * Mês comercial escolhido no filtro ("2026-10") -> período 26/09/2026 a 25/10/2026.
+ * Usa periodo-comercial.js (isoData, somarMeses, DIA_FECHAMENTO).
+ */
+function periodoDoMes(valorMes) {
   if (!valorMes) return null;
   const [a, m] = valorMes.split('-').map(Number);
-  return a * 100 + m;
+  const [ai, mi] = somarMeses(a, m, -1);
+  return { inicio: isoData(ai, mi, DIA_FECHAMENTO + 1), fim: isoData(a, m, DIA_FECHAMENTO) };
 }
-/** 202610 -> "2026-10" */
-function competenciaParaMes(c) {
+/** Mês comercial de hoje no formato do campo mês ("2026-11" em 29/10/2026). */
+function mesComercialAtualInput() {
+  const c = periodoComercialDe(new Date()).competencia;
   return `${Math.floor(c / 100)}-${String(c % 100).padStart(2, '0')}`;
 }
-function mesAtualInput() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-function mesAnterior(c) {
-  const a = Math.floor(c / 100), m = c % 100;
-  return m === 1 ? (a - 1) * 100 + 12 : a * 100 + (m - 1);
+/** "2026-09-26", "2026-10-25" -> "26/09/2026 a 25/10/2026" */
+function textoPeriodo(ini, fim) {
+  return `${formatarDataISOparaBR(ini)} a ${formatarDataISOparaBR(fim)}`;
 }
 function numeroOuNulo(v) {
   if (v === '' || v === null || v === undefined) return null;
@@ -63,7 +64,12 @@ function traduzirErro(error) {
   if (/valor_meta_(bronze|prata|ouro)/.test(error.message || '')) {
     return 'As colunas das metas Bronze/Prata/Ouro ainda não existem. Rode database/07_metas_vendedor_trofeus.sql no Supabase.';
   }
-  if (error.code === '23505') return 'Já existe meta para esta loja nesta competência. Use "Alterar" na lista.';
+  if (error.code === '23P01' || error.code === '23505') {
+    return 'Esta loja já tem meta num período que se cruza com estas datas. Use "Alterar" na lista ou ajuste as datas.';
+  }
+  if (/data_inicio|data_fim|generated column|competencia/.test(error.message || '')) {
+    return 'A tabela de metas ainda está no formato antigo. Rode database/08_metas_periodo_datas.sql no Supabase.';
+  }
   return error.message;
 }
 
@@ -72,7 +78,7 @@ async function abrirConfigMetas() {
   cfgEl('modalConfigMetas').style.display = 'flex';
   cfgMensagem('');
   if (!cfgEl('cfgFiltroCompetencia').value) {
-    cfgEl('cfgFiltroCompetencia').value = mesAtualInput();
+    cfgEl('cfgFiltroCompetencia').value = mesComercialAtualInput();
   }
   await cfgAtualizarSessao();
 }
@@ -94,15 +100,16 @@ async function cfgAtualizarSessao() {
 
 // ---------- listar ----------
 async function cfgCarregarMetas() {
-  const competencia = mesParaCompetencia(cfgEl('cfgFiltroCompetencia').value);
-  if (!competencia) return;
+  const periodo = periodoDoMes(cfgEl('cfgFiltroCompetencia').value);
+  if (!periodo) return;
   const corpo = cfgEl('cfgTabelaMetasCorpo');
-  corpo.innerHTML = '<tr><td colspan="6" style="padding:10px; color:#666;">Carregando...</td></tr>';
+  corpo.innerHTML = '<tr><td colspan="7" style="padding:10px; color:#666;">Carregando...</td></tr>';
 
   const { data, error } = await metasClient
     .from('metas_loja')
     .select('*')
-    .eq('competencia', competencia)
+    .lte('data_inicio', periodo.fim)
+    .gte('data_fim', periodo.inicio)
     .order('codigo', { ascending: true });
 
   if (error) {
@@ -112,10 +119,10 @@ async function cfgCarregarMetas() {
   }
   cfgMetasLista = data || [];
   cfgEl('cfgTituloLista').textContent =
-    `Metas de ${nomeCompetencia(competencia)} (${cfgMetasLista.length} loja${cfgMetasLista.length === 1 ? '' : 's'})`;
+    `Metas de ${textoPeriodo(periodo.inicio, periodo.fim)} (${cfgMetasLista.length} loja${cfgMetasLista.length === 1 ? '' : 's'})`;
 
   if (!cfgMetasLista.length) {
-    corpo.innerHTML = `<tr><td colspan="6" style="padding:10px; color:#666;">Nenhuma meta cadastrada para ${nomeCompetencia(competencia)}.</td></tr>`;
+    corpo.innerHTML = `<tr><td colspan="7" style="padding:10px; color:#666;">Nenhuma meta cadastrada para ${textoPeriodo(periodo.inicio, periodo.fim)}.</td></tr>`;
     return;
   }
 
@@ -123,6 +130,7 @@ async function cfgCarregarMetas() {
   corpo.innerHTML = cfgMetasLista.map(m => `
     <tr style="${cfgMetasEmEdicao === m.id ? 'background:#fff8e1;' : ''}">
       <td style="padding:6px 8px;"><strong>${escaparHTML(m.codigo)}</strong> – ${escaparHTML(m.descricao)}</td>
+      <td style="padding:6px 8px; white-space:nowrap; ${m.data_inicio !== periodo.inicio || m.data_fim !== periodo.fim ? 'color:#b07a00;' : 'color:#555;'}">${textoPeriodo(m.data_inicio, m.data_fim)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_bronze ?? m.valor_meta_vendedor)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_prata)}</td>
@@ -148,8 +156,9 @@ function cfgLimparFormulario() {
   cfgEl('cfgValorMetaBronze').value = '';
   cfgEl('cfgValorMetaPrata').value = '';
   cfgEl('cfgValorMetaOuro').value = '';
-  cfgEl('cfgCompetencia').value = cfgEl('cfgFiltroCompetencia').value || mesAtualInput();
-  cfgEl('cfgCompetencia').disabled = false;
+  const p = periodoDoMes(cfgEl('cfgFiltroCompetencia').value || mesComercialAtualInput());
+  cfgEl('cfgDataInicio').value = p.inicio;
+  cfgEl('cfgDataFim').value = p.fim;
 }
 
 /** Preenche a descrição automaticamente pelo código da loja. */
@@ -177,7 +186,8 @@ function cfgEditar(id) {
   cfgEl('cfgValorMetaBronze').value = m.valor_meta_bronze ?? m.valor_meta_vendedor ?? '';
   cfgEl('cfgValorMetaPrata').value = m.valor_meta_prata ?? '';
   cfgEl('cfgValorMetaOuro').value = m.valor_meta_ouro ?? '';
-  cfgEl('cfgCompetencia').value = competenciaParaMes(m.competencia);
+  cfgEl('cfgDataInicio').value = m.data_inicio || '';
+  cfgEl('cfgDataFim').value = m.data_fim || '';
   cfgMensagem('');
   cfgCarregarMetas(); // destaca a linha em edição
   cfgEl('cfgDescricao').focus();
@@ -188,7 +198,8 @@ async function cfgSalvar(event) {
   const registro = {
     codigo: parseInt(cfgEl('cfgCodigo').value, 10),
     descricao: cfgEl('cfgDescricao').value.trim(),
-    competencia: mesParaCompetencia(cfgEl('cfgCompetencia').value),
+    data_inicio: cfgEl('cfgDataInicio').value || null,
+    data_fim: cfgEl('cfgDataFim').value || null,
     valor_meta: numeroOuNulo(cfgEl('cfgValorMeta').value),
     valor_meta_bronze: numeroOuNulo(cfgEl('cfgValorMetaBronze').value),
     valor_meta_prata: numeroOuNulo(cfgEl('cfgValorMetaPrata').value),
@@ -197,7 +208,8 @@ async function cfgSalvar(event) {
 
   if (isNaN(registro.codigo)) return cfgMensagem('Informe o código da loja.', 'erro');
   if (!registro.descricao) return cfgMensagem('Informe a descrição da loja.', 'erro');
-  if (!registro.competencia) return cfgMensagem('Informe a competência (mês/ano).', 'erro');
+  if (!registro.data_inicio || !registro.data_fim) return cfgMensagem('Informe a data inicial e a data final da meta.', 'erro');
+  if (registro.data_fim < registro.data_inicio) return cfgMensagem('A data final precisa ser depois da inicial.', 'erro');
   if (registro.valor_meta === null || registro.valor_meta < 0) return cfgMensagem('Informe a meta da loja (R$).', 'erro');
   const { valor_meta_bronze: b, valor_meta_prata: p, valor_meta_ouro: o } = registro;
   if ([b, p, o].some(v => v !== null && v < 0)) {
@@ -219,7 +231,9 @@ async function cfgSalvar(event) {
   }
 
   cfgMensagem(cfgMetasEmEdicao ? 'Meta alterada.' : 'Meta incluída.', 'ok');
-  cfgEl('cfgFiltroCompetencia').value = competenciaParaMes(registro.competencia);
+  // Mostra a lista do mês comercial em que a meta fecha
+  const c = competenciaComercial(registro.data_fim, false);
+  cfgEl('cfgFiltroCompetencia').value = `${Math.floor(c / 100)}-${String(c % 100).padStart(2, '0')}`;
   cfgLimparFormulario();
   await cfgCarregarMetas();
   if (typeof recarregarAbaMetas === 'function') recarregarAbaMetas();
@@ -228,7 +242,7 @@ async function cfgSalvar(event) {
 async function cfgExcluir(id) {
   const m = cfgMetasLista.find(x => x.id === id);
   if (!m) return;
-  if (!confirm(`Excluir a meta da loja ${m.codigo} – ${m.descricao} (${nomeCompetencia(m.competencia)})?`)) return;
+  if (!confirm(`Excluir a meta da loja ${m.codigo} – ${m.descricao} (${textoPeriodo(m.data_inicio, m.data_fim)})?`)) return;
 
   const { data, error } = await metasClient.from('metas_loja').delete().eq('id', id).select();
   if (error) return cfgMensagem(traduzirErro(error), 'erro');
@@ -241,29 +255,34 @@ async function cfgExcluir(id) {
   if (typeof recarregarAbaMetas === 'function') recarregarAbaMetas();
 }
 
-/** Copia para o mês do filtro as metas do mês anterior (só lojas que ainda não têm meta). */
+/** Copia para o período do filtro as metas do período anterior (só lojas que ainda não têm meta). */
 async function cfgCopiarMesAnterior() {
-  const destino = mesParaCompetencia(cfgEl('cfgFiltroCompetencia').value);
+  const destino = periodoDoMes(cfgEl('cfgFiltroCompetencia').value);
   if (!destino) return;
-  const origem = mesAnterior(destino);
+  const origem = periodosAnteriores(destino.inicio, destino.fim, 2)[0];
+  const txtOrigem = textoPeriodo(origem.inicio, origem.fim);
+  const txtDestino = textoPeriodo(destino.inicio, destino.fim);
 
   const { data: anteriores, error } = await metasClient
     .from('metas_loja')
     .select('*')
-    .eq('competencia', origem);
+    .lte('data_inicio', origem.fim)
+    .gte('data_fim', origem.inicio);
   if (error) return cfgMensagem(traduzirErro(error), 'erro');
   if (!anteriores || !anteriores.length) {
-    return cfgMensagem(`Não há metas em ${nomeCompetencia(origem)} para copiar.`, 'info');
+    return cfgMensagem(`Não há metas em ${txtOrigem} para copiar.`, 'info');
   }
 
   const jaExistem = new Set(cfgMetasLista.map(m => m.codigo));
+  const vistos = new Set();
   const novos = anteriores
-    .filter(m => !jaExistem.has(m.codigo))
-    .map(({ id, created_at, ...resto }) => ({ ...resto, competencia: destino }));
+    .filter(m => !jaExistem.has(m.codigo) && !vistos.has(m.codigo) && vistos.add(m.codigo))
+    // competencia é calculada pelo banco: não pode ser enviada
+    .map(({ id, created_at, competencia, ...resto }) => ({ ...resto, data_inicio: destino.inicio, data_fim: destino.fim }));
   if (!novos.length) {
-    return cfgMensagem(`Todas as lojas de ${nomeCompetencia(origem)} já têm meta em ${nomeCompetencia(destino)}.`, 'info');
+    return cfgMensagem(`Todas as lojas de ${txtOrigem} já têm meta em ${txtDestino}.`, 'info');
   }
-  if (!confirm(`Copiar ${novos.length} meta(s) de ${nomeCompetencia(origem)} para ${nomeCompetencia(destino)}?`)) return;
+  if (!confirm(`Copiar ${novos.length} meta(s) de ${txtOrigem} para ${txtDestino}?`)) return;
 
   const { error: errIns } = await metasClient.from('metas_loja').insert(novos);
   if (errIns) return cfgMensagem(traduzirErro(errIns), 'erro');

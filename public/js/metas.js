@@ -6,7 +6,9 @@
  *   codigo      int4     -> código da loja (ex.: 520)
  *   descricao   text     -> nome da loja
  *   valor_meta  numeric  -> meta em R$
- *   competencia int4     -> AAAAMM (ex.: 202610 = outubro/2026)
+ *   data_inicio date     -> início do período da meta (ex.: 2026-09-26)
+ *   data_fim    date     -> fim do período da meta (ex.: 2026-10-25)
+ *   competencia int4     -> calculada pelo banco a partir de data_fim (AAAAMM)
  */
 
 // Conexão com o Supabase: ver supabase-config.js
@@ -69,16 +71,11 @@ async function renderizarMetas(totaisPorLoja) {
   ultimosTotaisPorLoja = totaisPorLoja;
   const dataIni = document.getElementById('dataInicial').value;
   const dataFim = document.getElementById('dataFinal').value;
-  const competencias = competenciasDoPeriodo(dataIni, dataFim);
-
   const subtitulo = document.getElementById('subtituloMetas');
-  if (subtitulo) {
-    subtitulo.textContent = competencias.length
-      ? `Período ${formatarDataISOparaBR(dataIni)} a ${formatarDataISOparaBR(dataFim)} · metas de ${competencias.map(nomeCompetencia).join(', ')}`
-      : 'Informe a data inicial para buscar as metas.';
+  if (!dataIni || !dataFim) {
+    if (subtitulo) subtitulo.textContent = 'Informe a data inicial e a final para buscar as metas.';
+    return;
   }
-
-  if (!competencias.length) return;
 
   // Lojas digitadas no filtro (se vazio, considera todas que têm meta)
   const lojasFiltro = document.getElementById('lojas').value
@@ -87,13 +84,25 @@ async function renderizarMetas(totaisPorLoja) {
   let query = metasClient
     .from('metas_loja')
     .select('*')   // '*' para não quebrar se alguma coluna nova ainda não existir
-    .in('competencia', competencias);
+    // metas cujo período cruza o período consultado
+    .lte('data_inicio', dataFim)
+    .gte('data_fim', dataIni);
   if (lojasFiltro.length) query = query.in('codigo', lojasFiltro);
 
   const { data: metas, error } = await query;
   if (error) {
-    mostrarAvisoMetas('❌ Erro ao buscar metas no Supabase: ' + escaparHTML(error.message));
+    const semColuna = /data_inicio|data_fim/.test(error.message || '');
+    mostrarAvisoMetas('❌ Erro ao buscar metas no Supabase: ' + escaparHTML(error.message) +
+      (semColuna ? ' — rode <code>database/08_metas_periodo_datas.sql</code> no Supabase.' : ''));
     return;
+  }
+
+  // Períodos de meta encontrados (normalmente um só: ex. 26/09 a 25/10)
+  const periodosMeta = [...new Set((metas || []).map(m => `${m.data_inicio}|${m.data_fim}`))].sort()
+    .map(t => t.split('|')).map(([i, f]) => `${formatarDataISOparaBR(i)} a ${formatarDataISOparaBR(f)}`);
+  if (subtitulo) {
+    subtitulo.textContent = `Período consultado ${formatarDataISOparaBR(dataIni)} a ${formatarDataISOparaBR(dataFim)}` +
+      (periodosMeta.length ? ` · metas de ${periodosMeta.join(' + ')}` : '');
   }
 
   // Junta metas (somando se o período cobrir mais de um mês) + realizado da API
@@ -122,12 +131,17 @@ async function renderizarMetas(totaisPorLoja) {
   lista.sort((a, b) => (b.atingimento ?? -1) - (a.atingimento ?? -1));
 
   if (!metas || metas.length === 0) {
-    mostrarAvisoMetas(`Nenhuma meta encontrada para ${competencias.map(nomeCompetencia).join(', ')}` +
+    mostrarAvisoMetas(`Nenhuma meta encontrada para ${formatarDataISOparaBR(dataIni)} a ${formatarDataISOparaBR(dataFim)}` +
       (lojasFiltro.length ? ` nas lojas ${lojasFiltro.join(', ')}` : '') +
       '. Confira a tabela <code>metas_loja</code> e a política de leitura (RLS).');
   } else {
     const semMeta = lista.filter(l => l.atingimento === null).map(l => l.id);
-    mostrarAvisoMetas(semMeta.length ? `Lojas com venda mas sem meta cadastrada: ${semMeta.join(', ')}` : '');
+    const avisos = [];
+    if (periodosMeta.length > 1) {
+      avisos.push(`⚠️ O período consultado cruza ${periodosMeta.length} períodos de meta (${periodosMeta.join(' + ')}); as metas foram somadas. Para comparar com uma meta só, consulte exatamente o período dela.`);
+    }
+    if (semMeta.length) avisos.push(`Lojas com venda mas sem meta cadastrada: ${semMeta.join(', ')}`);
+    mostrarAvisoMetas(avisos.join('<br>'));
   }
 
   renderizarCardsMetas(lista);
