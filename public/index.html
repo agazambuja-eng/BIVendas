@@ -62,7 +62,7 @@
   <button type="button" onclick="mudarAba('dashboard')" id="btnAbaDashboard" style="padding: 8px 16px; background: #0078d7; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🚀 Dashboard Executivo</button>
   <button type="button" onclick="mudarAba('metas')" id="btnAbaMetas" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🎯 Metas</button>
   <button type="button" onclick="mudarAba('cards')" id="btnAbaCards" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📊 Visão Geral & Pagamentos</button>
-  <button type="button" onclick="mudarAba('comparativo')" id="btnAbaComparativo" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📈 Comparativo 3 meses</button>
+  <button type="button" onclick="mudarAba('comparativo')" id="btnAbaComparativo" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📈 <span id="rotuloAbaComparativo">Comparativo 3 meses</span></button>
   <button type="button" onclick="mudarAba('detalhes')" id="btnAbaDetalhes" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Detalhes de Vendas (Auditoria)</button>
 </div>
   
@@ -284,12 +284,18 @@
   <!-- === ABA: COMPARATIVO DOS ÚLTIMOS 3 MESES === -->
   <div id="conteudoAbaComparativo" style="display: none; flex-direction: column; gap: 15px;">
     <div style="background: #fff; padding: 12px 15px; border-radius: 8px; border: 1px solid #ddd;">
-      <h3 style="margin: 0; color: #333; font-size: 16px;">Comparativo · últimos 3 meses</h3>
+      <div class="comparativo-titulo">
+        <h3 style="margin: 0; color: #333; font-size: 16px;">Comparativo · últimos</h3>
+        <input type="number" id="qtdPeriodosComparativo" class="campo-qtd-periodos" value="3" min="2" max="12" step="1"
+               title="Quantidade de períodos (2 a 12)" onkeydown="if (event.key === 'Enter') atualizarComparativo()">
+        <h3 style="margin: 0; color: #333; font-size: 16px;">períodos</h3>
+        <button type="button" id="btnAtualizarComparativo" class="btn-atualizar-comparativo" onclick="atualizarComparativo()">🔄 Atualizar</button>
+      </div>
       <div id="subtituloComparativo" style="font-size: 12px; color: #666; margin-top: 4px;"></div>
       <div id="statusComparativo" style="display: none; margin-top: 8px; padding: 8px 10px; background: #e8f4fd; border: 1px solid #b8daff; border-radius: 4px; font-size: 13px; color: #004085;"></div>
     </div>
 
-    <div id="cardsComparativo" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;"></div>
+    <div id="cardsComparativo" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 10px;"></div>
 
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
       <h4 style="margin: 0 0 10px; color: #333; font-size: 15px;">📈 Evolução das Vendas (valor líquido)</h4>
