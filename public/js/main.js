@@ -11,6 +11,7 @@ let meuGraficoPagamentos = null;
 let meuGraficoLojaVendedor = null;      
 let dadosPagamentosPorLojaGlobal = {}; 
 let dadosBrutosGlobaisParaGrafico = []; 
+let ultimaConsultaBI = null;            // filtros da última consulta (aba Comparativo)
 let meuGraficoZoomPagamento = null;    
 let meuGraficoZoomQuantidade = null;   
 
@@ -29,6 +30,7 @@ window.onload = async () => {
   const btnConfig = document.getElementById('btnConfigMetas');
   if (btnConfig) btnConfig.style.display = podeMetas ? '' : 'none';
 
+  preencherPeriodoPadrao();   // mês comercial atual: 26 do mês anterior a 25
   await carregarLojasSupabase();
   prepararCampoLojas();
 };
@@ -82,6 +84,10 @@ function mudarAba(aba) {
   const conteudoDetalhes = document.getElementById("conteudoAbaDetalhes");
   const btnMetas = document.getElementById("btnAbaMetas");
   const conteudoMetas = document.getElementById("conteudoAbaMetas");
+  const btnComp = document.getElementById("btnAbaComparativo");
+  const conteudoComp = document.getElementById("conteudoAbaComparativo");
+  if (conteudoComp) conteudoComp.style.display = "none";
+  if (btnComp) { btnComp.style.background = "#e0e0e0"; btnComp.style.color = "#333"; }
 
   conteudoCards.style.display = "none";
   conteudoDashboard.style.display = "none";
@@ -101,6 +107,10 @@ function mudarAba(aba) {
     conteudoDashboard.style.display = "flex";
     btnDashboard.style.background = "#0078d7";
     btnDashboard.style.color = "#fff";
+  } else if (aba === 'comparativo') {
+    if (conteudoComp) conteudoComp.style.display = "flex";
+    if (btnComp) { btnComp.style.background = "#0078d7"; btnComp.style.color = "#fff"; }
+    if (typeof abrirComparativo === 'function') abrirComparativo();
   } else if (aba === 'metas') {
     if (conteudoMetas) conteudoMetas.style.display = "flex";
     if (btnMetas) {
@@ -519,6 +529,14 @@ async function consultar() {
     TIPODATA: tipodata,
     TIPOVENDA: ""
   };
+
+  // Guarda a consulta para a aba Comparativo (que busca os meses anteriores)
+  ultimaConsultaBI = {
+    inicioISO: document.getElementById("dataInicial").value,
+    fimISO: document.getElementById("dataFinal").value,
+    lojas, tipodata
+  };
+  if (typeof limparComparativo === 'function') limparComparativo();
 
   try {
     const [resGrid, resPagamentos] = await Promise.all([
