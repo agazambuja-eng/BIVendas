@@ -1,18 +1,54 @@
 /**
- * Aba COMPARATIVO: evolução das vendas (valor líquido) no período consultado
- * e nos 2 períodos anteriores. Ex.: consulta 26/09 a 25/10 -> compara
- * 26/07 a 25/08, 26/08 a 25/09 e 26/09 a 25/10.
+ * Aba COMPARATIVO: evolução das vendas e do ticket no período consultado e
+ * nos períodos anteriores (quantidade escolhida na tela, padrão 3).
+ * Ex.: consulta 26/09 a 25/10 com 3 períodos -> 26/07 a 25/08, 26/08 a 25/09
+ * e 26/09 a 25/10.
  *
- * O período atual reaproveita os dados já carregados; os 2 anteriores são
- * buscados na API só quando a aba é aberta (e ficam guardados até a próxima
- * consulta).
+ * O período atual reaproveita os dados já carregados; os anteriores são
+ * buscados na API quando a aba é aberta e ficam guardados até a próxima
+ * consulta (trocar de 3 para 6 só busca os 3 que faltam).
  */
 
-let comparativoCache = null;   // { chave, periodos, porPeriodo }
+const COMPARATIVO_MIN = 2;
+const COMPARATIVO_MAX = 12;
+const COMPARATIVO_PADRAO = 3;
+const COMPARATIVO_BUSCAS_SIMULTANEAS = 3;   // para não sobrecarregar a API
+
+let comparativoCache = null;   // { chave, resumos: { 'ini|fim': resumo }, ultimo: {periodos, porPeriodo} }
 let comparativoCarregando = false;
 
 function limparComparativo() {
   comparativoCache = null;
+}
+
+function quantidadePeriodosComparativo() {
+  const campo = document.getElementById('qtdPeriodosComparativo');
+  let n = parseInt(campo && campo.value, 10);
+  if (isNaN(n)) n = COMPARATIVO_PADRAO;
+  n = Math.min(COMPARATIVO_MAX, Math.max(COMPARATIVO_MIN, n));
+  if (campo) campo.value = n;
+  const rotulo = document.getElementById('rotuloAbaComparativo');
+  if (rotulo) rotulo.textContent = `Comparativo ${n} meses`;
+  return n;
+}
+
+/** Botão "Atualizar" / Enter no campo de quantidade. */
+function atualizarComparativo() {
+  abrirComparativo();
+}
+
+/** Executa as tarefas no máximo N ao mesmo tempo. */
+async function emLotes(tarefas, limite) {
+  const resultados = new Array(tarefas.length);
+  let proxima = 0;
+  async function trabalhador() {
+    while (proxima < tarefas.length) {
+      const i = proxima++;
+      resultados[i] = await tarefas[i]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limite, tarefas.length) }, trabalhador));
+  return resultados;
 }
 
 function idLojaDoItem(item) {
@@ -79,33 +115,46 @@ async function abrirComparativo() {
     mostrarStatusComparativo('Faça uma consulta primeiro.');
     return;
   }
-  const chave = JSON.stringify(consulta);
-  if (comparativoCache && comparativoCache.chave === chave) {
-    renderizarComparativo(comparativoCache);
-    return;
-  }
   if (comparativoCarregando) return;
 
-  const periodos = periodosAnteriores(consulta.inicioISO, consulta.fimISO, 3);
-  const lojasFiltro = String(consulta.lojas || '').split(',').map(s => s.trim()).filter(Boolean);
-  comparativoCarregando = true;
-  mostrarStatusComparativo(`⏳ Buscando ${periodos[0].rotulo} e ${periodos[1].rotulo} na API...`);
+  const n = quantidadePeriodosComparativo();
+  const chave = JSON.stringify(consulta);
+  if (!comparativoCache || comparativoCache.chave !== chave) comparativoCache = { chave, resumos: {} };
+  const resumos = comparativoCache.resumos;
 
-  try {
-    const anteriores = await Promise.all(periodos.slice(0, 2).map(p => buscarVendasPeriodo(p, consulta)));
-    const porPeriodo = [
-      resumirVendas(anteriores[0], lojasFiltro),
-      resumirVendas(anteriores[1], lojasFiltro),
-      resumirVendas(dadosBrutosGlobaisParaGrafico, [])   // atual: já filtrado pela consulta
-    ];
-    comparativoCache = { chave, periodos, porPeriodo };
-    mostrarStatusComparativo('');
-    renderizarComparativo(comparativoCache);
-  } catch (err) {
-    mostrarStatusComparativo('❌ ' + escHTML(err.message));
-  } finally {
-    comparativoCarregando = false;
+  const periodos = periodosAnteriores(consulta.inicioISO, consulta.fimISO, n);
+  const lojasFiltro = String(consulta.lojas || '').split(',').map(s => s.trim()).filter(Boolean);
+  const chaveP = p => `${p.inicio}|${p.fim}`;
+
+  // atual: já filtrado pela consulta principal
+  const atual = periodos[periodos.length - 1];
+  if (!resumos[chaveP(atual)]) resumos[chaveP(atual)] = resumirVendas(dadosBrutosGlobaisParaGrafico, []);
+
+  const faltando = periodos.filter(p => !resumos[chaveP(p)]);
+  if (faltando.length) {
+    comparativoCarregando = true;
+    const btn = document.getElementById('btnAtualizarComparativo');
+    if (btn) btn.disabled = true;
+    let prontos = 0;
+    mostrarStatusComparativo(`⏳ Buscando ${faltando.length} período(s) na API... (0 de ${faltando.length})`);
+    try {
+      await emLotes(faltando.map(p => async () => {
+        const itens = await buscarVendasPeriodo(p, consulta);
+        resumos[chaveP(p)] = resumirVendas(itens, lojasFiltro);
+        prontos++;
+        mostrarStatusComparativo(`⏳ Buscando ${faltando.length} período(s) na API... (${prontos} de ${faltando.length})`);
+      }), COMPARATIVO_BUSCAS_SIMULTANEAS);
+    } catch (err) {
+      mostrarStatusComparativo('❌ ' + escHTML(err.message));
+      return;
+    } finally {
+      comparativoCarregando = false;
+      if (btn) btn.disabled = false;
+    }
   }
+
+  mostrarStatusComparativo('');
+  renderizarComparativo({ periodos, porPeriodo: periodos.map(p => resumos[chaveP(p)]) });
 }
 
 function variacaoHTML(atual, anterior) {
@@ -125,7 +174,8 @@ function nomeLojaComparativo(id) {
 function renderizarComparativo({ periodos, porPeriodo }) {
   const d = new Date();
   const hoje = isoData(d.getFullYear(), d.getMonth() + 1, d.getDate());
-  const parcial = periodos[2].fim > hoje;
+  const ult = periodos.length - 1;
+  const parcial = periodos[ult].fim > hoje;
 
   const subtitulo = document.getElementById('subtituloComparativo');
   if (subtitulo) {
@@ -140,8 +190,9 @@ function renderizarComparativo({ periodos, porPeriodo }) {
       const r = porPeriodo[i];
       const ant = i > 0 ? porPeriodo[i - 1].total : 0;
       const ticket = r.qtdTotal ? r.total / r.qtdTotal : 0;
-      return `<div class="bi-card" style="border-left-color: ${['#8892c8', '#9d7bff', '#5ee7ff'][i]}; padding: 10px;">
-        <div class="bi-card-title" style="font-size: 11px;">${p.rotulo}${i === 2 && parcial ? ' · parcial' : ''}</div>
+      const corBorda = i === ult ? '#5ee7ff' : (i === ult - 1 ? '#9d7bff' : '#8892c8');
+      return `<div class="bi-card" style="border-left-color: ${corBorda}; padding: 10px;">
+        <div class="bi-card-title" style="font-size: 11px;">${p.rotulo}${i === ult && parcial ? ' · parcial' : ''}</div>
         <div class="bi-card-value">${formatarMoedaBR(r.total)}</div>
         <div style="font-size: 12px; color: #666; margin-top: 4px;">
           ${r.qtdTotal} vendas · ticket ${formatarMoedaBR(ticket)}
@@ -153,7 +204,7 @@ function renderizarComparativo({ periodos, porPeriodo }) {
 
   // ---- lojas presentes em qualquer período, ordenadas pela venda atual
   const ids = [...new Set(porPeriodo.flatMap(r => Object.keys(r.porLoja)))];
-  ids.sort((a, b) => (porPeriodo[2].porLoja[b] || 0) - (porPeriodo[2].porLoja[a] || 0));
+  ids.sort((a, b) => (porPeriodo[ult].porLoja[b] || 0) - (porPeriodo[ult].porLoja[a] || 0));
   const ticketLoja = (r, id) => (r.vendas[id] ? (r.porLoja[id] || 0) / r.vendas[id] : 0);
   const ticketRede = r => (r.qtdTotal ? r.total / r.qtdTotal : 0);
 
@@ -230,7 +281,7 @@ function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, 
       <th style="padding: 8px; text-align: left;">Loja</th>
       ${periodos.map(p => `<th style="padding: 8px; text-align: right;">${p.rotulo}</th>`).join('')}
       <th style="padding: 8px; text-align: right;">vs mês anterior</th>
-      <th style="padding: 8px; text-align: right;">vs 2 meses atrás</th>
+      <th style="padding: 8px; text-align: right;">vs ${periodos.length - 1} meses atrás</th>
     </tr>`;
   }
   const corpo = document.getElementById(corpoId);
@@ -238,8 +289,8 @@ function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, 
     const linha = (nome, valores, negrito) => `<tr style="${negrito ? 'background:#eef4fb; font-weight:bold;' : ''}">
       <td style="padding: 7px 8px;">${nome}</td>
       ${valores.map(v => `<td style="padding: 7px 8px; text-align: right;">${formatarMoedaBR(v)}</td>`).join('')}
-      <td style="padding: 7px 8px; text-align: right;">${variacaoHTML(valores[2], valores[1])}</td>
-      <td style="padding: 7px 8px; text-align: right;">${variacaoHTML(valores[2], valores[0])}</td>
+      <td style="padding: 7px 8px; text-align: right;">${variacaoHTML(valores[valores.length - 1], valores[valores.length - 2])}</td>
+      <td style="padding: 7px 8px; text-align: right;">${variacaoHTML(valores[valores.length - 1], valores[0])}</td>
     </tr>`;
     corpo.innerHTML = ids.map(id => linha(escHTML(nomeLojaComparativo(id)), valorLoja(id), false)).join('')
       + linha(rotuloRede.toUpperCase(), valorRede, true);

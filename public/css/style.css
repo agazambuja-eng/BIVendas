@@ -131,3 +131,8 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 
 /* Campo de lojas: só aceita o que vem do botão "Selecionar Lojas" */
 .campo-lojas[readonly] { background: #f5f7fa; cursor: pointer; color: #222; }
+
+/* Comparativo: "últimos [3] períodos [Atualizar]" */
+.comparativo-titulo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.campo-qtd-periodos { width: 64px !important; padding: 5px 6px; text-align: center; font-weight: bold; font-size: 15px; }
+.btn-atualizar-comparativo { padding: 6px 12px; font-size: 13px; margin-left: 4px; }
