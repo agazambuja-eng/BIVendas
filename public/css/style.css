@@ -161,11 +161,12 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .cl-legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: #c9cff5; padding: 8px 0 14px; border-bottom: 1px solid rgba(120,140,255,.15); margin-bottom: 16px; }
 .cl-legenda-item i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 
-.cl-grade { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-@media (max-width: 1000px) { .cl-grade { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px)  { .cl-grade { grid-template-columns: 1fr; } }
+.cl-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1000px) { .cl-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px)  { .cl-grade { grid-template-columns: minmax(0, 1fr); } }
 
 .cl-card {
+  min-width: 0;
   background: linear-gradient(160deg, #161d48, #0e1333); border: 1px solid rgba(120, 140, 255, 0.2);
   border-radius: 14px; padding: 12px 14px; box-shadow: 0 14px 30px rgba(0,0,0,.35);
   opacity: 0; animation: clEntrar .55s cubic-bezier(.2,.9,.3,1.25) forwards;
@@ -178,9 +179,21 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .cl-card-topo strong { display: block; font-size: 15px; color: #e8ecff; }
 .cl-card-topo small { display: block; font-size: 11px; color: #8a93c9; margin-top: 2px; }
 .cl-total { font-weight: 700; color: #5ee7ff; text-shadow: 0 0 10px rgba(94,231,255,.4); white-space: nowrap; }
-.cl-grafico { position: relative; height: 210px; margin: 6px 0 4px; }
+.cl-corpo { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.cl-grafico { position: relative; flex: 0 0 50%; min-width: 0; height: 190px; }
+.cl-lado { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.cl-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; max-height: 170px; overflow-y: auto; }
+.cl-lista li { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #c9cff5; padding: 2px 6px; border-radius: 6px; }
+.cl-lista li i { flex: 0 0 10px; height: 10px; border-radius: 3px; }
+.cl-lista li span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-lista li b { color: #e8ecff; font-variant-numeric: tabular-nums; }
+.cl-lista li.cl-destaque { background: rgba(94, 231, 255, 0.09); }
+.cl-lista li.cl-destaque b { color: #5ee7ff; text-shadow: 0 0 8px rgba(94,231,255,.45); }
+.cl-resumo { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: #8a93c9; border-top: 1px solid rgba(120,140,255,.15); padding-top: 6px; }
+.cl-resumo span { display: flex; justify-content: space-between; padding: 0 6px; }
+@media (max-width: 420px) { .cl-corpo { flex-direction: column; } .cl-grafico { flex-basis: auto; width: 100%; } }
 .cl-centro { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
-.cl-centro b { display: block; font-size: 18px; color: #e8ecff; text-shadow: 0 0 12px rgba(94,231,255,.5); }
+.cl-centro b { display: block; font-size: 16px; color: #e8ecff; text-shadow: 0 0 12px rgba(94,231,255,.5); }
 .cl-centro span { font-size: 10px; color: #8a93c9; letter-spacing: .5px; }
 .cl-indicadores { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: #c9cff5; }
 .cl-indicadores b { margin-left: 4px; }
