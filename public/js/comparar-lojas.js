@@ -45,6 +45,17 @@ function agruparPagamentosPorLoja(pagamentos) {
   return { lojas, rotulos, infoRotulo };
 }
 
+/** "CARTAO" + "10 - PARCELAS" -> "Cartão 10x" ; "PIX" -> "Pix" ; "DINHEIRO" -> "Dinheiro" */
+function nomeCurtoPagamento(info) {
+  const ordem = ordemMeioPagamento(info.meio);
+  if (ordem === 0) return 'Dinheiro';
+  if (ordem === 1) return 'Pix';
+  if (ordem === 2) return 'Débito';
+  if (ordem === 3) return `Cartão ${numeroParcelas(info.parcelas)}x`;
+  const m = String(info.meio || '').toLowerCase();
+  return m.charAt(0).toUpperCase() + m.slice(1) + (info.parcelas && /\d/.test(info.parcelas) ? ` ${numeroParcelas(info.parcelas)}x` : '');
+}
+
 function corDoRotulo(rotulo, i) {
   return coresPagamentoGlobal[rotulo] || CORES_PALETA[i % CORES_PALETA.length];
 }
@@ -84,9 +95,9 @@ function abrirCompararLojas() {
   document.getElementById('subtituloCompararLojas').textContent =
     `${lista.length} loja(s) · ${formatarDataISOparaBR(ini)} a ${formatarDataISOparaBR(fim)} · total recebido ${formatarMoedaBR(totalRede)}`;
 
-  // legenda única (mesma cor em todas as lojas)
-  document.getElementById('legendaCompararLojas').innerHTML = rotulos.map((r, i) => `
-    <span class="cl-legenda-item"><i style="background:${corDoRotulo(r, i)}; box-shadow: 0 0 8px ${corDoRotulo(r, i)};"></i>${escHTML(r)}</span>`).join('');
+  // legenda agora fica em cada loja, ao lado da rosca
+  const legendaGeral = document.getElementById('legendaCompararLojas');
+  if (legendaGeral) legendaGeral.style.display = 'none';
 
   graficosComparaLojas.forEach(g => g.destroy());
   graficosComparaLojas = [];
@@ -96,27 +107,40 @@ function abrirCompararLojas() {
   } else {
     grade.innerHTML = lista.map((l, i) => {
       const { titulo, nome } = nomeLojaComparar(l.id);
-      // indicadores rápidos: à vista e cartão 10x (ou mais)
-      let aVista = 0, longo = 0, maior = { r: '', v: 0 };
+      // indicadores rápidos: à vista e cartão 9-10x
+      let aVista = 0, longo = 0;
       Object.entries(l.porRotulo).forEach(([r, v]) => {
         const info = infoRotulo[r];
         if (ordemMeioPagamento(info.meio) <= 2) aVista += v;
         else if (numeroParcelas(info.parcelas) >= 9) longo += v;
-        if (v > maior.v) maior = { r, v };
       });
+      // lista ao lado: só as formas que a loja usou, na ordem padrão
+      const linhas = rotulos.map((r, k) => ({ r, k, v: l.porRotulo[r] || 0 })).filter(x => x.v > 0);
+      const maiorV = Math.max(...linhas.map(x => x.v));
+      const listaHTML = linhas.map(x => `
+          <li class="${x.v === maiorV ? 'cl-destaque' : ''}" title="${escHTML(x.r)}: ${formatarMoedaBR(x.v)}">
+            <i style="background:${corDoRotulo(x.r, x.k)}; box-shadow: 0 0 8px ${corDoRotulo(x.r, x.k)};"></i>
+            <span>${escHTML(nomeCurtoPagamento(infoRotulo[x.r]))}</span>
+            <b>${fmtPct(pct(x.v, l.total))}</b>
+          </li>`).join('');
+      const pctLongo = pct(longo, l.total);
       return `<div class="cl-card" style="animation-delay:${i * 90}ms">
         <div class="cl-card-topo">
           <div><strong>${escHTML(titulo)}</strong><small>${escHTML(nome)}</small></div>
           <span class="cl-total">${formatarMoedaBR(l.total)}</span>
         </div>
-        <div class="cl-grafico"><canvas id="clGrafico${i}"></canvas>
-          <div class="cl-centro"><b>${fmtPct(pct(l.total, totalRede))}</b><span>da rede</span></div>
+        <div class="cl-corpo">
+          <div class="cl-grafico"><canvas id="clGrafico${i}"></canvas>
+            <div class="cl-centro"><b>${fmtPct(pct(l.total, totalRede))}</b><span>da rede</span></div>
+          </div>
+          <div class="cl-lado">
+            <ul class="cl-lista">${listaHTML}</ul>
+            <div class="cl-resumo">
+              <span title="Dinheiro, Pix e Débito">💵 À vista <b class="cl-bom">${fmtPct(pct(aVista, l.total))}</b></span>
+              <span title="Cartão em 9 ou 10 parcelas">💳 9-10x <b class="${pctLongo >= 40 ? 'cl-ruim' : ''}">${fmtPct(pctLongo)}</b></span>
+            </div>
+          </div>
         </div>
-        <div class="cl-indicadores">
-          <span title="Dinheiro, Pix e Débito">💵 À vista <b class="cl-bom">${fmtPct(pct(aVista, l.total))}</b></span>
-          <span title="Cartão em 9 ou 10 parcelas">💳 9-10x <b class="${pct(longo, l.total) >= 40 ? 'cl-ruim' : ''}">${fmtPct(pct(longo, l.total))}</b></span>
-        </div>
-        <div class="cl-maior">Maior: <b>${escHTML(maior.r)}</b> · ${fmtPct(pct(maior.v, l.total))}</div>
       </div>`;
     }).join('');
   }
@@ -140,7 +164,7 @@ function abrirCompararLojas() {
           responsive: true,
           maintainAspectRatio: false,
           cutout: '60%',
-          layout: { padding: { top: 6, bottom: 16, left: 10, right: 10 } },
+          layout: { padding: { top: 8, bottom: 16, left: 6, right: 6 } },
           animation: { animateRotate: true, animateScale: true, duration: 1100, easing: 'easeOutBack' },
           plugins: {
             legend: { display: false },
