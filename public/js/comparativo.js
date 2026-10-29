@@ -111,7 +111,7 @@ async function abrirComparativo() {
 function variacaoHTML(atual, anterior) {
   if (!anterior) return '<span style="color:#888">—</span>';
   const v = ((atual - anterior) / anterior) * 100;
-  const cor = v >= 0 ? '#28a745' : '#d9534f';
+  const cor = v >= 0 ? '#3dffa8' : '#ff5c8a';
   const seta = v >= 0 ? '▲' : '▼';
   return `<span style="color:${cor}; font-weight:bold;">${seta} ${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>`;
 }
@@ -140,7 +140,7 @@ function renderizarComparativo({ periodos, porPeriodo }) {
       const r = porPeriodo[i];
       const ant = i > 0 ? porPeriodo[i - 1].total : 0;
       const ticket = r.qtdTotal ? r.total / r.qtdTotal : 0;
-      return `<div class="bi-card" style="border-left-color: ${['#adb5bd', '#6c9bd2', '#0078d7'][i]}; padding: 10px;">
+      return `<div class="bi-card" style="border-left-color: ${['#8892c8', '#9d7bff', '#5ee7ff'][i]}; padding: 10px;">
         <div class="bi-card-title" style="font-size: 11px;">${p.rotulo}${i === 2 && parcial ? ' · parcial' : ''}</div>
         <div class="bi-card-value">${formatarMoedaBR(r.total)}</div>
         <div style="font-size: 12px; color: #666; margin-top: 4px;">
@@ -196,7 +196,7 @@ function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, 
     datasets.push({
       label: rotuloRede,
       data: valorRede,
-      borderColor: '#333', backgroundColor: '#333',
+      borderColor: '#ffffff', backgroundColor: '#ffffff',
       borderDash: [6, 4], borderWidth: 3, pointRadius: 5, tension: 0.3,
       yAxisID: eixoRedeSeparado ? 'y1' : 'y'
     });

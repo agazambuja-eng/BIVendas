@@ -1,0 +1,197 @@
+/* =====================================================================
+   Tema escuro "neon" do BI (index.html com <body class="tema-escuro">)
+   Sobrescreve style.css e as cores fixas escritas nos elementos (style="").
+   Para voltar ao claro: tirar a classe tema-escuro do <body>.
+   ===================================================================== */
+.tema-escuro {
+  --fundo: #070a18;
+  --card: #0f1430;
+  --card-2: #141a3d;
+  --card-3: #1a2150;
+  --borda: rgba(120, 140, 255, 0.18);
+  --borda-forte: rgba(120, 140, 255, 0.32);
+  --texto: #e8ecff;
+  --texto-2: #c9cff5;
+  --texto-fraco: #8a93c9;
+  --ciano: #5ee7ff;
+  --magenta: #ff5cf0;
+  --verde: #3dffa8;
+  --vermelho: #ff5c8a;
+  --amarelo: #ffd35e;
+  color-scheme: dark;
+}
+
+body.tema-escuro {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(94, 231, 255, 0.10), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(255, 92, 240, 0.08), transparent 60%),
+    var(--fundo);
+  background-attachment: fixed;
+  color: var(--texto);
+}
+
+/* ---- topo ---- */
+.tema-escuro .header-titulo { border-bottom: 3px solid transparent; border-image: linear-gradient(90deg, var(--ciano), var(--magenta)) 1; }
+.tema-escuro h2, .tema-escuro .titulo-aga { color: var(--texto); }
+.tema-escuro h2 { text-shadow: 0 0 18px rgba(94, 231, 255, 0.35); }
+.tema-escuro .usuario-nome { color: var(--texto); }
+.tema-escuro .usuario-link { color: var(--ciano); }
+.tema-escuro .usuario-link:hover { background: rgba(94, 231, 255, 0.10); }
+.tema-escuro .btn-config { background: var(--card-2); color: var(--texto); border-color: var(--borda-forte); }
+.tema-escuro .btn-config:hover { background: var(--card-3); color: var(--ciano); box-shadow: 0 0 14px rgba(94, 231, 255, 0.35); }
+
+/* ---- filtros e campos ---- */
+.tema-escuro .filtros {
+  background: linear-gradient(160deg, var(--card-2), var(--card));
+  border: 1px solid var(--borda);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.tema-escuro label { color: var(--texto-2); }
+.tema-escuro input, .tema-escuro select {
+  background: #0a0e26; color: var(--texto); border: 1px solid var(--borda-forte);
+}
+.tema-escuro input:focus, .tema-escuro select:focus { outline: none; border-color: var(--ciano); box-shadow: 0 0 0 3px rgba(94, 231, 255, 0.18); }
+.tema-escuro .campo-lojas[readonly] { background: #0a0e26; color: var(--texto); }
+.tema-escuro input::placeholder { color: var(--texto-fraco); }
+.tema-escuro input[type="date"]::-webkit-calendar-picker-indicator,
+.tema-escuro input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.85); }
+
+.tema-escuro button { background: linear-gradient(135deg, #1a6dff, #8a2bff); color: #fff; }
+.tema-escuro button:hover { filter: brightness(1.15); box-shadow: 0 0 16px rgba(94, 160, 255, 0.45); }
+.tema-escuro .btn-acao { box-shadow: 0 8px 24px rgba(26, 109, 255, 0.35); }
+.tema-escuro .btn-modal, .tema-escuro .btn-secundario { background: var(--card-3); border: 1px solid var(--borda-forte); }
+
+/* ---- abas ---- */
+.tema-escuro .bi-tabs-header button {
+  background: var(--card) !important; color: var(--texto-2) !important;
+  border: 1px solid var(--borda) !important; border-radius: 10px !important;
+}
+.tema-escuro .bi-tabs-header button.aba-ativa {
+  background: linear-gradient(135deg, #1a6dff, #8a2bff) !important; color: #fff !important;
+  border-color: transparent !important; box-shadow: 0 0 18px rgba(120, 120, 255, 0.45);
+}
+
+/* ---- cards e caixas (inclusive as com cor escrita no elemento) ---- */
+.tema-escuro .bi-card {
+  background: linear-gradient(160deg, var(--card-2), var(--card));
+  border: 1px solid var(--borda); border-left-width: 4px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.40);
+}
+.tema-escuro .bi-card:hover { box-shadow: 0 18px 36px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--borda-forte); }
+.tema-escuro .bi-card-title { color: var(--texto-fraco); }
+.tema-escuro .bi-card-value { color: var(--texto); }
+
+.tema-escuro [style*="background: #fff"], .tema-escuro [style*="background:#fff"],
+.tema-escuro [style*="background: #ffffff"],
+.tema-escuro [style*="background: #f9f9f9"], .tema-escuro [style*="background:#f9f9f9"],
+.tema-escuro [style*="background: #fafafa"], .tema-escuro [style*="background:#fafafa"],
+.tema-escuro [style*="background: #fdfdfd"], .tema-escuro [style*="background:#fdfdfd"],
+.tema-escuro [style*="background: #f8f9fa"] {
+  background: radial-gradient(120% 140% at 0% 0%, var(--card-3) 0%, var(--card) 60%) !important;
+  border-color: var(--borda) !important;
+}
+.tema-escuro [style*="background: #f5f5f5"], .tema-escuro [style*="background:#f5f5f5"],
+.tema-escuro [style*="background: #f1f3f5"], .tema-escuro [style*="background:#f1f3f5"],
+.tema-escuro [style*="background: #f5f7fa"] {
+  background: var(--card-3) !important;
+}
+.tema-escuro [style*="background:#eef4fb"], .tema-escuro [style*="background: #eef4fb"],
+.tema-escuro [style*="background: #f0f7ff"], .tema-escuro [style*="background: #e8f4fd"] {
+  background: rgba(94, 231, 255, 0.08) !important; border-color: rgba(94, 231, 255, 0.28) !important;
+}
+.tema-escuro [style*="background: #fff8e1"], .tema-escuro [style*="background:#fff8e1"] {
+  background: rgba(255, 211, 94, 0.10) !important; border-color: rgba(255, 211, 94, 0.35) !important;
+  color: var(--amarelo) !important;
+}
+.tema-escuro [style*="border: 1px solid #ddd"], .tema-escuro [style*="border: 1px solid #e0e0e0"],
+.tema-escuro [style*="border: 1px solid #eee"] { border-color: var(--borda) !important; }
+.tema-escuro [style*="border-bottom: 1px solid #eee"], .tema-escuro [style*="border-bottom: 1px solid #ddd"],
+.tema-escuro [style*="border-bottom: 1px dashed #eee"], .tema-escuro [style*="border-top: 1px solid #eee"] {
+  border-color: var(--borda) !important;
+}
+.tema-escuro hr { border-top-color: var(--borda) !important; }
+
+/* ---- cores de texto escritas no elemento ---- */
+.tema-escuro [style*="color: #333"], .tema-escuro [style*="color:#333"],
+.tema-escuro [style*="color: #444"], .tema-escuro [style*="color: #000"],
+.tema-escuro [style*="color: #222"] { color: var(--texto) !important; }
+.tema-escuro [style*="color: #555"], .tema-escuro [style*="color:#555"],
+.tema-escuro [style*="color: #666"], .tema-escuro [style*="color:#666"],
+.tema-escuro [style*="color: #888"], .tema-escuro [style*="color:#888"],
+.tema-escuro [style*="color: #6b7280"], .tema-escuro [style*="color:#6b7280"] { color: var(--texto-fraco) !important; }
+.tema-escuro [style*="color: #0078d7"], .tema-escuro [style*="color:#0078d7"],
+.tema-escuro [style*="color: #0056b3"], .tema-escuro [style*="color: #004085"],
+.tema-escuro [style*="color:#0b4f8a"], .tema-escuro [style*="color: #0b4f8a"] {
+  color: var(--ciano) !important; text-shadow: 0 0 10px rgba(94, 231, 255, 0.35);
+}
+.tema-escuro [style*="color: #28a745"], .tema-escuro [style*="color:#28a745"] { color: var(--verde) !important; }
+.tema-escuro [style*="color: #d9534f"], .tema-escuro [style*="color:#d9534f"] { color: var(--vermelho) !important; }
+.tema-escuro [style*="color: #6b5300"] { color: var(--amarelo) !important; }
+.tema-escuro h3, .tema-escuro h4 { color: var(--texto) !important; }
+
+/* ---- tabelas ---- */
+.tema-escuro table { color: var(--texto-2); }
+.tema-escuro th {
+  background: linear-gradient(180deg, #1b2358, #141a42) !important; color: var(--ciano) !important;
+  border-color: var(--borda) !important; text-shadow: 0 0 8px rgba(94, 231, 255, 0.35);
+}
+.tema-escuro td { border-color: rgba(120, 140, 255, 0.08) !important; }
+.tema-escuro tr:nth-child(even) { background-color: rgba(255, 255, 255, 0.02); }
+.tema-escuro tr:hover { background-color: rgba(94, 231, 255, 0.06); }
+.tema-escuro tfoot tr, .tema-escuro tfoot { background: #141a42 !important; }
+.tema-escuro tfoot td { color: var(--texto) !important; border-top: 2px solid var(--ciano) !important; }
+
+/* ---- modais ---- */
+.tema-escuro .modal-overlay { background: rgba(3, 5, 15, 0.75); backdrop-filter: blur(3px); }
+.tema-escuro .modal-content {
+  background: linear-gradient(160deg, var(--card-2), var(--card)); color: var(--texto);
+  border: 1px solid var(--borda-forte); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(94, 231, 255, 0.12);
+}
+.tema-escuro .modal-header { color: var(--ciano); }
+.tema-escuro .modal-body { border-color: var(--borda); }
+.tema-escuro .modal-body label { border-bottom-color: rgba(120, 140, 255, 0.08); }
+.tema-escuro .modal-body label:hover { background: rgba(94, 231, 255, 0.06); }
+.tema-escuro .modal-busca-container label, .tema-escuro .cfg-label { color: var(--texto-2); }
+.tema-escuro .cfg-form { background: rgba(255, 255, 255, 0.03); border-color: var(--borda); }
+.tema-escuro .cfg-form-titulo { color: var(--ciano); }
+.tema-escuro .cfg-btn-mini { background: var(--card-3); color: var(--texto); border-color: var(--borda-forte); }
+.tema-escuro .cfg-btn-fechar { background: transparent; color: var(--texto-fraco); }
+.tema-escuro .cfg-btn-fechar:hover { color: var(--texto); background: rgba(255, 255, 255, 0.06); box-shadow: none; }
+
+/* ---- carregando ---- */
+.tema-escuro .loading-overlay { background: rgba(5, 8, 22, 0.82); }
+.tema-escuro .spinner { border-color: rgba(255, 255, 255, 0.1); border-top-color: var(--ciano); box-shadow: 0 0 20px rgba(94, 231, 255, 0.4); }
+.tema-escuro .loading-text { color: var(--ciano); }
+
+/* ---- barras de rolagem ---- */
+.tema-escuro ::-webkit-scrollbar { width: 10px; height: 10px; }
+.tema-escuro ::-webkit-scrollbar-track { background: #0a0e26; }
+.tema-escuro ::-webkit-scrollbar-thumb { background: #2a3370; border-radius: 6px; }
+.tema-escuro ::-webkit-scrollbar-thumb:hover { background: #3a4590; }
+
+/* ---- modal de troca de senha (auth.js) ---- */
+.tema-escuro .acesso-modal { background: linear-gradient(160deg, var(--card-2), var(--card)); color: var(--texto); border: 1px solid var(--borda-forte); }
+.tema-escuro .acesso-modal label { color: var(--texto-2); }
+.tema-escuro .acesso-btn-sec { background: var(--card-3); color: var(--texto); }
+
+/* links do topo não são botões cheios */
+.tema-escuro .usuario-link { background: none !important; box-shadow: none !important; filter: none !important; }
+.tema-escuro .usuario-link:hover { background: rgba(94, 231, 255, 0.10) !important; }
+
+/* Avisos e mensagens cuja cor é trocada pelo JavaScript (o navegador
+   reescreve o style e as regras por texto deixam de valer) */
+.tema-escuro #avisoMetas {
+  background: rgba(255, 211, 94, 0.10) !important; border-color: rgba(255, 211, 94, 0.35) !important; color: var(--amarelo) !important;
+}
+.tema-escuro #statusComparativo {
+  background: rgba(94, 231, 255, 0.08) !important; border-color: rgba(94, 231, 255, 0.30) !important; color: var(--ciano) !important;
+}
+.tema-escuro #cfgMetasMensagem { background: rgba(255, 255, 255, 0.05) !important; color: var(--texto) !important; }
+.tema-escuro #resultado .erro { color: var(--vermelho); }
+/* mesmas cores claras depois que o navegador as reescreve em rgb() */
+.tema-escuro [style*="background: rgb(255, 255, 255)"], .tema-escuro [style*="background-color: rgb(255, 255, 255)"],
+.tema-escuro [style*="background: rgb(250, 250, 250)"], .tema-escuro [style*="background: rgb(249, 249, 249)"] {
+  background: radial-gradient(120% 140% at 0% 0%, var(--card-3) 0%, var(--card) 60%) !important;
+}
+.tema-escuro [style*="color: rgb(51, 51, 51)"] { color: var(--texto) !important; }
+.tema-escuro [style*="color: rgb(102, 102, 102)"], .tema-escuro [style*="color: rgb(85, 85, 85)"] { color: var(--texto-fraco) !important; }

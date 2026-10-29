@@ -15,8 +15,9 @@ let ultimaConsultaBI = null;            // filtros da última consulta (aba Comp
 let meuGraficoZoomPagamento = null;    
 let meuGraficoZoomQuantidade = null;   
 
-const CORES_PALETA = [
-  '#0078d7', '#5cb85c', '#f0ad4e', '#d9534f', '#6f42c1', 
+// Cores dos gráficos: paleta neon de tema-graficos.js
+const CORES_PALETA = (typeof CORES_NEON !== 'undefined') ? CORES_NEON : [
+  '#0078d7', '#5cb85c', '#f0ad4e', '#d9534f', '#6f42c1',
   '#17a2b8', '#e83e8c', '#fd7e14', '#20c997', '#6610f2'
 ];
 
@@ -124,6 +125,10 @@ function mudarAba(aba) {
       btnDetalhes.style.color = "#fff";
     }
   }
+
+  // Classe da aba ativa (usada pelo tema escuro)
+  const idsBotoes = { cards: 'btnAbaCards', dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', comparativo: 'btnAbaComparativo', detalhes: 'btnAbaDetalhes' };
+  document.querySelectorAll('#biTabsHeader button').forEach(b => b.classList.toggle('aba-ativa', b.id === idsBotoes[aba]));
 }
 
 // --- FUNÇÕES DO MODAL DE LOJAS ---

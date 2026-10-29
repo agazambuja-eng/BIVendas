@@ -16,10 +16,10 @@ const metasClient = supabaseBI;
 const graficosMetas = {};          // canvasId -> instância Chart
 let ultimosTotaisPorLoja = null;   // para recarregar a aba após editar metas
 
-const COR_META = '#adb5bd';
-const COR_ACIMA = '#28a745';
-const COR_ABAIXO = '#d9534f';
-const COR_SEM_META = '#0078d7';
+const COR_META = '#8892c8';
+const COR_ACIMA = '#3dffa8';
+const COR_ABAIXO = '#ff5c8a';
+const COR_SEM_META = '#5ee7ff';
 
 /** "2026-10-01" + "2026-11-15" -> [202610, 202611] */
 function competenciasDoPeriodo(dataIniISO, dataFimISO) {
@@ -229,8 +229,8 @@ function renderizarMetasTicket(porLoja) {
         ctx.save();
         ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#333';
-        chart.getDatasetMeta(0).data.forEach((barra, i) => ctx.fillText(formatarMoedaBR(lista[i].ticket), barra.x, barra.y - 6));
+        ctx.fillStyle = '#e8ecff';
+        chart.getDatasetMeta(0).data.forEach((barra, i) => ctx.fillText(formatarMoedaBR(lista[i].ticket), barra.x, barra.y - 6 - (typeof TEMA !== 'undefined' ? TEMA.profundidade3D : 0)));
         ctx.restore();
       }
     }]
@@ -240,13 +240,13 @@ function renderizarMetasTicket(porLoja) {
 
 // ------------------------------------------------ vendedores e troféus
 const NIVEIS = {
-  ouro:   { nome: 'Ouro',   trofeu: '🥇', cor: '#c9a227' },
-  prata:  { nome: 'Prata',  trofeu: '🥈', cor: '#8e9aa6' },
-  bronze: { nome: 'Bronze', trofeu: '🥉', cor: '#b0703a' }
+  ouro:   { nome: 'Ouro',   trofeu: '🥇', cor: '#ffd35e' },
+  prata:  { nome: 'Prata',  trofeu: '🥈', cor: '#c0c8d8' },
+  bronze: { nome: 'Bronze', trofeu: '🥉', cor: '#d68a4c' }
 };
-const COR_META_BRONZE = 'rgba(176, 112, 58, 0.30)';
-const COR_META_PRATA  = 'rgba(142, 154, 166, 0.35)';
-const COR_META_OURO   = 'rgba(201, 162, 39, 0.35)';
+const COR_META_BRONZE = 'rgba(214, 138, 76, 0.45)';
+const COR_META_PRATA  = 'rgba(192, 200, 216, 0.45)';
+const COR_META_OURO   = 'rgba(255, 211, 94, 0.45)';
 
 /** "0001 - * SEM VENDEDOR" não concorre a meta. */
 function ehSemVendedor(nome) {
@@ -363,11 +363,11 @@ function renderizarGraficoVendedores(lista) {
           position: 'top',
           labels: {
             generateLabels: () => [
-              { text: '🥉 Meta Bronze', fillStyle: COR_META_BRONZE, strokeStyle: COR_META_BRONZE },
-              { text: '🥈 Meta Prata', fillStyle: COR_META_PRATA, strokeStyle: COR_META_PRATA },
-              { text: '🥇 Meta Ouro', fillStyle: COR_META_OURO, strokeStyle: COR_META_OURO },
-              { text: 'Realizado (cor do troféu)', fillStyle: NIVEIS.ouro.cor, strokeStyle: NIVEIS.ouro.cor },
-              { text: 'Realizado abaixo do Bronze', fillStyle: COR_ABAIXO, strokeStyle: COR_ABAIXO }
+              { text: '🥉 Meta Bronze', fillStyle: COR_META_BRONZE, strokeStyle: COR_META_BRONZE, fontColor: (typeof TEMA !== 'undefined' ? TEMA.texto : '#333') },
+              { text: '🥈 Meta Prata', fillStyle: COR_META_PRATA, strokeStyle: COR_META_PRATA, fontColor: (typeof TEMA !== 'undefined' ? TEMA.texto : '#333') },
+              { text: '🥇 Meta Ouro', fillStyle: COR_META_OURO, strokeStyle: COR_META_OURO, fontColor: (typeof TEMA !== 'undefined' ? TEMA.texto : '#333') },
+              { text: 'Realizado (cor do troféu)', fillStyle: NIVEIS.ouro.cor, strokeStyle: NIVEIS.ouro.cor, fontColor: (typeof TEMA !== 'undefined' ? TEMA.texto : '#333') },
+              { text: 'Realizado abaixo do Bronze', fillStyle: COR_ABAIXO, strokeStyle: COR_ABAIXO, fontColor: (typeof TEMA !== 'undefined' ? TEMA.texto : '#333') }
             ]
           }
         },
@@ -383,7 +383,7 @@ function renderizarGraficoVendedores(lista) {
         }
       },
       scales: {
-        x: { ticks: { font: { size: 11 }, color: c => { const l = lista[c.index]; return l ? corRealizadoVendedor(l) : '#666'; } } },
+        x: { ticks: { font: { size: 11 }, color: c => { const l = lista[c.index]; return l ? corRealizadoVendedor(l) : '#8a93c9'; } } },
         y: { beginAtZero: true, grace: '20%', ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR') } }
       }
     },
@@ -470,15 +470,15 @@ const pluginFaixasGrupo = {
       if (i === lista.length || funcGrupo(lista[i]) !== funcGrupo(lista[inicio])) {
         const esq = Math.max(chartArea.left, x.getPixelForValue(inicio) - meiaLargura);
         const dir = Math.min(chartArea.right, x.getPixelForValue(i - 1) + meiaLargura);
-        ctx.fillStyle = alterna ? 'rgba(0,120,215,0.06)' : 'rgba(0,0,0,0.025)';
+        ctx.fillStyle = alterna ? 'rgba(94,231,255,0.05)' : 'rgba(255,255,255,0.02)';
         ctx.fillRect(esq, chartArea.top, dir - esq, chartArea.bottom - chartArea.top);
         if (inicio > 0) {
-          ctx.strokeStyle = '#c9d6e3';
+          ctx.strokeStyle = 'rgba(120,140,255,0.35)';
           ctx.setLineDash([4, 3]);
           ctx.beginPath(); ctx.moveTo(esq, chartArea.top); ctx.lineTo(esq, chartArea.bottom); ctx.stroke();
           ctx.setLineDash([]);
         }
-        ctx.fillStyle = '#0b4f8a';
+        ctx.fillStyle = '#5ee7ff';
         ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(`Loja ${funcGrupo(lista[inicio])}`, (esq + dir) / 2, chartArea.top + 14);
@@ -532,7 +532,7 @@ const pluginRotuloAtingimento = {
       const l = lista[i];
       if (!l || l.atingimento === null) return;
       ctx.fillStyle = chart.$corRotulo ? chart.$corRotulo(l) : (l.atingimento >= 100 ? COR_ACIMA : COR_ABAIXO);
-      ctx.fillText(formatarPct(l.atingimento), barra.x, barra.y - 6);
+      ctx.fillText(formatarPct(l.atingimento), barra.x, barra.y - 6 - (typeof TEMA !== 'undefined' ? TEMA.profundidade3D : 0));
     });
     ctx.restore();
   }
@@ -567,9 +567,9 @@ function renderizarGraficoComparativo(canvasId, lista, funcRotulo, funcGrupo = n
           labels: {
             // legenda com as duas cores do realizado
             generateLabels: () => [
-              { text: 'Meta', fillStyle: COR_META, strokeStyle: COR_META },
-              { text: 'Realizado (na meta ou acima)', fillStyle: COR_ACIMA, strokeStyle: COR_ACIMA },
-              { text: 'Realizado (abaixo da meta)', fillStyle: COR_ABAIXO, strokeStyle: COR_ABAIXO }
+              { text: 'Meta', fillStyle: COR_META, strokeStyle: COR_META, fontColor: (typeof TEMA !== 'undefined' ? TEMA.texto : '#333') },
+              { text: 'Realizado (na meta ou acima)', fillStyle: COR_ACIMA, strokeStyle: COR_ACIMA, fontColor: (typeof TEMA !== 'undefined' ? TEMA.texto : '#333') },
+              { text: 'Realizado (abaixo da meta)', fillStyle: COR_ABAIXO, strokeStyle: COR_ABAIXO, fontColor: (typeof TEMA !== 'undefined' ? TEMA.texto : '#333') }
             ]
           }
         },
@@ -586,7 +586,7 @@ function renderizarGraficoComparativo(canvasId, lista, funcRotulo, funcGrupo = n
             font: { size: 11 },
             color: (c) => {
               const l = lista[c.index];
-              return !l || l.atingimento === null ? '#666' : (l.atingimento >= 100 ? COR_ACIMA : COR_ABAIXO);
+              return !l || l.atingimento === null ? '#8a93c9' : (l.atingimento >= 100 ? COR_ACIMA : COR_ABAIXO);
             }
           }
         },
@@ -610,7 +610,7 @@ function renderizarTabelaComparativo(tbodyId, lista, funcNomeHTML) {
   if (!corpo) return;
   corpo.innerHTML = lista.map(l => {
     const dif = l.realizado - l.meta;
-    const cor = l.atingimento === null ? '#666' : (l.atingimento >= 100 ? COR_ACIMA : COR_ABAIXO);
+    const cor = l.atingimento === null ? '#8a93c9' : (l.atingimento >= 100 ? COR_ACIMA : COR_ABAIXO);
     return `<tr>
       <td>${funcNomeHTML(l)}</td>
       <td style="text-align:right">${l.meta ? formatarMoedaBR(l.meta) : '—'}</td>
