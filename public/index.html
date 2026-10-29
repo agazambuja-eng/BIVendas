@@ -250,7 +250,7 @@
 
     <!-- METAS POR VENDEDOR -->
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-      <h3 style="margin: 0; color: #333; font-size: 16px;">Metas x Realizado por Vendedor</h3>
+      <h3 style="margin: 0; color: #333; font-size: 16px;">Metas por Vendedor · 🥉 Bronze · 🥈 Prata · 🥇 Ouro</h3>
       <div id="resumoMetasVendedores" style="font-size: 12px; color: #666; margin: 4px 0 10px;"></div>
       <div style="overflow-x: auto;">
         <div id="areaGraficoMetasVendedores" style="position: relative; min-width: 100%; height: 380px;">
@@ -264,10 +264,11 @@
         <thead style="background: #f5f5f5;">
           <tr>
             <th style="padding: 8px; text-align: left;">Vendedor</th>
-            <th style="padding: 8px; text-align: right;">Meta individual</th>
+            <th style="padding: 8px; text-align: right;">🥉 Meta Bronze</th>
+            <th style="padding: 8px; text-align: right;">🥈 Meta Prata</th>
+            <th style="padding: 8px; text-align: right;">🥇 Meta Ouro</th>
             <th style="padding: 8px; text-align: right;">Realizado</th>
-            <th style="padding: 8px; text-align: right;">Diferença</th>
-            <th style="padding: 8px; text-align: right;">Atingimento</th>
+            <th style="padding: 8px; text-align: right;">Troféu / próxima meta</th>
           </tr>
         </thead>
         <tbody id="tabelaMetasVendedoresCorpo"></tbody>
@@ -399,8 +400,9 @@
             <label class="cfg-label cfg-col2">Descrição <input type="text" id="cfgDescricao" maxlength="120" placeholder="Nome da loja"></label>
             <label class="cfg-label">Competência <input type="month" id="cfgCompetencia"></label>
             <label class="cfg-label">Meta da loja (R$) <input type="number" id="cfgValorMeta" min="0" step="0.01" placeholder="185000"></label>
-            <label class="cfg-label">Meta por vendedor (R$) <input type="number" id="cfgValorMetaVendedor" min="0" step="0.01" placeholder="95000"></label>
-            <label class="cfg-label">Meta ticket médio (R$) <input type="number" id="cfgValorMetaTicket" min="0" step="0.01" placeholder="1500"></label>
+            <label class="cfg-label">🥉 Vendedor Bronze (R$) <input type="number" id="cfgValorMetaBronze" min="0" step="0.01" placeholder="90000"></label>
+            <label class="cfg-label">🥈 Vendedor Prata (R$) <input type="number" id="cfgValorMetaPrata" min="0" step="0.01" placeholder="110000"></label>
+            <label class="cfg-label">🥇 Vendedor Ouro (R$) <input type="number" id="cfgValorMetaOuro" min="0" step="0.01" placeholder="130000"></label>
           </div>
           <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
             <button type="button" id="cfgBtnCancelarEdicao" class="btn-secundario" onclick="cfgLimparFormulario(); cfgCarregarMetas();" style="display: none;">Cancelar alteração</button>
@@ -422,8 +424,9 @@
                 <tr>
                   <th style="padding: 6px 8px; text-align: left;">Loja</th>
                   <th style="padding: 6px 8px; text-align: right;">Meta loja</th>
-                  <th style="padding: 6px 8px; text-align: right;">Meta vendedor</th>
-                  <th style="padding: 6px 8px; text-align: right;">Meta ticket</th>
+                  <th style="padding: 6px 8px; text-align: right;">🥉 Bronze</th>
+                  <th style="padding: 6px 8px; text-align: right;">🥈 Prata</th>
+                  <th style="padding: 6px 8px; text-align: right;">🥇 Ouro</th>
                   <th style="padding: 6px 8px; text-align: center;">Ações</th>
                 </tr>
               </thead>
