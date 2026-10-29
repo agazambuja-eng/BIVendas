@@ -10,7 +10,6 @@
 
 let comparativoCache = null;   // { chave, periodos, porPeriodo }
 let comparativoCarregando = false;
-let graficoComparativo = null;
 
 function limparComparativo() {
   comparativoCache = null;
@@ -155,25 +154,61 @@ function renderizarComparativo({ periodos, porPeriodo }) {
   // ---- lojas presentes em qualquer período, ordenadas pela venda atual
   const ids = [...new Set(porPeriodo.flatMap(r => Object.keys(r.porLoja)))];
   ids.sort((a, b) => (porPeriodo[2].porLoja[b] || 0) - (porPeriodo[2].porLoja[a] || 0));
+  const ticketLoja = (r, id) => (r.vendas[id] ? (r.porLoja[id] || 0) / r.vendas[id] : 0);
+  const ticketRede = r => (r.qtdTotal ? r.total / r.qtdTotal : 0);
 
-  // ---- gráfico de linhas: uma linha por loja + total da rede (eixo à direita)
-  const canvas = document.getElementById('graficoComparativo');
+  // ---- VENDAS: linha por loja + total da rede (escala à direita)
+  graficosComparativo.vendas = desenharEvolucao({
+    canvasId: 'graficoComparativo', cabId: 'cabecalhoComparativo', corpoId: 'corpoComparativo',
+    periodos, ids,
+    valorLoja: id => porPeriodo.map(r => r.porLoja[id] || 0),
+    valorRede: porPeriodo.map(r => r.total),
+    rotuloRede: 'Total da rede', eixoRedeSeparado: true,
+    anterior: graficosComparativo.vendas
+  });
+
+  // ---- TICKET MÉDIO: linha por loja + ticket da rede (mesma escala)
+  graficosComparativo.ticket = desenharEvolucao({
+    canvasId: 'graficoComparativoTicket', cabId: 'cabecalhoComparativoTicket', corpoId: 'corpoComparativoTicket',
+    periodos, ids,
+    valorLoja: id => porPeriodo.map(r => ticketLoja(r, id)),
+    valorRede: porPeriodo.map(ticketRede),
+    rotuloRede: 'Ticket médio da rede', eixoRedeSeparado: false,
+    anterior: graficosComparativo.ticket
+  });
+}
+
+const graficosComparativo = { vendas: null, ticket: null };
+
+/** Gráfico de linhas (loja a loja + rede) e tabela com variações. Devolve o gráfico. */
+function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, valorRede, rotuloRede, eixoRedeSeparado, anterior }) {
+  let grafico = null;
+  const canvas = document.getElementById(canvasId);
   if (canvas) {
-    if (graficoComparativo) graficoComparativo.destroy();
+    if (anterior) anterior.destroy();
     const datasets = ids.map((id, i) => ({
       label: nomeLojaComparativo(id),
-      data: porPeriodo.map(r => r.porLoja[id] || 0),
+      data: valorLoja(id),
       borderColor: CORES_PALETA[i % CORES_PALETA.length],
       backgroundColor: CORES_PALETA[i % CORES_PALETA.length],
       tension: 0.3, borderWidth: 2, pointRadius: 4, yAxisID: 'y'
     }));
     datasets.push({
-      label: 'Total da rede',
-      data: porPeriodo.map(r => r.total),
+      label: rotuloRede,
+      data: valorRede,
       borderColor: '#333', backgroundColor: '#333',
-      borderDash: [6, 4], borderWidth: 3, pointRadius: 5, tension: 0.3, yAxisID: 'y1'
+      borderDash: [6, 4], borderWidth: 3, pointRadius: 5, tension: 0.3,
+      yAxisID: eixoRedeSeparado ? 'y1' : 'y'
     });
-    graficoComparativo = new Chart(canvas, {
+    const moedaEixo = v => 'R$ ' + Number(v).toLocaleString('pt-BR');
+    const scales = {
+      y: { beginAtZero: true, title: { display: eixoRedeSeparado, text: 'Por loja' }, ticks: { callback: moedaEixo } }
+    };
+    if (eixoRedeSeparado) {
+      scales.y1 = { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false },
+                    title: { display: true, text: rotuloRede }, ticks: { callback: moedaEixo } };
+    }
+    grafico = new Chart(canvas, {
       type: 'line',
       data: { labels: periodos.map(p => p.rotulo), datasets },
       options: {
@@ -184,19 +219,12 @@ function renderizarComparativo({ periodos, porPeriodo }) {
           legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 11 } } },
           tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${formatarMoedaBR(c.raw)}` } }
         },
-        scales: {
-          y: { beginAtZero: true, title: { display: true, text: 'Por loja' },
-               ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR') } },
-          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false },
-                title: { display: true, text: 'Total da rede' },
-                ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR') } }
-        }
+        scales
       }
     });
   }
 
-  // ---- tabela loja x período
-  const cab = document.getElementById('cabecalhoComparativo');
+  const cab = document.getElementById(cabId);
   if (cab) {
     cab.innerHTML = `<tr>
       <th style="padding: 8px; text-align: left;">Loja</th>
@@ -205,7 +233,7 @@ function renderizarComparativo({ periodos, porPeriodo }) {
       <th style="padding: 8px; text-align: right;">vs 2 meses atrás</th>
     </tr>`;
   }
-  const corpo = document.getElementById('corpoComparativo');
+  const corpo = document.getElementById(corpoId);
   if (corpo) {
     const linha = (nome, valores, negrito) => `<tr style="${negrito ? 'background:#eef4fb; font-weight:bold;' : ''}">
       <td style="padding: 7px 8px;">${nome}</td>
@@ -213,7 +241,8 @@ function renderizarComparativo({ periodos, porPeriodo }) {
       <td style="padding: 7px 8px; text-align: right;">${variacaoHTML(valores[2], valores[1])}</td>
       <td style="padding: 7px 8px; text-align: right;">${variacaoHTML(valores[2], valores[0])}</td>
     </tr>`;
-    corpo.innerHTML = ids.map(id => linha(escHTML(nomeLojaComparativo(id)), porPeriodo.map(r => r.porLoja[id] || 0), false)).join('')
-      + linha('TOTAL DA REDE', porPeriodo.map(r => r.total), true);
+    corpo.innerHTML = ids.map(id => linha(escHTML(nomeLojaComparativo(id)), valorLoja(id), false)).join('')
+      + linha(rotuloRede.toUpperCase(), valorRede, true);
   }
+  return grafico;
 }
