@@ -22,8 +22,12 @@ const COR_SEM_META = '#0078d7';
 /** "2026-10-01" + "2026-11-15" -> [202610, 202611] */
 function competenciasDoPeriodo(dataIniISO, dataFimISO) {
   if (!dataIniISO) return [];
-  const [ai, mi] = dataIniISO.split('-').map(Number);
-  const [af, mf] = (dataFimISO || dataIniISO).split('-').map(Number);
+  // Mês comercial (26 a 25): 26/09 a 25/10 = outubro (202610), não set + out.
+  const cIni = competenciaComercial(dataIniISO, true);
+  const cFim = competenciaComercial(dataFimISO || dataIniISO, false);
+  const inicio = Math.min(cIni, cFim);
+  const ai = Math.floor(inicio / 100), mi = inicio % 100;
+  const af = Math.floor(cFim / 100), mf = cFim % 100;
   const lista = [];
   let ano = ai, mes = mi;
   while (ano < af || (ano === af && mes <= mf)) {
