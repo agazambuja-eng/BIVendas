@@ -60,8 +60,8 @@ function traduzirErro(error) {
   if (error.code === '42501' || /row-level security/i.test(error.message || '')) {
     return 'Seu usuário não tem permissão para esta operação nas metas.';
   }
-  if (/valor_meta_ticket/.test(error.message || '')) {
-    return 'A coluna valor_meta_ticket ainda não existe. Rode database/03_meta_ticket_medio.sql no Supabase.';
+  if (/valor_meta_(bronze|prata|ouro)/.test(error.message || '')) {
+    return 'As colunas das metas Bronze/Prata/Ouro ainda não existem. Rode database/07_metas_vendedor_trofeus.sql no Supabase.';
   }
   if (error.code === '23505') return 'Já existe meta para esta loja nesta competência. Use "Alterar" na lista.';
   return error.message;
@@ -97,7 +97,7 @@ async function cfgCarregarMetas() {
   const competencia = mesParaCompetencia(cfgEl('cfgFiltroCompetencia').value);
   if (!competencia) return;
   const corpo = cfgEl('cfgTabelaMetasCorpo');
-  corpo.innerHTML = '<tr><td colspan="5" style="padding:10px; color:#666;">Carregando...</td></tr>';
+  corpo.innerHTML = '<tr><td colspan="6" style="padding:10px; color:#666;">Carregando...</td></tr>';
 
   const { data, error } = await metasClient
     .from('metas_loja')
@@ -115,7 +115,7 @@ async function cfgCarregarMetas() {
     `Metas de ${nomeCompetencia(competencia)} (${cfgMetasLista.length} loja${cfgMetasLista.length === 1 ? '' : 's'})`;
 
   if (!cfgMetasLista.length) {
-    corpo.innerHTML = `<tr><td colspan="5" style="padding:10px; color:#666;">Nenhuma meta cadastrada para ${nomeCompetencia(competencia)}.</td></tr>`;
+    corpo.innerHTML = `<tr><td colspan="6" style="padding:10px; color:#666;">Nenhuma meta cadastrada para ${nomeCompetencia(competencia)}.</td></tr>`;
     return;
   }
 
@@ -124,8 +124,9 @@ async function cfgCarregarMetas() {
     <tr style="${cfgMetasEmEdicao === m.id ? 'background:#fff8e1;' : ''}">
       <td style="padding:6px 8px;"><strong>${escaparHTML(m.codigo)}</strong> – ${escaparHTML(m.descricao)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta)}</td>
-      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_vendedor)}</td>
-      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_ticket)}</td>
+      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_bronze ?? m.valor_meta_vendedor)}</td>
+      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_prata)}</td>
+      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_ouro)}</td>
       <td style="padding:6px 8px; text-align:center; white-space:nowrap;">
         ${temPermissao('alterar_metas') ? `<button type="button" class="cfg-btn-mini" onclick="cfgEditar(${m.id})" title="Alterar">✏️</button>` : ''}
         ${temPermissao('excluir_metas') ? `<button type="button" class="cfg-btn-mini cfg-btn-perigo" onclick="cfgExcluir(${m.id})" title="Excluir">🗑️</button>` : ''}
@@ -144,8 +145,9 @@ function cfgLimparFormulario() {
   cfgEl('cfgCodigo').disabled = false;
   cfgEl('cfgDescricao').value = '';
   cfgEl('cfgValorMeta').value = '';
-  cfgEl('cfgValorMetaVendedor').value = '';
-  cfgEl('cfgValorMetaTicket').value = '';
+  cfgEl('cfgValorMetaBronze').value = '';
+  cfgEl('cfgValorMetaPrata').value = '';
+  cfgEl('cfgValorMetaOuro').value = '';
   cfgEl('cfgCompetencia').value = cfgEl('cfgFiltroCompetencia').value || mesAtualInput();
   cfgEl('cfgCompetencia').disabled = false;
 }
@@ -172,8 +174,9 @@ function cfgEditar(id) {
   cfgEl('cfgCodigo').value = m.codigo;
   cfgEl('cfgDescricao').value = m.descricao || '';
   cfgEl('cfgValorMeta').value = m.valor_meta ?? '';
-  cfgEl('cfgValorMetaVendedor').value = m.valor_meta_vendedor ?? '';
-  cfgEl('cfgValorMetaTicket').value = m.valor_meta_ticket ?? '';
+  cfgEl('cfgValorMetaBronze').value = m.valor_meta_bronze ?? m.valor_meta_vendedor ?? '';
+  cfgEl('cfgValorMetaPrata').value = m.valor_meta_prata ?? '';
+  cfgEl('cfgValorMetaOuro').value = m.valor_meta_ouro ?? '';
   cfgEl('cfgCompetencia').value = competenciaParaMes(m.competencia);
   cfgMensagem('');
   cfgCarregarMetas(); // destaca a linha em edição
@@ -187,25 +190,21 @@ async function cfgSalvar(event) {
     descricao: cfgEl('cfgDescricao').value.trim(),
     competencia: mesParaCompetencia(cfgEl('cfgCompetencia').value),
     valor_meta: numeroOuNulo(cfgEl('cfgValorMeta').value),
-    valor_meta_vendedor: numeroOuNulo(cfgEl('cfgValorMetaVendedor').value),
-    valor_meta_ticket: numeroOuNulo(cfgEl('cfgValorMetaTicket').value)
+    valor_meta_bronze: numeroOuNulo(cfgEl('cfgValorMetaBronze').value),
+    valor_meta_prata: numeroOuNulo(cfgEl('cfgValorMetaPrata').value),
+    valor_meta_ouro: numeroOuNulo(cfgEl('cfgValorMetaOuro').value)
   };
-
-  // Se a coluna de ticket ainda não existe no banco e o campo está vazio, não envia
-  const linhaAtual = cfgMetasEmEdicao ? cfgMetasLista.find(x => x.id === cfgMetasEmEdicao) : cfgMetasLista[0];
-  if (registro.valor_meta_ticket === null && !(linhaAtual && 'valor_meta_ticket' in linhaAtual)) {
-    delete registro.valor_meta_ticket;
-  }
 
   if (isNaN(registro.codigo)) return cfgMensagem('Informe o código da loja.', 'erro');
   if (!registro.descricao) return cfgMensagem('Informe a descrição da loja.', 'erro');
   if (!registro.competencia) return cfgMensagem('Informe a competência (mês/ano).', 'erro');
   if (registro.valor_meta === null || registro.valor_meta < 0) return cfgMensagem('Informe a meta da loja (R$).', 'erro');
-  if (registro.valor_meta_ticket !== null && registro.valor_meta_ticket < 0) {
-    return cfgMensagem('A meta de ticket médio não pode ser negativa.', 'erro');
+  const { valor_meta_bronze: b, valor_meta_prata: p, valor_meta_ouro: o } = registro;
+  if ([b, p, o].some(v => v !== null && v < 0)) {
+    return cfgMensagem('As metas do vendedor não podem ser negativas.', 'erro');
   }
-  if (registro.valor_meta_vendedor !== null && registro.valor_meta_vendedor < 0) {
-    return cfgMensagem('A meta do vendedor não pode ser negativa.', 'erro');
+  if ((b !== null && p !== null && p <= b) || (p !== null && o !== null && o <= p) || (b !== null && o !== null && o <= b)) {
+    return cfgMensagem('As metas do vendedor precisam crescer: Bronze < Prata < Ouro.', 'erro');
   }
 
   cfgEl('cfgBtnSalvar').disabled = true;

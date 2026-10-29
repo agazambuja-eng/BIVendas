@@ -98,12 +98,11 @@ async function renderizarMetas(totaisPorLoja) {
     const id = String(m.codigo);
     if (!porLoja[id]) porLoja[id] = novoRegistroLoja(id, m.descricao);
     porLoja[id].meta += Number(m.valor_meta) || 0;
-    porLoja[id].metaVendedor += Number(m.valor_meta_vendedor) || 0;
-    // Ticket é média, não soma: se o período cobrir 2 meses, usa a média das metas
-    if (Number(m.valor_meta_ticket) > 0) {
-      porLoja[id].metaTicketSoma += Number(m.valor_meta_ticket);
-      porLoja[id].metaTicketQtd++;
-    }
+    // Metas do vendedor em 3 faixas (Bronze < Prata < Ouro).
+    // valor_meta_vendedor = nome antigo da meta Bronze (antes do script 07).
+    porLoja[id].metaBronze += Number(m.valor_meta_bronze ?? m.valor_meta_vendedor) || 0;
+    porLoja[id].metaPrata += Number(m.valor_meta_prata) || 0;
+    porLoja[id].metaOuro += Number(m.valor_meta_ouro) || 0;
     if (m.descricao) porLoja[id].descricao = m.descricao;
   });
   Object.keys(totaisPorLoja || {}).forEach(id => {
@@ -137,13 +136,13 @@ async function renderizarMetas(totaisPorLoja) {
 }
 
 function novoRegistroLoja(id, descricao) {
-  return { id, descricao, meta: 0, metaVendedor: 0, metaTicketSoma: 0, metaTicketQtd: 0, realizado: 0 };
+  return { id, descricao, meta: 0, metaBronze: 0, metaPrata: 0, metaOuro: 0, realizado: 0 };
 }
 
 /**
  * Ticket médio por loja = valor líquido ÷ quantidade de vendas (OS com valor
  * bruto > 0), mesma regra do card "Ticket Médio" da aba Visão Geral.
- * Meta: coluna valor_meta_ticket da metas_loja (opcional).
+ * Sem meta: só o ticket realizado de cada loja, comparado com o da rede.
  */
 function renderizarMetasTicket(porLoja) {
   const osPorLoja = {};
@@ -162,37 +161,102 @@ function renderizarMetasTicket(porLoja) {
 
   const lista = Object.keys(liquidoPorLoja).map(id => {
     const qtdVendas = Object.values(osPorLoja[id] || {}).filter(v => v > 0).length;
-    const ticket = qtdVendas > 0 ? liquidoPorLoja[id] / qtdVendas : 0;
     const reg = porLoja[id] || novoRegistroLoja(id, '');
-    const metaTicket = reg.metaTicketQtd > 0 ? reg.metaTicketSoma / reg.metaTicketQtd : 0;
-    return {
-      id, descricao: reg.descricao, qtdVendas,
-      meta: metaTicket, realizado: ticket,
-      atingimento: metaTicket > 0 ? (ticket / metaTicket) * 100 : null
-    };
+    return { id, descricao: reg.descricao, qtdVendas, ticket: qtdVendas > 0 ? liquidoPorLoja[id] / qtdVendas : 0 };
   });
-  lista.sort((a, b) => b.realizado - a.realizado);
+  lista.sort((a, b) => b.ticket - a.ticket);
 
   const totalLiquido = Object.values(liquidoPorLoja).reduce((s, v) => s + v, 0);
   const totalVendas = lista.reduce((s, l) => s + l.qtdVendas, 0);
   const ticketRede = totalVendas > 0 ? totalLiquido / totalVendas : 0;
-  const comMeta = lista.filter(l => l.atingimento !== null);
-  const naMeta = comMeta.filter(l => l.atingimento >= 100).length;
 
   const resumo = document.getElementById('resumoMetasTicket');
   if (resumo) {
     resumo.innerHTML = lista.length
-      ? `Ticket médio da rede: <strong>${formatarMoedaBR(ticketRede)}</strong> (${totalVendas} vendas)` +
-        (comMeta.length ? ` · ${naMeta} de ${comMeta.length} loja(s) na meta de ticket` : ' · nenhuma meta de ticket cadastrada')
+      ? `Ticket médio da rede: <strong>${formatarMoedaBR(ticketRede)}</strong> (${totalVendas} vendas) · barra verde = acima da média da rede`
       : 'Nenhuma venda no período.';
   }
 
-  renderizarGraficoComparativo('graficoMetasTicket', lista, rotuloLoja, null, 'Ticket médio');
+  const canvas = document.getElementById('graficoMetasTicket');
+  if (!canvas) return;
+  if (graficosMetas.graficoMetasTicket) graficosMetas.graficoMetasTicket.destroy();
+  const grafico = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: lista.map(l => [l.descricao ? `${l.id} · ${l.descricao}` : `Loja ${l.id}`, `${l.qtdVendas} vendas`]),
+      datasets: [{
+        label: 'Ticket médio',
+        data: lista.map(l => l.ticket),
+        backgroundColor: lista.map(l => l.ticket >= ticketRede ? COR_ACIMA : COR_SEM_META),
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 24 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` Ticket médio: ${formatarMoedaBR(c.raw)}` } }
+      },
+      scales: {
+        x: { ticks: { font: { size: 11 } } },
+        y: { beginAtZero: true, grace: '8%', ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR') } }
+      }
+    },
+    plugins: [{
+      id: 'valorTicket',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#333';
+        chart.getDatasetMeta(0).data.forEach((barra, i) => ctx.fillText(formatarMoedaBR(lista[i].ticket), barra.x, barra.y - 6));
+        ctx.restore();
+      }
+    }]
+  });
+  graficosMetas.graficoMetasTicket = grafico;
+}
+
+// ------------------------------------------------ vendedores e troféus
+const NIVEIS = {
+  ouro:   { nome: 'Ouro',   trofeu: '🥇', cor: '#c9a227' },
+  prata:  { nome: 'Prata',  trofeu: '🥈', cor: '#8e9aa6' },
+  bronze: { nome: 'Bronze', trofeu: '🥉', cor: '#b0703a' }
+};
+const COR_META_BRONZE = 'rgba(176, 112, 58, 0.30)';
+const COR_META_PRATA  = 'rgba(142, 154, 166, 0.35)';
+const COR_META_OURO   = 'rgba(201, 162, 39, 0.35)';
+
+/** "0001 - * SEM VENDEDOR" não concorre a meta. */
+function ehSemVendedor(nome) {
+  return /SEM VENDEDOR/i.test(String(nome || ''));
 }
 
 /**
- * Meta individual: cada vendedor da loja é comparado com o valor_meta_vendedor
- * daquela loja no mês. Vendas vêm de dadosBrutosGlobaisParaGrafico (main.js).
+ * Faixa atingida pelo vendedor: maior meta que ele alcançou.
+ * Devolve também a próxima meta e quanto falta para ela.
+ */
+function nivelDoVendedor(realizado, bronze, prata, ouro) {
+  const faixas = [['bronze', bronze], ['prata', prata], ['ouro', ouro]].filter(([, v]) => v > 0);
+  if (!faixas.length) return { semMeta: true, nivel: null, proxima: null, falta: 0 };
+  let nivel = null;
+  faixas.forEach(([n, v]) => { if (realizado >= v) nivel = n; });
+  const proximaFaixa = faixas.find(([, v]) => realizado < v) || null;
+  return {
+    semMeta: false,
+    nivel,
+    proxima: proximaFaixa ? proximaFaixa[0] : null,
+    falta: proximaFaixa ? proximaFaixa[1] - realizado : 0,
+    base: faixas[0][1]   // primeira meta (normalmente a Bronze) = base do %
+  };
+}
+
+/**
+ * Metas individuais em 3 faixas: cada vendedor é comparado com as metas
+ * Bronze, Prata e Ouro da loja dele no mês. Troféu = maior faixa atingida.
  */
 function renderizarMetasVendedores(porLoja) {
   const vendas = {};
@@ -206,44 +270,116 @@ function renderizarMetasVendedores(porLoja) {
     vendas[chave].realizado += parseNumeroBR(item.LIQUIDOPRODUTO);
   });
 
+  const ordemNivel = { ouro: 3, prata: 2, bronze: 1 };
   const lista = Object.values(vendas).map(v => {
-    const meta = porLoja[v.idLoja] ? porLoja[v.idLoja].metaVendedor : 0;
-    return { ...v, meta, atingimento: meta > 0 ? (v.realizado / meta) * 100 : null };
+    const loja = porLoja[v.idLoja] || {};
+    const sem = ehSemVendedor(v.vendedor);
+    const bronze = sem ? 0 : (loja.metaBronze || 0);
+    const prata = sem ? 0 : (loja.metaPrata || 0);
+    const ouro = sem ? 0 : (loja.metaOuro || 0);
+    const n = nivelDoVendedor(v.realizado, bronze, prata, ouro);
+    return { ...v, bronze, prata, ouro, ...n, atingimento: n.semMeta ? null : (v.realizado / n.base) * 100 };
   });
-  // Agrupado por loja (código crescente); dentro da loja, maior atingimento primeiro
+  // Agrupado por loja; dentro da loja: maior troféu, depois maior venda
   lista.sort((a, b) =>
     (Number(a.idLoja) - Number(b.idLoja)) || String(a.idLoja).localeCompare(String(b.idLoja)) ||
-    ((b.atingimento ?? -1) - (a.atingimento ?? -1)) || (b.realizado - a.realizado));
+    ((ordemNivel[b.nivel] || 0) - (ordemNivel[a.nivel] || 0)) || (b.realizado - a.realizado));
 
-  const comMeta = lista.filter(l => l.meta > 0);
-  const acima = comMeta.filter(l => l.atingimento >= 100).length;
+  const conta = n => lista.filter(l => l.nivel === n).length;
+  const abaixo = lista.filter(l => !l.semMeta && !l.nivel).length;
+  const semMeta = lista.filter(l => l.semMeta).length;
   const resumo = document.getElementById('resumoMetasVendedores');
   if (resumo) {
-    resumo.textContent = lista.length
-      ? `${acima} de ${comMeta.length} vendedor(es) com meta atingiram o objetivo` +
-        (lista.length > comMeta.length ? ` · ${lista.length - comMeta.length} sem meta individual na loja` : '')
+    resumo.innerHTML = lista.length
+      ? `🥇 Ouro: <strong>${conta('ouro')}</strong> · 🥈 Prata: <strong>${conta('prata')}</strong> · ` +
+        `🥉 Bronze: <strong>${conta('bronze')}</strong> · abaixo do Bronze: <strong>${abaixo}</strong>` +
+        (semMeta ? ` · sem meta: ${semMeta}` : '')
       : 'Nenhuma venda por vendedor no período.';
   }
 
-  // Gráfico ganha largura conforme a quantidade de vendedores (rolagem horizontal)
   const area = document.getElementById('areaGraficoMetasVendedores');
-  if (area) area.style.width = Math.max(lista.length * 120, 600) + 'px';
+  if (area) area.style.width = Math.max(lista.length * 140, 600) + 'px';
 
-  renderizarGraficoComparativo('graficoMetasVendedores', lista, rotuloVendedor, l => l.idLoja);
+  renderizarGraficoVendedores(lista);
   renderizarTabelaVendedoresPorLoja(lista, porLoja);
 }
 
-function rotuloVariacao(l) {
-  if (l.atingimento === null) return 'sem meta';
-  const dif = l.atingimento - 100;
-  return dif >= 0 ? `▲ ${formatarPct(dif)} acima` : `▼ ${formatarPct(Math.abs(dif))} abaixo`;
+function corRealizadoVendedor(l) {
+  if (l.semMeta) return COR_SEM_META;
+  return l.nivel ? NIVEIS[l.nivel].cor : COR_ABAIXO;
+}
+
+function textoNivel(l) {
+  if (l.semMeta) return 'sem meta';
+  if (l.nivel) return `Meta ${NIVEIS[l.nivel].nome}`;
+  return `▼ ${formatarPct(100 - l.atingimento)} abaixo do Bronze`;
 }
 
 function rotuloVendedor(l) {
-  return [l.vendedor, rotuloVariacao(l)];
+  const trofeu = l.nivel ? NIVEIS[l.nivel].trofeu + ' ' : '';
+  return [trofeu + l.vendedor, textoNivel(l)];
 }
 
-/** Tabela de vendedores com um cabeçalho e um subtotal por loja. */
+function renderizarGraficoVendedores(lista) {
+  const canvas = document.getElementById('graficoMetasVendedores');
+  if (!canvas) return;
+  if (graficosMetas.graficoMetasVendedores) graficosMetas.graficoMetasVendedores.destroy();
+
+  const grafico = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: lista.map(rotuloVendedor),
+      datasets: [
+        { label: '🥉 Meta Bronze', data: lista.map(l => l.bronze), backgroundColor: COR_META_BRONZE, borderRadius: 3 },
+        { label: '🥈 Meta Prata',  data: lista.map(l => l.prata),  backgroundColor: COR_META_PRATA,  borderRadius: 3 },
+        { label: '🥇 Meta Ouro',   data: lista.map(l => l.ouro),   backgroundColor: COR_META_OURO,   borderRadius: 3 },
+        { label: 'Realizado', data: lista.map(l => l.realizado), backgroundColor: lista.map(corRealizadoVendedor), borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 8 } },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            generateLabels: () => [
+              { text: '🥉 Meta Bronze', fillStyle: COR_META_BRONZE, strokeStyle: COR_META_BRONZE },
+              { text: '🥈 Meta Prata', fillStyle: COR_META_PRATA, strokeStyle: COR_META_PRATA },
+              { text: '🥇 Meta Ouro', fillStyle: COR_META_OURO, strokeStyle: COR_META_OURO },
+              { text: 'Realizado (cor do troféu)', fillStyle: NIVEIS.ouro.cor, strokeStyle: NIVEIS.ouro.cor },
+              { text: 'Realizado abaixo do Bronze', fillStyle: COR_ABAIXO, strokeStyle: COR_ABAIXO }
+            ]
+          }
+        },
+        tooltip: {
+          callbacks: {
+            title: items => (Array.isArray(items[0].label) ? items[0].label.join(' — ') : items[0].label),
+            label: c => ` ${c.dataset.label}: ${formatarMoedaBR(c.raw)}`,
+            footer: items => {
+              const l = lista[items[0].dataIndex];
+              return l && l.proxima ? `Faltam ${formatarMoedaBR(l.falta)} para a meta ${NIVEIS[l.proxima].nome}` : '';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 11 }, color: c => { const l = lista[c.index]; return l ? corRealizadoVendedor(l) : '#666'; } } },
+        y: { beginAtZero: true, grace: '20%', ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR') } }
+      }
+    },
+    plugins: [pluginFaixasGrupo, pluginRotuloAtingimento]
+  });
+  grafico.$listaMetas = lista;
+  grafico.$funcGrupo = l => l.idLoja;
+  grafico.$indiceRealizado = 3;
+  grafico.$corRotulo = corRealizadoVendedor;
+  grafico.update();
+  graficosMetas.graficoMetasVendedores = grafico;
+}
+
+/** Tabela de vendedores com um cabeçalho por loja. */
 function renderizarTabelaVendedoresPorLoja(lista, porLoja) {
   const corpo = document.getElementById('tabelaMetasVendedoresCorpo');
   if (!corpo) return;
@@ -253,31 +389,42 @@ function renderizarTabelaVendedoresPorLoja(lista, porLoja) {
     if (ultimo && ultimo.idLoja === l.idLoja) ultimo.itens.push(l);
     else grupos.push({ idLoja: l.idLoja, itens: [l] });
   });
+  const moeda = v => v ? formatarMoedaBR(v) : '—';
 
-  const cor = at => at === null ? '#666' : (at >= 100 ? COR_ACIMA : COR_ABAIXO);
   corpo.innerHTML = grupos.map(g => {
     const loja = porLoja[g.idLoja] || {};
     const nomeLoja = `Loja ${escaparHTML(g.idLoja)}${loja.descricao ? ' – ' + escaparHTML(loja.descricao) : ''}`;
-    const metaInd = loja.metaVendedor > 0 ? `meta individual ${formatarMoedaBR(loja.metaVendedor)}` : 'sem meta individual';
-    const naMeta = g.itens.filter(l => l.atingimento !== null && l.atingimento >= 100).length;
+    const qtd = n => g.itens.filter(l => l.nivel === n).length;
     const totalReal = g.itens.reduce((s, l) => s + l.realizado, 0);
 
     const cabecalho = `<tr style="background:#eef4fb;">
-      <td colspan="5" style="padding:7px 8px; font-weight:bold; color:#0b4f8a; border-top:2px solid #cfe0f3;">
+      <td colspan="6" style="padding:7px 8px; font-weight:bold; color:#0b4f8a; border-top:2px solid #cfe0f3;">
         🏬 ${nomeLoja}
         <span style="font-weight:normal; color:#555; font-size:12px;">
-          · ${metaInd} · ${g.itens.length} vendedor(es) · ${naMeta} na meta · total ${formatarMoedaBR(totalReal)}
+          · ${g.itens.length} vendedor(es) · 🥇 ${qtd('ouro')} · 🥈 ${qtd('prata')} · 🥉 ${qtd('bronze')} · total ${formatarMoedaBR(totalReal)}
         </span>
       </td></tr>`;
 
     const linhas = g.itens.map(l => {
-      const dif = l.realizado - l.meta;
+      const trofeu = l.nivel ? NIVEIS[l.nivel].trofeu : '';
+      let situacao;
+      if (l.semMeta) situacao = '<span style="color:#666">sem meta</span>';
+      else {
+        const conquista = l.nivel
+          ? `<strong style="color:${NIVEIS[l.nivel].cor}">${NIVEIS[l.nivel].trofeu} ${NIVEIS[l.nivel].nome}</strong>`
+          : `<strong style="color:${COR_ABAIXO}">abaixo do Bronze</strong>`;
+        const falta = l.proxima
+          ? `<br><small style="color:#666">faltam ${formatarMoedaBR(l.falta)} p/ ${NIVEIS[l.proxima].nome}</small>`
+          : '';
+        situacao = conquista + falta;
+      }
       return `<tr>
-        <td style="padding-left:24px;">${escaparHTML(l.vendedor)}</td>
-        <td style="text-align:right">${l.meta ? formatarMoedaBR(l.meta) : '—'}</td>
-        <td style="text-align:right">${formatarMoedaBR(l.realizado)}</td>
-        <td style="text-align:right; color:${cor(l.atingimento)}">${l.meta ? (dif >= 0 ? '+' : '') + formatarMoedaBR(dif) : '—'}</td>
-        <td style="text-align:right; color:${cor(l.atingimento)}; font-weight:bold">${l.atingimento === null ? 'sem meta' : formatarPct(l.atingimento)}</td>
+        <td style="padding-left:24px;">${trofeu ? trofeu + ' ' : ''}${escaparHTML(l.vendedor)}</td>
+        <td style="text-align:right">${moeda(l.bronze)}</td>
+        <td style="text-align:right">${moeda(l.prata)}</td>
+        <td style="text-align:right">${moeda(l.ouro)}</td>
+        <td style="text-align:right; font-weight:bold; color:${corRealizadoVendedor(l)}">${formatarMoedaBR(l.realizado)}</td>
+        <td style="text-align:right">${situacao}</td>
       </tr>`;
     }).join('');
     return cabecalho + linhas;
@@ -342,6 +489,12 @@ function renderizarCardsMetas(lista) {
   set('cardMetaLojasAcima', `${acima} de ${comMeta.length}`);
 }
 
+function rotuloVariacao(l) {
+  if (l.atingimento === null) return 'sem meta';
+  const dif = l.atingimento - 100;
+  return dif >= 0 ? `▲ ${formatarPct(dif)} acima` : `▼ ${formatarPct(Math.abs(dif))} abaixo`;
+}
+
 function rotuloLoja(l) {
   const nome = l.descricao ? `${l.id} · ${l.descricao}` : `Loja ${l.id}`;
   return [nome, rotuloVariacao(l)];
@@ -352,7 +505,7 @@ const pluginRotuloAtingimento = {
   id: 'rotuloAtingimento',
   afterDatasetsDraw(chart) {
     const { ctx } = chart;
-    const meta = chart.getDatasetMeta(1);
+    const meta = chart.getDatasetMeta(chart.$indiceRealizado ?? 1);
     const lista = chart.$listaMetas || [];
     ctx.save();
     ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
@@ -360,7 +513,7 @@ const pluginRotuloAtingimento = {
     meta.data.forEach((barra, i) => {
       const l = lista[i];
       if (!l || l.atingimento === null) return;
-      ctx.fillStyle = l.atingimento >= 100 ? COR_ACIMA : COR_ABAIXO;
+      ctx.fillStyle = chart.$corRotulo ? chart.$corRotulo(l) : (l.atingimento >= 100 ? COR_ACIMA : COR_ABAIXO);
       ctx.fillText(formatarPct(l.atingimento), barra.x, barra.y - 6);
     });
     ctx.restore();
