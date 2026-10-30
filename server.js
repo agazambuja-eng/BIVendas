@@ -18,15 +18,33 @@ app.get("/", (req, res) => {
 // Criar usuário / redefinir senha (precisa de SUPABASE_SECRET_KEY no Render)
 registrarRotasUsuarios(app);
 
+// A Savwin responde erro 500 quando a data final está no futuro (ex.: período
+// comercial 26/10 a 25/11 consultado em 30/10). Limita a data final a hoje.
+function hojeBR() {
+  const [d, m, a] = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }).split("/");
+  return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${a}`;
+}
+function chaveData(br) { const [d, m, a] = String(br).split("/"); return `${a}${m}${d}`; }
+function limitarDataFinal(br) {
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(String(br || ""))) return br || "";
+  const hoje = hojeBR();
+  return chaveData(br) > chaveData(hoje) ? hoje : br;
+}
+function periodoNoFuturo(ini) {
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(String(ini || "")) && chaveData(ini) > chaveData(hojeBR());
+}
+
 // 1. Rota Principal da Grid (ProdutosPorOSGRID)
 app.post("/consulta", exigirUsuario("acessar_bi"), restringirLojas, async (req, res) => {
   const body = {
     DATAINICIAL: req.body.DATAINICIAL || "",
-    DATAFINAL: req.body.DATAFINAL || "",
+    DATAFINAL: limitarDataFinal(req.body.DATAFINAL),
     LOJAS: req.body.LOJAS || "",
     TIPODATA: req.body.TIPODATA || "VENDA",
     TIPOVENDA: req.body.TIPOVENDA || ""
   };
+
+  if (periodoNoFuturo(req.body.DATAINICIAL)) return res.json([]);
 
   try {
     const response = await fetch("https://api.savwinweb.com.br/api/APIRelatoriosCR/ProdutosPorOSGRID", {
@@ -40,7 +58,8 @@ app.post("/consulta", exigirUsuario("acessar_bi"), restringirLojas, async (req, 
     });
 
     if (!response.ok) {
-      throw new Error(`Erro na API externa (Grid): Status ${response.status}`);
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Erro na API externa (Grid): Status ${response.status}${errorText ? " - " + errorText.slice(0, 300) : ""}`);
     }
 
     const data = await response.json();
@@ -55,11 +74,13 @@ app.post("/consulta", exigirUsuario("acessar_bi"), restringirLojas, async (req, 
 app.post("/consultadevolucoes", exigirUsuario("acessar_bi"), restringirLojas, async (req, res) => {
   const body = {
     DATAINICIAL: req.body.DATAINICIAL || "",
-    DATAFINAL: req.body.DATAFINAL || "",
+    DATAFINAL: limitarDataFinal(req.body.DATAFINAL),
     LOJAS: req.body.LOJAS || "",
     TIPODATA: req.body.TIPODATA || "VENDA",
     TIPOVENDA: "DEVOLUCAO"
   };
+
+  if (periodoNoFuturo(req.body.DATAINICIAL)) return res.json([]);
 
   try {
     const response = await fetch("https://api.savwinweb.com.br/api/APIRelatoriosCR/ProdutosPorOS", {
@@ -73,7 +94,8 @@ app.post("/consultadevolucoes", exigirUsuario("acessar_bi"), restringirLojas, as
     });
 
     if (!response.ok) {
-      throw new Error(`Erro na API externa (Devoluções): Status ${response.status}`);
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Erro na API externa (Devoluções): Status ${response.status}${errorText ? " - " + errorText.slice(0, 300) : ""}`);
     }
 
     const data = await response.json();
@@ -89,10 +111,12 @@ app.post("/consultapagamentos", exigirUsuario("acessar_bi"), restringirLojas, as
   // Mapeia os dados recebidos do front-end para o contrato exato que a API externa exige
   const body = {
     DATAVENDAINICIO: req.body.DATAINICIAL || "",
-    DATAVENDAFIM: req.body.DATAFINAL || "",
+    DATAVENDAFIM: limitarDataFinal(req.body.DATAFINAL),
     AGRUPAFORMAPAGAMENTO: "N",
     LOJA: req.body.LOJAS || ""
   };
+
+  if (periodoNoFuturo(req.body.DATAINICIAL)) return res.json([]);
 
   try {
     const response = await fetch("https://api.savwinweb.com.br/api/APIRelatoriosCR/APIVendaResumoTodasFormasPagamento", {
