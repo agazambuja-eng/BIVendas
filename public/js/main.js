@@ -572,6 +572,11 @@ async function consultar() {
       dadosPagamentos = await resPagamentos.json();
     }
 
+    // Guarda a resposta para o filtro de tipos de venda recalcular sem nova consulta
+    if (typeof registrarTiposDosDados === 'function') {
+      ultimaRespostaAPI = { dadosBrutos, dadosPagamentos };
+      registrarTiposDosDados(dadosBrutos);
+    }
     processarDadosBI(dadosBrutos, dadosPagamentos);
 
   } catch (error) {
@@ -607,6 +612,11 @@ function processarDadosBI(dados, dadosPagamentos) {
              idsFiltro.includes(codigoSemZeroEsquerda) || 
              idsFiltro.some(id => textoLojaCompleto.toLowerCase().includes(id.toLowerCase()));
     });
+  }
+
+  // Tipos de venda desmarcados no filtro não entram no BI (tipos-venda.js)
+  if (typeof tipoVendaPermitido === 'function') {
+    dadosFiltrados = dadosFiltrados.filter(tipoVendaPermitido);
   }
 
   dadosBrutosGlobaisParaGrafico = dadosFiltrados;
