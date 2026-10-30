@@ -64,6 +64,7 @@ function resumirVendas(itens, lojasFiltro) {
   (itens || []).forEach(item => {
     const id = idLojaDoItem(item);
     if (lojasFiltro.length && !lojasFiltro.includes(id)) return;
+    if (typeof tipoVendaPermitido === 'function' && !tipoVendaPermitido(item)) return;
     porLoja[id] = (porLoja[id] || 0) + parseNumeroBR(item.LIQUIDOPRODUTO);
     const os = String(item.OS || '').trim();
     if (os) {
@@ -118,7 +119,7 @@ async function abrirComparativo() {
   if (comparativoCarregando) return;
 
   const n = quantidadePeriodosComparativo();
-  const chave = JSON.stringify(consulta);
+  const chave = JSON.stringify(consulta) + '#' + (typeof descricaoFiltroTiposVenda === 'function' ? descricaoFiltroTiposVenda() : '');
   if (!comparativoCache || comparativoCache.chave !== chave) comparativoCache = { chave, resumos: {} };
   const resumos = comparativoCache.resumos;
 

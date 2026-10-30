@@ -213,3 +213,26 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .aviso-produtos .lista-campos { color: #ffd35e; word-break: break-word; }
 .th-ordenavel { cursor: pointer; user-select: none; white-space: nowrap; padding: 7px 8px; }
 .th-ordenavel:hover { filter: brightness(1.25); }
+
+/* ===== Filtro Tipos de venda ===== */
+.campo-tipos-venda { position: relative; flex: 0 0 250px; display: flex; flex-direction: column; gap: 0; font-weight: bold; }
+.tv-rotulo { display: block; }
+.tv-botao { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 10px; margin-top: 0; font-weight: normal; background: #0a0e26 !important; border: 1px solid rgba(120,140,255,.32) !important; color: #e8ecff !important; }
+.tv-botao.tv-filtrando { border-color: #ffd35e !important; color: #ffd35e !important; box-shadow: 0 0 10px rgba(255,211,94,.25); }
+.tv-painel { position: absolute; top: 100%; right: 0; z-index: 1200; width: 320px; margin-top: 6px; padding: 10px;
+  background: linear-gradient(160deg, #161d48, #0e1333); border: 1px solid rgba(120,140,255,.35); border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.55), 0 0 24px rgba(94,231,255,.12); font-weight: normal; }
+.tv-painel input[type=search] { width: 100%; margin-bottom: 6px; }
+.tv-acoes { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.tv-link { background: none !important; box-shadow: none !important; color: #5ee7ff !important; padding: 4px 2px; font-size: 12px; }
+.tv-lista { max-height: 300px; overflow-y: auto; border-top: 1px solid rgba(120,140,255,.15); border-bottom: 1px solid rgba(120,140,255,.15); padding: 4px 0; }
+.tv-item { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #e8ecff; font-weight: normal; }
+.tv-item:hover { background: rgba(94,231,255,.07); }
+.tv-item input { width: auto; margin: 0; accent-color: #5ee7ff; }
+.tv-item span { flex: 1; }
+.tv-item small { color: #8a93c9; font-variant-numeric: tabular-nums; }
+.tv-item.tv-sem-dados span { color: #8a93c9; }
+.tv-nota { font-size: 10.5px; color: #8a93c9; margin: 6px 2px; line-height: 1.4; }
+.tv-aplicar { width: 100%; }
+@media (max-width: 760px) { .campo-tipos-venda { flex: 1 1 100%; } .tv-painel { left: 0; right: auto; width: 100%; } }

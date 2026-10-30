@@ -49,6 +49,22 @@
           <option value="ENTREGA">ENTREGA</option>
         </select>
       </label>
+      <div class="campo-tipos-venda" id="filtroTiposVenda">
+        <span class="tv-rotulo">Tipos de venda:</span>
+        <button type="button" id="btnTiposVenda" class="tv-botao" onclick="abrirFiltroTiposVenda(event)" title="Escolha quais tipos de venda entram no BI">
+          <span class="tv-resumo">Todos</span> <span class="tv-seta">▾</span>
+        </button>
+        <div id="painelTiposVenda" class="tv-painel" style="display: none;" onclick="event.stopPropagation()">
+          <input type="search" id="buscaTiposVenda" placeholder="Buscar tipo..." oninput="renderizarListaTiposVenda()">
+          <div class="tv-acoes">
+            <button type="button" class="tv-link" onclick="marcarTodosTiposVenda(true)">Marcar todos</button>
+            <button type="button" class="tv-link" onclick="marcarTodosTiposVenda(false)">Desmarcar todos</button>
+          </div>
+          <div id="listaTiposVenda" class="tv-lista"></div>
+          <p class="tv-nota">Desmarcados não entram no BI. O número ao lado é a quantidade de itens na última consulta. As roscas de forma de pagamento não usam este filtro (a API de pagamentos não informa o tipo de venda).</p>
+          <button type="button" class="tv-aplicar" onclick="aplicarFiltroTiposVenda()">Aplicar</button>
+        </div>
+      </div>
     </div>
     <button class="btn-acao" onclick="consultar()">Consultar Relatório Completo</button>
   </div>
@@ -579,6 +595,7 @@
   <script src="/js/auth.js"></script>
   <script src="/js/lojas-modal.js"></script>
   <script src="/js/periodo-comercial.js"></script>
+  <script src="/js/tipos-venda.js"></script>
   <script src="/js/main.js"></script>
   <script src="/js/metas.js"></script>
   <script src="/js/config-metas.js"></script>
