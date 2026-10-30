@@ -42,9 +42,7 @@
       <label>Data Final:
         <input type="date" id="dataFinal">
       </label>
-    </div>
-    <div class="linha">
-      <label>Tipo de Data:
+      <label class="campo-tipo-data" title="Qual data da OS o período filtra: venda, pagamento ou entrega">Filtrar por data de:
         <select id="tipodata">
           <option value="VENDA" selected>VENDA</option>
           <option value="PAGAMENTO">PAGAMENTO</option>
@@ -62,6 +60,7 @@
   <button type="button" onclick="mudarAba('dashboard')" id="btnAbaDashboard" style="padding: 8px 16px; background: #0078d7; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🚀 Dashboard Executivo</button>
   <button type="button" onclick="mudarAba('metas')" id="btnAbaMetas" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🎯 Metas</button>
   <button type="button" onclick="mudarAba('cards')" id="btnAbaCards" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📊 Visão Geral & Pagamentos</button>
+  <button type="button" onclick="mudarAba('produtos')" id="btnAbaProdutos" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🛍️ Avaliação de Produtos</button>
   <button type="button" onclick="mudarAba('comparativo')" id="btnAbaComparativo" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📈 <span id="rotuloAbaComparativo">Comparativo 3 meses</span></button>
   <button type="button" onclick="mudarAba('detalhes')" id="btnAbaDetalhes" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Detalhes de Vendas (Auditoria)</button>
 </div>
@@ -284,6 +283,72 @@
 
   </div>
 
+  <!-- === ABA: AVALIAÇÃO DE PRODUTOS === -->
+  <div id="conteudoAbaProdutos" style="display: none; flex-direction: column; gap: 15px;">
+    <div style="background: #fff; padding: 12px 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <h3 style="margin: 0; color: #333; font-size: 16px;">🛍️ Avaliação de Produtos · grife, linha, código e descrição</h3>
+      <div id="avisoProdutos" class="aviso-produtos" style="display: none;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;">
+      <div class="bi-card" style="border-left-color: #5ee7ff; padding: 10px;"><div class="bi-card-title" style="font-size: 11px;">ITENS VENDIDOS</div><div class="bi-card-value" id="cardProdQtd">0</div></div>
+      <div class="bi-card" style="border-left-color: #ff5cf0; padding: 10px;"><div class="bi-card-title" style="font-size: 11px;">PRODUTOS DIFERENTES</div><div class="bi-card-value" id="cardProdDistintos">0</div></div>
+      <div class="bi-card" style="border-left-color: #ffd35e; padding: 10px;"><div class="bi-card-title" style="font-size: 11px;">GRIFES</div><div class="bi-card-value" id="cardProdGrifes">0</div></div>
+      <div class="bi-card" style="border-left-color: #3dffa8; padding: 10px;"><div class="bi-card-title" style="font-size: 11px;">VALOR LÍQUIDO</div><div class="bi-card-value" id="cardProdLiquido">R$ 0,00</div></div>
+      <div class="bi-card" style="border-left-color: #ff5c8a; padding: 10px;"><div class="bi-card-title" style="font-size: 11px;">DESCONTO MÉDIO</div><div class="bi-card-value" id="cardProdDesconto">0%</div></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 15px;">
+      <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+        <h4 style="margin: 0 0 8px; font-size: 15px;">🏷️ Top 10 grifes (valor líquido)</h4>
+        <div style="position: relative; height: 320px;"><canvas id="graficoProdGrifes"></canvas></div>
+      </div>
+      <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+        <h4 style="margin: 0 0 8px; font-size: 15px;">🧩 Participação por linha</h4>
+        <div style="position: relative; height: 320px;"><canvas id="graficoProdLinhas"></canvas></div>
+      </div>
+    </div>
+
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; overflow-x: auto; max-height: 420px;">
+      <h4 style="margin: 0 0 8px; font-size: 15px;">Resumo por grife</h4>
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <thead><tr>
+          <th style="padding: 7px 8px; text-align: left;">Grife</th><th style="padding: 7px 8px; text-align: right;">Produtos</th>
+          <th style="padding: 7px 8px; text-align: right;">Qtd</th><th style="padding: 7px 8px; text-align: right;">Valor líquido</th>
+          <th style="padding: 7px 8px; text-align: right;">% do total</th><th style="padding: 7px 8px; text-align: right;">Desconto</th>
+        </tr></thead>
+        <tbody id="corpoProdGrifes"></tbody>
+      </table>
+    </div>
+
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+        <h4 style="margin: 0; font-size: 15px;">Produtos vendidos</h4>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="infoProdutos" style="font-size: 12px; color: #666;"></span>
+          <input type="search" id="buscaProdutos" placeholder="Buscar grife, linha, código ou descrição..." oninput="renderizarTabelaProdutos()" style="width: 300px;">
+        </div>
+      </div>
+      <div style="overflow: auto; max-height: 520px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead><tr id="cabecalhoProdutos">
+            <th data-campo="grife" data-rotulo="Grife" onclick="ordenarProdutos('grife')" class="th-ordenavel">Grife</th>
+            <th data-campo="linha" data-rotulo="Linha" onclick="ordenarProdutos('linha')" class="th-ordenavel">Linha</th>
+            <th data-campo="codigo" data-rotulo="Código" onclick="ordenarProdutos('codigo')" class="th-ordenavel">Código</th>
+            <th data-campo="descricao" data-rotulo="Descrição" onclick="ordenarProdutos('descricao')" class="th-ordenavel">Descrição</th>
+            <th data-campo="qtd" data-rotulo="Qtd" onclick="ordenarProdutos('qtd')" class="th-ordenavel" style="text-align: right;">Qtd</th>
+            <th data-campo="precoMedio" data-rotulo="Preço médio" onclick="ordenarProdutos('precoMedio')" class="th-ordenavel" style="text-align: right;">Preço médio</th>
+            <th data-campo="liquido" data-rotulo="Valor líquido" onclick="ordenarProdutos('liquido')" class="th-ordenavel" style="text-align: right;">Valor líquido</th>
+            <th data-campo="pctDesc" data-rotulo="Desconto" onclick="ordenarProdutos('pctDesc')" class="th-ordenavel" style="text-align: right;">Desconto</th>
+            <th data-campo="vendas" data-rotulo="Vendas (OS)" onclick="ordenarProdutos('vendas')" class="th-ordenavel" style="text-align: right;">Vendas (OS)</th>
+            <th data-campo="nLojas" data-rotulo="Lojas" onclick="ordenarProdutos('nLojas')" class="th-ordenavel" style="text-align: right;">Lojas</th>
+          </tr></thead>
+          <tbody id="corpoProdutos"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- === ABA: COMPARATIVO DOS ÚLTIMOS 3 MESES === -->
   <div id="conteudoAbaComparativo" style="display: none; flex-direction: column; gap: 15px;">
     <div style="background: #fff; padding: 12px 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -333,14 +398,17 @@
   <div id="conteudoAbaDetalhes" style="display: none; flex-direction: column; gap: 15px; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
       <h3 style="margin: 0; color: #333; font-size: 16px;">Auditoria Completa de Itens por OS (API Bruta)</h3>
-      <span id="contadorRegistrosDetalhe" style="font-size: 12px; color: #666; font-weight: bold;">Exibindo 0 registros</span>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span id="contadorRegistrosDetalhe" style="font-size: 12px; color: #666; font-weight: bold;">Exibindo 0 registros</span>
+        <button type="button" class="btn-comparar-lojas" onclick="exportarDetalhesCSV()" title="Baixa todos os registros com todos os campos da API (abre no Excel)">⬇️ Exportar CSV</button>
+      </div>
     </div>
-    <p style="font-size: 12px; color: #666; margin: 0;">Lista detalhada de todos os produtos, quantidades e valores retornados para conferência pontual.</p>
+    <p style="font-size: 12px; color: #666; margin: 0;">Lista detalhada de todos os produtos, quantidades e valores retornados. Depois das colunas principais aparecem <b>todos os outros campos que a API devolve</b> (role para a direita).</p>
     
     <div style="overflow-x: auto; max-height: 500px; border: 1px solid #e0e0e0; border-radius: 4px;">
       <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
         <thead style="background: #f5f5f5; position: sticky; top: 0; z-index: 1;">
-          <tr>
+          <tr id="cabecalhoDetalhesLinha">
             <th style="padding: 8px; border-bottom: 1px solid #ddd;">Loja</th>
             <th style="padding: 8px; border-bottom: 1px solid #ddd;">OS</th>
             <th style="padding: 8px; border-bottom: 1px solid #ddd;">Data</th>
@@ -516,5 +584,6 @@
   <script src="/js/config-metas.js"></script>
   <script src="/js/comparativo.js"></script>
   <script src="/js/comparar-lojas.js"></script>
+  <script src="/js/produtos.js"></script>
 </body>
 </html>
