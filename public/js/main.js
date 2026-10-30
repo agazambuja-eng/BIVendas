@@ -518,16 +518,20 @@ async function consultar() {
   // A API só aceita números: "520,521". Limpa o campo antes de consultar.
   const campoLojas = document.getElementById("lojas");
   campoLojas.value = normalizarListaLojas(campoLojas.value);
-  // Usuário com lojas restritas: vazio = todas as lojas dele (o servidor também confere)
-  if (!campoLojas.value && perfilAtual && perfilAtual.todas_lojas !== true) {
+  // Campo vazio = "Todas as lojas": envia a lista das lojas que o usuário pode ver
+  // (a Savwin dá erro 500 com LOJAS vazio). O campo continua mostrando "Todas".
+  let lojas = campoLojas.value;
+  if (!lojas) {
+    if (!lojasDisponiveis.length && typeof carregarLojasSupabase === 'function') {
+      try { await carregarLojasSupabase(); } catch (e) { /* segue para o aviso abaixo */ }
+    }
     if (!lojasDisponiveis.length) {
       document.getElementById("loadingOverlay").style.display = "none";
-      if (containerResultado) containerResultado.innerHTML = "<p class='erro'>Nenhuma loja liberada para o seu usuário. Fale com o administrador.</p>";
+      if (containerResultado) containerResultado.innerHTML = "<p class='erro'>Nenhuma loja disponível para o seu usuário. Fale com o administrador.</p>";
       return;
     }
-    campoLojas.value = lojasDisponiveis.map(l => l.id).join(",");
+    lojas = lojasDisponiveis.map(l => somenteNumerosLoja(l.id)).filter(Boolean).join(",");
   }
-  const lojas = campoLojas.value;
   const tipodata = document.getElementById("tipodata").value || "VENDA";
 
   const bodyReq = {
