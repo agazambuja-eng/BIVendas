@@ -88,6 +88,9 @@ function mudarAba(aba) {
   const btnComp = document.getElementById("btnAbaComparativo");
   const conteudoComp = document.getElementById("conteudoAbaComparativo");
   if (conteudoComp) conteudoComp.style.display = "none";
+  const conteudoProd = document.getElementById("conteudoAbaProdutos");
+  if (conteudoProd) conteudoProd.style.display = "none";
+  if (aba === 'produtos' && conteudoProd) conteudoProd.style.display = "flex";
   if (btnComp) { btnComp.style.background = "#e0e0e0"; btnComp.style.color = "#333"; }
 
   conteudoCards.style.display = "none";
@@ -127,7 +130,7 @@ function mudarAba(aba) {
   }
 
   // Classe da aba ativa (usada pelo tema escuro)
-  const idsBotoes = { cards: 'btnAbaCards', dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', comparativo: 'btnAbaComparativo', detalhes: 'btnAbaDetalhes' };
+  const idsBotoes = { cards: 'btnAbaCards', dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', detalhes: 'btnAbaDetalhes' };
   document.querySelectorAll('#biTabsHeader button').forEach(b => b.classList.toggle('aba-ativa', b.id === idsBotoes[aba]));
 }
 
@@ -950,6 +953,9 @@ function processarDadosBI(dados, dadosPagamentos) {
 
   if (tabelaDetalhesCorpo) {
     let htmlTabelaDetalhes = "";
+    // Colunas extras: todos os outros campos que a API devolver (produtos.js)
+    const extras = (typeof camposExtrasDetalhes === 'function') ? camposExtrasDetalhes(dadosFiltrados) : [];
+    if (typeof montarCabecalhoDetalhes === 'function') montarCabecalhoDetalhes(extras);
     const tot = { qtd: 0, bruto: 0, desconto: 0, liquido: 0, os: new Set(), clientes: new Set(), vendedores: new Set(), lojas: new Set() };
     dadosFiltrados.forEach(item => {
       const lojaNome = item.LOJA || "-";
@@ -986,13 +992,14 @@ function processarDadosBI(dados, dadosPagamentos) {
           <td style="padding: 6px 8px; text-align: right; color: #d9534f;">${formatarMoedaBR(desconto)}</td>
           <td style="padding: 6px 8px; text-align: right; font-weight: bold; color: #28a745;">${formatarMoedaBR(liquido)}</td>
           <td style="padding: 6px 8px; font-size: 11px; color: #666;">${tipoVenda}</td>
+          ${extras.map(k => `<td style="padding: 6px 8px; white-space: nowrap;">${formatarCampoApi(item[k])}</td>`).join('')}
         </tr>
       `;
     });
 
-    tabelaDetalhesCorpo.innerHTML = htmlTabelaDetalhes || "<tr><td colspan='11' style='text-align:center; padding: 20px;'>Nenhum registro encontrado.</td></tr>";
+    tabelaDetalhesCorpo.innerHTML = htmlTabelaDetalhes || `<tr><td colspan='${11 + extras.length}' style='text-align:center; padding: 20px;'>Nenhum registro encontrado.</td></tr>`;
     if (contadorRegistrosDetalhe) {
-      contadorRegistrosDetalhe.innerText = `Exibindo ${dadosFiltrados.length} registros`;
+      contadorRegistrosDetalhe.innerText = `Exibindo ${dadosFiltrados.length} registros · ${11 + extras.length} colunas`;
     }
 
     // --- LINHA DE TOTAIS (rodapé fixo da tabela) ---
@@ -1014,11 +1021,15 @@ function processarDadosBI(dados, dadosPagamentos) {
           <td style="${cel} text-align: right; color: #d9534f;">${formatarMoedaBR(tot.desconto)}</td>
           <td style="${cel} text-align: right; color: #28a745;">${formatarMoedaBR(tot.liquido)}</td>
           <td style="${cel} font-size: 11px; color: #d9534f;" title="Desconto sobre o valor bruto">${pctDesc.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% desc.</td>
+          ${extras.map(() => `<td style="${cel}"></td>`).join('')}
         </tr>` : "";
     }
   }
 
   renderizarDashboard(totaisPorLoja, totalLiquidoGeral, pagamentosFiltrados);
+  if (typeof renderizarProdutos === 'function') {
+    try { renderizarProdutos(); } catch (err) { console.error("Erro na aba Produtos:", err); }
+  }
   if (typeof renderizarMetas === 'function') {
     renderizarMetas(totaisPorLoja).catch(err => console.error("Erro na aba Metas:", err));
   }
