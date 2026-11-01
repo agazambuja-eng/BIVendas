@@ -252,3 +252,9 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .arm-lista { max-height: 210px !important; }
 .arm-sem { color: #8a93c9; font-style: italic; }
 @media (max-width: 760px) { .arm-corpo { flex-direction: column; } .arm-grafico { flex: 0 0 auto; width: 100%; } }
+
+.arm-clicavel { cursor: pointer; }
+.arm-dica { margin-top: 6px; text-align: right; font-size: 11px; color: #5ee7ff; opacity: .7; transition: opacity .2s; }
+.arm-clicavel:hover .arm-dica { opacity: 1; text-shadow: 0 0 8px rgba(94,231,255,.5); }
+.arm-voltar { padding: 4px 10px; font-size: 12px; border-radius: 8px; margin-bottom: 6px; }
+.arm-nome-loja { font-style: normal; font-weight: normal; font-size: 11px; color: #8a93c9; margin-left: 4px; }
