@@ -45,7 +45,7 @@ function pctTxt(v, total) {
 /** Agrupa os itens por linha de armação e grife. */
 function resumirArmacoes(dados, campos) {
   const mapa = {};
-  LINHAS_ARMACAO.forEach(l => { mapa[l.chave] = { ...l, liquido: 0, qtd: 0, grifes: {} }; });
+  LINHAS_ARMACAO.forEach(l => { mapa[l.chave] = { ...l, liquido: 0, qtd: 0, grifes: {}, lojas: {} }; });
   let total = 0, qtd = 0;
   const totalGrife = {};
 
@@ -54,7 +54,7 @@ function resumirArmacoes(dados, campos) {
       const nomeLinha = String(item[campos.linha] ?? '');
       const chave = linhaDeArmacao(nomeLinha);
       if (!chave) return;
-      if (!mapa[chave]) mapa[chave] = { chave, titulo: nomeLinha.trim(), icone: '👓', cor: '#3dffa8', liquido: 0, qtd: 0, grifes: {} };
+      if (!mapa[chave]) mapa[chave] = { chave, titulo: nomeLinha.trim(), icone: '👓', cor: '#3dffa8', liquido: 0, qtd: 0, grifes: {}, lojas: {} };
       const grife = campos.grife ? (String(item[campos.grife] ?? '').trim() || 'SEM GRIFE') : '—';
       const liq = parseNumeroBR(item.LIQUIDOPRODUTO);
       const q = parseNumeroBR(item.QUANTIDADE) || 0;
@@ -62,6 +62,14 @@ function resumirArmacoes(dados, campos) {
       l.liquido += liq; l.qtd += q;
       if (!l.grifes[grife]) l.grifes[grife] = { nome: grife, liquido: 0, qtd: 0 };
       l.grifes[grife].liquido += liq; l.grifes[grife].qtd += q;
+      // por loja (para a janela "por loja" de cada linha)
+      const m = String(item.LOJANOME ?? item.CODIGOLOJA ?? item.LOJA ?? '').match(/^0*(\d+)/);
+      const loja = m ? m[1] : '?';
+      if (!l.lojas[loja]) l.lojas[loja] = { id: loja, liquido: 0, qtd: 0, grifes: {} };
+      const lj = l.lojas[loja];
+      lj.liquido += liq; lj.qtd += q;
+      if (!lj.grifes[grife]) lj.grifes[grife] = { nome: grife, liquido: 0, qtd: 0 };
+      lj.grifes[grife].liquido += liq; lj.grifes[grife].qtd += q;
       totalGrife[grife] = (totalGrife[grife] || 0) + liq;
       total += liq; qtd += q;
     });
@@ -73,8 +81,10 @@ function resumirArmacoes(dados, campos) {
     .forEach((g, i) => { coresGrife[g] = CORES_PALETA[i % CORES_PALETA.length]; });
   coresGrife.OUTRAS = '#6b7299';
 
+  const ordenar = obj => Object.values(obj).sort((a, b) => b.liquido - a.liquido);
   const linhas = Object.values(mapa).map(l => ({
-    ...l, grifes: Object.values(l.grifes).sort((a, b) => b.liquido - a.liquido)
+    ...l, grifes: ordenar(l.grifes),
+    lojas: ordenar(l.lojas).map(lj => ({ ...lj, grifes: ordenar(lj.grifes) }))
   }));
   return { linhas, total, qtd, coresGrife };
 }
@@ -135,54 +145,64 @@ function fecharJanelaArmacoes() {
   modal.classList.remove('aberto');
   setTimeout(() => {
     modal.style.display = 'none';
-    graficosJanelaArmacoes.forEach(g => g.destroy());
-    graficosJanelaArmacoes = [];
+    destruirRoscasJanela();
   }, 250);
 }
 
-function abrirJanelaArmacoes() {
-  const modal = document.getElementById('modalArmacoes');
-  const grade = document.getElementById('gradeArmacoes');
-  if (!modal || !grade || !resumoArmacoes) return;
-  const { linhas, total, coresGrife } = resumoArmacoes;
-
-  const ini = document.getElementById('dataInicial').value;
-  const fim = document.getElementById('dataFinal').value;
-  document.getElementById('subtituloArmacoes').textContent =
-    `${formatarDataISOparaBR(ini)} a ${formatarDataISOparaBR(fim)} · total em armações ${formatarMoedaBR(total)} · % das grifes dentro de cada linha (valor líquido)`;
-
+function destruirRoscasJanela() {
   graficosJanelaArmacoes.forEach(g => g.destroy());
   graficosJanelaArmacoes = [];
+}
 
-  grade.innerHTML = linhas.map((l, i) => {
-    const lista = l.grifes.length ? l.grifes.map((g, k) => `
+function periodoTexto() {
+  return `${formatarDataISOparaBR(document.getElementById('dataInicial').value)} a ${formatarDataISOparaBR(document.getElementById('dataFinal').value)}`;
+}
+
+/**
+ * Desenha uma grade de cartões "rosca + grifes ao lado".
+ * cards: [{ titulo, subtitulo, total, grifes, centro, rotuloCentro, cor, onClick? }]
+ */
+function desenharCartoesGrifes(cards) {
+  const grade = document.getElementById('gradeArmacoes');
+  const modal = document.getElementById('modalArmacoes');
+  const { coresGrife } = resumoArmacoes;
+  destruirRoscasJanela();
+
+  grade.innerHTML = cards.length ? cards.map((c, i) => {
+    const lista = c.grifes.length ? c.grifes.map((g, k) => `
         <li class="${k === 0 ? 'cl-destaque' : ''}" title="${escHTML(g.nome)}: ${formatarMoedaBR(g.liquido)} · ${g.qtd.toLocaleString('pt-BR')} un.">
           <i style="background:${coresGrife[g.nome]}; box-shadow: 0 0 8px ${coresGrife[g.nome]};"></i>
           <span>${escHTML(g.nome)}</span>
-          <b>${pctTxt(g.liquido, l.liquido)}</b>
-        </li>`).join('') : '<li class="arm-sem">Sem vendas nesta linha.</li>';
-    return `<div class="cl-card" style="animation-delay:${i * 90}ms; border-top: 3px solid ${l.cor};">
+          <b>${pctTxt(g.liquido, c.total)}</b>
+        </li>`).join('') : '<li class="arm-sem">Sem vendas.</li>';
+    return `<div class="cl-card ${c.onClick ? 'arm-clicavel' : ''}" data-i="${i}" style="animation-delay:${i * 70}ms; border-top: 3px solid ${c.cor};"
+        ${c.onClick ? 'title="Clique para ver por loja"' : ''}>
       <div class="cl-card-topo">
-        <div><strong>${l.icone} ${escHTML(l.titulo)}</strong><small>${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · ${l.grifes.length} grife(s)</small></div>
-        <span class="cl-total">${formatarMoedaBR(l.liquido)}</span>
+        <div><strong>${c.titulo}</strong><small>${c.subtitulo}</small></div>
+        <span class="cl-total">${formatarMoedaBR(c.total)}</span>
       </div>
       <div class="cl-corpo">
         <div class="cl-grafico"><canvas id="armGrafico${i}"></canvas>
-          <div class="cl-centro"><b>${pctTxt(l.liquido, total)}</b><span>das armações</span></div>
+          <div class="cl-centro"><b>${c.centro}</b><span>${c.rotuloCentro}</span></div>
         </div>
         <div class="cl-lado"><ul class="cl-lista arm-lista">${lista}</ul></div>
       </div>
+      ${c.onClick ? '<div class="arm-dica">🏬 Ver por loja ›</div>' : ''}
     </div>`;
-  }).join('');
+  }).join('') : '<p class="cl-vazio">Nenhuma venda.</p>';
 
-  modal.style.display = 'flex';
-  requestAnimationFrame(() => modal.classList.add('aberto'));
+  grade.querySelectorAll('.arm-clicavel').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.closest('.cl-lista')) return;   // rolar a lista não abre
+      cards[+el.dataset.i].onClick();
+    });
+  });
 
-  linhas.forEach((l, i) => {
+  cards.forEach((c, i) => {
     setTimeout(() => {
       const canvas = document.getElementById(`armGrafico${i}`);
-      if (!canvas || !modal.classList.contains('aberto') || !l.grifes.length) return;
-      let fatias = l.grifes;
+      if (!canvas || !modal.classList.contains('aberto') || !c.grifes.length) return;
+      let fatias = c.grifes;
       if (fatias.length > MAX_FATIAS_GRIFE) {
         const resto = fatias.slice(MAX_FATIAS_GRIFE - 1);
         fatias = fatias.slice(0, MAX_FATIAS_GRIFE - 1).concat([{
@@ -198,15 +218,68 @@ function abrirJanelaArmacoes() {
         options: {
           responsive: true, maintainAspectRatio: false, cutout: '60%',
           layout: { padding: { top: 8, bottom: 16, left: 6, right: 6 } },
-          animation: { animateRotate: true, animateScale: true, duration: 1100, easing: 'easeOutBack' },
+          animation: { animateRotate: true, animateScale: true, duration: 1000, easing: 'easeOutBack' },
+          onClick: c.onClick ? () => c.onClick() : undefined,
+          onHover: c.onClick ? (e => { e.native.target.style.cursor = 'pointer'; }) : undefined,
           plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { label: c => ` ${c.label}: ${pctTxt(c.raw, l.liquido)} · ${formatarMoedaBR(c.raw)} · ${fatias[c.dataIndex].qtd.toLocaleString('pt-BR')} un.` } }
+            tooltip: { callbacks: { label: t => ` ${t.label}: ${pctTxt(t.raw, c.total)} · ${formatarMoedaBR(t.raw)} · ${fatias[t.dataIndex].qtd.toLocaleString('pt-BR')} un.` } }
           }
         }
       }));
-    }, 150 + i * 90);
+    }, 150 + i * 70);
   });
+}
+
+function mostrarJanela() {
+  const modal = document.getElementById('modalArmacoes');
+  if (modal.style.display !== 'flex') {
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('aberto'));
+  }
+  modal.scrollTop = 0;
+}
+
+/** 1º nível: uma rosca por linha (RX, Sun, Clip-on). */
+function abrirJanelaArmacoes() {
+  const modal = document.getElementById('modalArmacoes');
+  if (!modal || !resumoArmacoes) return;
+  const { linhas, total } = resumoArmacoes;
+
+  document.getElementById('tituloArmacoes').textContent = '🕶️ Armações · grifes por linha';
+  document.getElementById('btnVoltarArmacoes').style.display = 'none';
+  document.getElementById('subtituloArmacoes').textContent =
+    `${periodoTexto()} · total em armações ${formatarMoedaBR(total)} · % das grifes dentro de cada linha (valor líquido) · clique numa linha para ver por loja`;
+
+  mostrarJanela();
+  // espera o modal ter a classe "aberto" antes de desenhar
+  requestAnimationFrame(() => requestAnimationFrame(() => desenharCartoesGrifes(linhas.map((l, i) => ({
+    titulo: `${l.icone} ${escHTML(l.titulo)}`,
+    subtitulo: `${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · ${l.grifes.length} grife(s) · ${l.lojas.length} loja(s)`,
+    total: l.liquido, grifes: l.grifes, cor: l.cor,
+    centro: pctTxt(l.liquido, total), rotuloCentro: 'das armações',
+    onClick: l.liquido ? () => abrirArmacoesPorLoja(i) : null
+  })))));
+}
+
+/** 2º nível: a linha escolhida, uma rosca por loja com as grifes vendidas nela. */
+function abrirArmacoesPorLoja(indiceLinha) {
+  const l = resumoArmacoes.linhas[indiceLinha];
+  if (!l) return;
+  document.getElementById('tituloArmacoes').textContent = `${l.icone} ${l.titulo} · grifes por loja`;
+  document.getElementById('btnVoltarArmacoes').style.display = '';
+  document.getElementById('subtituloArmacoes').textContent =
+    `${periodoTexto()} · ${l.lojas.length} loja(s) · total ${formatarMoedaBR(l.liquido)} · ${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · % das grifes dentro de cada loja`;
+  mostrarJanela();
+  desenharCartoesGrifes(l.lojas.map(lj => {
+    const nome = typeof nomeLojaComparar === 'function' ? nomeLojaComparar(lj.id) : { titulo: `Loja ${lj.id}`, nome: '' };
+    return {
+      titulo: `${escHTML(nome.titulo)}${nome.nome ? ` <em class="arm-nome-loja">${escHTML(nome.nome)}</em>` : ''}`,
+      subtitulo: `${lj.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · ${lj.grifes.length} grife(s)`,
+      total: lj.liquido, grifes: lj.grifes, cor: l.cor,
+      centro: pctTxt(lj.liquido, l.liquido), rotuloCentro: `da ${l.titulo.replace('Armação ', '')}`
+    };
+  }));
 }
 
 document.addEventListener('keydown', e => {
