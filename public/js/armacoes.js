@@ -45,7 +45,7 @@ function pctTxt(v, total) {
 /** Agrupa os itens por linha de armação e grife. */
 function resumirArmacoes(dados, campos) {
   const mapa = {};
-  LINHAS_ARMACAO.forEach(l => { mapa[l.chave] = { ...l, liquido: 0, qtd: 0, grifes: {}, lojas: {} }; });
+  LINHAS_ARMACAO.forEach(l => { mapa[l.chave] = { ...l, liquido: 0, qtd: 0, grifes: {}, lojas: {}, produtos: {} }; });
   let total = 0, qtd = 0;
   const totalGrife = {};
 
@@ -54,7 +54,7 @@ function resumirArmacoes(dados, campos) {
       const nomeLinha = String(item[campos.linha] ?? '');
       const chave = linhaDeArmacao(nomeLinha);
       if (!chave) return;
-      if (!mapa[chave]) mapa[chave] = { chave, titulo: nomeLinha.trim(), icone: '👓', cor: '#3dffa8', liquido: 0, qtd: 0, grifes: {}, lojas: {} };
+      if (!mapa[chave]) mapa[chave] = { chave, titulo: nomeLinha.trim(), icone: '👓', cor: '#3dffa8', liquido: 0, qtd: 0, grifes: {}, lojas: {}, produtos: {} };
       const grife = campos.grife ? (String(item[campos.grife] ?? '').trim() || 'SEM GRIFE') : '—';
       const liq = parseNumeroBR(item.LIQUIDOPRODUTO);
       const q = parseNumeroBR(item.QUANTIDADE) || 0;
@@ -70,6 +70,12 @@ function resumirArmacoes(dados, campos) {
       lj.liquido += liq; lj.qtd += q;
       if (!lj.grifes[grife]) lj.grifes[grife] = { nome: grife, liquido: 0, qtd: 0 };
       lj.grifes[grife].liquido += liq; lj.grifes[grife].qtd += q;
+      // por produto (pódio das 3 armações mais vendidas da linha)
+      const cod = campos.codigo ? String(item[campos.codigo] ?? '').trim() : '';
+      const desc = campos.descricao ? String(item[campos.descricao] ?? '').trim() : '';
+      const kp = `${cod}|${desc}`;
+      if (!l.produtos[kp]) l.produtos[kp] = { codigo: cod, descricao: desc || cod || '—', grife, liquido: 0, qtd: 0 };
+      l.produtos[kp].liquido += liq; l.produtos[kp].qtd += q;
       totalGrife[grife] = (totalGrife[grife] || 0) + liq;
       total += liq; qtd += q;
     });
@@ -84,7 +90,10 @@ function resumirArmacoes(dados, campos) {
   const ordenar = obj => Object.values(obj).sort((a, b) => b.liquido - a.liquido);
   const linhas = Object.values(mapa).map(l => ({
     ...l, grifes: ordenar(l.grifes),
-    lojas: ordenar(l.lojas).map(lj => ({ ...lj, grifes: ordenar(lj.grifes) }))
+    lojas: ordenar(l.lojas).map(lj => ({ ...lj, grifes: ordenar(lj.grifes) })),
+    // mais vendidas = mais unidades; empate decide pelo valor líquido
+    top: Object.values(l.produtos).filter(p => p.qtd > 0)
+      .sort((a, b) => b.qtd - a.qtd || b.liquido - a.liquido).slice(0, 3)
   }));
   return { linhas, total, qtd, coresGrife };
 }
@@ -118,6 +127,7 @@ function renderizarArmacoes(dados, campos) {
         <small>${formatarMoedaBR(l.liquido)} · ${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</small>
       </li>`).join('') : '';
   }
+  renderizarPodioArmacoes(temDados ? linhas : []);
   if (!canvas || !temDados) return;
 
   graficoArmacoes = new Chart(canvas, {
@@ -137,6 +147,32 @@ function renderizarArmacoes(dados, campos) {
       }
     }
   });
+}
+
+const MEDALHAS = [
+  { icone: '🏆', classe: 'ouro', nome: 'Ouro' },
+  { icone: '🥈', classe: 'prata', nome: 'Prata' },
+  { icone: '🥉', classe: 'bronze', nome: 'Bronze' }
+];
+
+/** As 3 armações mais vendidas (unidades) de cada linha, com troféu ouro/prata/bronze. */
+function renderizarPodioArmacoes(linhas) {
+  const caixa = document.getElementById('podioArmacoes');
+  if (!caixa) return;
+  caixa.style.display = linhas.length ? '' : 'none';
+  caixa.innerHTML = linhas.map(l => `
+    <div class="arm-podio-col" style="--cor-linha:${l.cor}">
+      <div class="arm-podio-titulo">${l.icone} ${escHTML(l.titulo)} <small>top 3</small></div>
+      ${l.top.length ? l.top.map((p, i) => `
+        <div class="arm-podio-item arm-${MEDALHAS[i].classe}" title="${escHTML(p.codigo)} · ${escHTML(p.descricao)}\n${escHTML(p.grife)} · ${p.qtd.toLocaleString('pt-BR')} un. · ${formatarMoedaBR(p.liquido)}">
+          <span class="arm-trofeu" aria-label="${MEDALHAS[i].nome}">${MEDALHAS[i].icone}</span>
+          <div class="arm-podio-txt">
+            <b>${escHTML(p.descricao)}</b>
+            <small>${escHTML(p.grife)}${p.codigo ? ' · cód. ' + escHTML(p.codigo) : ''}</small>
+            <span class="arm-podio-num"><b>${p.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</b> · ${formatarMoedaBR(p.liquido)}</span>
+          </div>
+        </div>`).join('') : '<div class="arm-sem">Sem vendas.</div>'}
+    </div>`).join('');
 }
 
 function fecharJanelaArmacoes() {
