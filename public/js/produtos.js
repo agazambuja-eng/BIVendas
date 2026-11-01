@@ -163,6 +163,7 @@ function renderizarProdutos() {
   set('cardProdDesconto', (totBruto > 0 ? (totDesc / totBruto) * 100 : 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%');
 
   renderizarGraficosProdutos(grifes, linhas, campos);
+  if (typeof renderizarArmacoes === 'function') renderizarArmacoes(dados, campos);
   renderizarTabelaGrifes(grifes, totLiq, campos);
   renderizarTabelaProdutos();
 }

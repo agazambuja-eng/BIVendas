@@ -314,6 +314,18 @@
       <div class="bi-card" style="border-left-color: #ff5c8a; padding: 10px;"><div class="bi-card-title" style="font-size: 11px;">DESCONTO MÉDIO</div><div class="bi-card-value" id="cardProdDesconto">0%</div></div>
     </div>
 
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <div class="titulo-com-acao">
+        <h4 style="margin: 0; font-size: 15px;">🕶️ Armações · participação por linha <small id="subArmacoes" class="arm-sub"></small></h4>
+        <button type="button" class="btn-comparar-lojas" onclick="abrirJanelaArmacoes()" title="Uma rosca por linha, com as grifes ao lado">🔎 Ver grifes por linha</button>
+      </div>
+      <p id="armacoesVazio" class="arm-vazio" style="display: none;"></p>
+      <div class="arm-corpo">
+        <div class="arm-grafico"><canvas id="graficoArmacoes"></canvas></div>
+        <ul id="legendaArmacoes" class="arm-legenda"></ul>
+      </div>
+    </div>
+
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 15px;">
       <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
         <h4 style="margin: 0 0 8px; font-size: 15px;">🏷️ Top 10 grifes (valor líquido)</h4>
@@ -465,6 +477,20 @@
     </div>
   </div>
 
+  <!-- Janela: Armações por linha, com as grifes de cada uma -->
+  <div id="modalArmacoes" class="cl-overlay" style="display: none;" onclick="if (event.target === this) fecharJanelaArmacoes()">
+    <div class="cl-painel">
+      <div class="cl-cabecalho">
+        <div>
+          <h3 style="margin: 0; font-size: 18px;">🕶️ Armações · grifes por linha</h3>
+          <div id="subtituloArmacoes" class="cl-subtitulo"></div>
+        </div>
+        <button type="button" class="cfg-btn-fechar" onclick="fecharJanelaArmacoes()" title="Fechar (Esc)">✕</button>
+      </div>
+      <div id="gradeArmacoes" class="cl-grade" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
   <div id="loadingOverlay" class="loading-overlay">
     <div class="spinner"></div>
     <div class="loading-text">Buscando relatório na API, por favor aguarde...</div>
@@ -602,5 +628,6 @@
   <script src="/js/comparativo.js"></script>
   <script src="/js/comparar-lojas.js"></script>
   <script src="/js/produtos.js"></script>
+  <script src="/js/armacoes.js"></script>
 </body>
 </html>
