@@ -290,5 +290,6 @@ document.addEventListener('keydown', e => {
 (async () => {
   await exigirLogin('gerenciar_usuarios');
   montarBarraUsuario($('barraUsuario'));
+  montarSubmenuConfig($('submenuConfig'), 'usuarios');
   await Promise.all([carregarLojasCadastro(), carregarUsuarios()]);
 })();

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configurações · BI Vendas</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Configurações<span>BI Vendas</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+
+  <main class="acesso-conteudo so-logado">
+    <p class="inicio-sub">Escolha o que configurar:</p>
+    <div class="inicio-opcoes">
+      <a class="inicio-opcao config" id="opcaoUsuarios" href="/usuarios.html" style="display: none;">
+        <div class="icone">👤</div>
+        <h2>Cadastro de usuários</h2>
+        <p>Criar usuários, dar ou retirar acessos, lojas que cada um vê e redefinir senhas.</p>
+      </a>
+      <a class="inicio-opcao vendedores" id="opcaoVendedores" href="/vendedores.html" style="display: none;">
+        <div class="icone">👥</div>
+        <h2>Cadastro de vendedores</h2>
+        <p>Código do ERP, loja e turno da meta (☀️ manhã ou 🌙 tarde). Importa direto do ERP.</p>
+      </a>
+    </div>
+    <p class="acesso-ajuda" style="margin-top: 18px;">As metas por loja continuam no ⚙ dentro do BI.</p>
+  </main>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    (async () => {
+      await exigirLogin();
+      montarBarraUsuario(document.getElementById('barraUsuario'));
+      if (!podeAlgumaConfig()) { location.replace('/inicio.html?semAcesso=gerenciar_usuarios'); return; }
+      document.getElementById('opcaoUsuarios').style.display = podeConfigUsuarios() ? '' : 'none';
+      document.getElementById('opcaoVendedores').style.display = podeConfigVendedores() ? '' : 'none';
+    })();
+  </script>
+</body>
+</html>

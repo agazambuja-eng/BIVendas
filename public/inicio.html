@@ -24,15 +24,10 @@
         <h2>BI</h2>
         <p>Dashboard, metas, pagamentos e auditoria de vendas.</p>
       </a>
-      <a class="inicio-opcao vendedores" id="opcaoVendedores" href="/vendedores.html" style="display: none;">
-        <div class="icone">👥</div>
-        <h2>Vendedores</h2>
-        <p>Cadastro de vendedores: código do ERP, loja e turno da meta (manhã ou tarde).</p>
-      </a>
-      <a class="inicio-opcao config" id="opcaoConfig" href="/usuarios.html" style="display: none;">
+      <a class="inicio-opcao config" id="opcaoConfig" href="/configuracoes.html" style="display: none;">
         <div class="icone">⚙️</div>
         <h2>Configurações</h2>
-        <p>Criar usuários, dar ou retirar acessos e redefinir senhas.</p>
+        <p id="descConfig">Usuários e acessos · cadastro de vendedores.</p>
       </a>
     </div>
   </main>
@@ -49,11 +44,12 @@
       document.getElementById('saudacao').textContent = `${cumprimento}, ${perfil.nome.split(' ')[0]}!`;
 
       const podeBI = temPermissao('acessar_bi');
-      const podeConfig = temPermissao('gerenciar_usuarios');
+      const podeConfig = podeAlgumaConfig();
       document.getElementById('opcaoBI').style.display = podeBI ? '' : 'none';
       document.getElementById('opcaoConfig').style.display = podeConfig ? '' : 'none';
-      const podeVend = podeBI && ['criar_metas', 'alterar_metas', 'excluir_metas'].some(p => temPermissao(p));
-      document.getElementById('opcaoVendedores').style.display = podeVend ? '' : 'none';
+      document.getElementById('descConfig').textContent = [
+        podeConfigUsuarios() ? 'Usuários e acessos' : '', podeConfigVendedores() ? 'cadastro de vendedores' : ''
+      ].filter(Boolean).join(' · ');
 
       const aviso = document.getElementById('avisoInicio');
       const semAcesso = new URLSearchParams(location.search).get('semAcesso');
