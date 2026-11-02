@@ -2,9 +2,10 @@
  * Aba COMPARATIVO · "Armações" (RX, Sun, Clip-on) período a período.
  *
  * - Gráfico de linhas: uma linha por tipo de armação, em unidades ou valor.
- * - Tabela com as variações; botões "Expandir por grifes" e "Expandir por
- *   loja" abrem os detalhes abaixo de cada linha (os dois juntos: linha >
- *   grife > loja). Cada linha da tabela também abre/fecha no triângulo.
+ * - "Expandir por grifes" / "Expandir por loja" abrem um gráfico por linha
+ *   (RX, Sun, Clip-on) com a evolução dos N itens mais vendidos (padrão 5).
+ * - Tabela com as variações; cada linha abre/fecha no triângulo
+ *   (linha > grife > loja).
  *
  * Os números vêm do mesmo resumo do comparativo (resumirVendas chama
  * resumirArmacoesDoPeriodo), então respeitam lojas e tipos de venda.
@@ -101,7 +102,7 @@ function renderizarComparativoArmacoes(dados) {
           legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } },
           tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtArm(c.raw)}` } }
         },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => compArmMetrica === 'qtd' ? Number(v).toLocaleString('pt-BR') : 'R$ ' + Number(v).toLocaleString('pt-BR') } } }
+        scales: { y: { beginAtZero: true, ticks: { precision: compArmMetrica === 'qtd' ? 0 : undefined, callback: v => compArmMetrica === 'qtd' ? Number(v).toLocaleString('pt-BR') : 'R$ ' + Number(v).toLocaleString('pt-BR') } } }
       }
     });
   }
@@ -136,27 +137,22 @@ function renderizarComparativoArmacoes(dados) {
   linhas.forEach(l => {
     const nosL = resumos.map(r => r[l.chave]);
     const idL = `L:${l.chave}`;
-    const filhosPadrao = compArmExpandirGrifes || compArmExpandirLojas;
-    const abertoL = aberto(idL, filhosPadrao);
+    const abertoL = aberto(idL, false);
     html += linhaTabela(1, idL, `${l.icone} ${escHTML(l.titulo)}`, nosL.map(valorArm), true, abertoL, l.cor);
     if (!abertoL) return;
 
-    if (compArmExpandirGrifes || !compArmExpandirLojas) {
+    {
       // linha > grife (> loja)
       const grifes = ordenarPorAtual(nosL[ult]?.grifes || {}, [...new Set(nosL.flatMap(n => Object.keys(n?.grifes || {})))]);
       grifes.forEach(g => {
         const nosG = nosL.map(n => n?.grifes?.[g]);
         const idG = `G:${l.chave}:${g}`;
-        const abertoG = aberto(idG, compArmExpandirLojas);
+        const abertoG = aberto(idG, false);
         html += linhaTabela(2, idG, escHTML(g), nosG.map(valorArm), true, abertoG);
         if (!abertoG) return;
         const lojas = ordenarPorAtual(nosG[ult]?.lojas || {}, [...new Set(nosG.flatMap(n => Object.keys(n?.lojas || {})))]);
         lojas.forEach(id => html += linhaTabela(3, '', nomeLoja(id), nosG.map(n => valorArm(n?.lojas?.[id])), false, false));
       });
-    } else {
-      // só por loja: linha > loja
-      const lojas = ordenarPorAtual(nosL[ult]?.lojas || {}, [...new Set(nosL.flatMap(n => Object.keys(n?.lojas || {})))]);
-      lojas.forEach(id => html += linhaTabela(2, '', `🏬 ${nomeLoja(id)}`, nosL.map(n => valorArm(n?.lojas?.[id])), false, false));
     }
   });
   // total de armações
@@ -166,6 +162,83 @@ function renderizarComparativoArmacoes(dados) {
     <td class="la-num">${variacaoHTML(totais[ult], totais[ult - 1])}</td>
     <td class="la-num">${variacaoHTML(totais[ult], totais[0])}</td></tr>`;
   corpo.innerHTML = html;
+
+  renderizarGraficosExpandidosCompArm(periodos, resumos, linhas);
+}
+
+/* ---------- "Expandir": um gráfico por linha de armação (RX, Sun, Clip-on) ---------- */
+let graficosExpandidosCompArm = [];
+
+function topNCompArm() {
+  const campo = document.getElementById('compArmTopN');
+  let n = parseInt(campo && campo.value, 10);
+  if (isNaN(n)) n = 5;
+  n = Math.min(15, Math.max(3, n));
+  if (campo) campo.value = n;
+  return n;
+}
+
+/**
+ * Para cada linha (RX, Sun, Clip-on) desenha a evolução dos N itens mais
+ * vendidos: grifes (Expandir por grifes) e/ou lojas (Expandir por loja).
+ * "Mais vendidos" = maior soma em todos os períodos mostrados.
+ */
+function renderizarGraficosExpandidosCompArm(periodos, resumos, linhas) {
+  graficosExpandidosCompArm.forEach(g => g.destroy());
+  graficosExpandidosCompArm = [];
+  const n = topNCompArm();
+  const blocos = [
+    { tipo: 'grifes', ligado: compArmExpandirGrifes, caixa: 'compArmGraficosGrifes', titulo: 'grifes', campo: 'grifes',
+      nome: k => k },
+    { tipo: 'lojas', ligado: compArmExpandirLojas, caixa: 'compArmGraficosLojas', titulo: 'lojas', campo: 'lojas',
+      nome: k => (typeof nomeLojaComparativo === 'function' ? nomeLojaComparativo(k) : `Loja ${k}`) }
+  ];
+  blocos.forEach(b => {
+    const caixa = document.getElementById(b.caixa);
+    if (!caixa) return;
+    caixa.style.display = b.ligado ? '' : 'none';
+    if (!b.ligado) { caixa.innerHTML = ''; return; }
+    const itensPorLinha = linhas.map(l => {
+      const nos = resumos.map(r => r[l.chave]?.[b.campo] || {});
+      const soma = {};
+      nos.forEach(m => Object.entries(m).forEach(([k, v]) => { soma[k] = (soma[k] || 0) + valorArm(v); }));
+      const top = Object.keys(soma).sort((a, c) => soma[c] - soma[a]).slice(0, n);
+      return { l, nos, top, total: Object.keys(soma).length };
+    });
+    caixa.innerHTML = `<div class="ca-graf-cabecalho">${b.tipo === 'grifes' ? '🏷️' : '🏬'} Evolução das ${n} ${b.titulo} mais vendidas em cada linha</div>
+      <div class="ca-graf-grade">${itensPorLinha.map((x, i) => `
+        <div class="ca-graf-card" style="--cor-linha:${x.l.cor}">
+          <div class="ca-graf-titulo">${x.l.icone} ${escHTML(x.l.titulo)} <small>top ${Math.min(n, x.top.length)} de ${x.total} ${b.titulo}</small></div>
+          ${x.top.length ? `<div class="ca-graf-area"><canvas id="caGraf_${b.tipo}_${i}"></canvas></div>` : '<p class="arm-vazio">Sem vendas nos períodos.</p>'}
+        </div>`).join('')}</div>`;
+    itensPorLinha.forEach((x, i) => {
+      const canvas = document.getElementById(`caGraf_${b.tipo}_${i}`);
+      if (!canvas) return;
+      graficosExpandidosCompArm.push(new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: periodos.map(p => p.rotulo),
+          datasets: x.top.map((k, j) => {
+            const cor = b.tipo === 'grifes' && resumoArmacoes && resumoArmacoes.coresGrife && resumoArmacoes.coresGrife[k]
+              ? resumoArmacoes.coresGrife[k] : CORES_PALETA[j % CORES_PALETA.length];
+            return {
+              label: b.nome(k), data: x.nos.map(m => valorArm(m[k])),
+              borderColor: cor, backgroundColor: cor, tension: 0.3, borderWidth: 2.5, pointRadius: 4, fill: false
+            };
+          })
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } },
+            tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtArm(c.raw)}` } }
+          },
+          scales: { y: { beginAtZero: true, ticks: { precision: compArmMetrica === 'qtd' ? 0 : undefined, callback: v => compArmMetrica === 'qtd' ? Number(v).toLocaleString('pt-BR') : 'R$ ' + Number(v).toLocaleString('pt-BR') } } }
+        }
+      }));
+    });
+  });
 }
 
 function redesenharComparativoArmacoes() {
@@ -180,8 +253,9 @@ function escolherMetricaCompArm(m) {
 function alternarExpandirCompArm(tipo) {
   if (tipo === 'grifes') compArmExpandirGrifes = !compArmExpandirGrifes;
   else compArmExpandirLojas = !compArmExpandirLojas;
-  compArmAbertos.clear(); compArmFechados.clear();
   redesenharComparativoArmacoes();
+  const alvo = document.getElementById(tipo === 'grifes' ? 'compArmGraficosGrifes' : 'compArmGraficosLojas');
+  if (alvo && alvo.style.display !== 'none') alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function alternarNoCompArm(id, estavaAberto) {
