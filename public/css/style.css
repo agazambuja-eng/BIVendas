@@ -123,7 +123,7 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .cfg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .cfg-col2 { grid-column: span 2; }
 .cfg-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: bold; color: #555; }
-.cfg-label input { font-weight: normal; }
+.cfg-label input, .cfg-label select { font-weight: normal; }
 @media (max-width: 640px) {
   .cfg-grid { grid-template-columns: 1fr; }
   .cfg-col2 { grid-column: auto; }
