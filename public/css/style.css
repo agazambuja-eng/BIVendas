@@ -323,3 +323,11 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .ritmo-ok b, td.ritmo-ok { color: #3dffa8 !important; }
 .ritmo-atencao b { color: #ffd35e !important; }
 .ritmo-dificil b { color: #ff5c8a !important; }
+
+/* Comparar lojas: prazo curto (à vista a 5x) x longo (6 a 10x) */
+.cl-barra-prazo { display: flex; height: 6px; border-radius: 4px; overflow: hidden; margin: 4px 6px 2px; background: rgba(120,140,255,.12); }
+.cl-barra-curto { background: #3dffa8; box-shadow: 0 0 8px rgba(61,255,168,.6); }
+.cl-barra-longo { background: #ff5c8a; box-shadow: 0 0 8px rgba(255,92,138,.6); }
+.cl-msg-prazo { margin: 4px 6px 0; padding: 5px 8px; border-radius: 7px; font-size: 11px; line-height: 1.35; }
+.cl-msg-bom { color: #3dffa8; background: rgba(61,255,168,.08); border: 1px solid rgba(61,255,168,.25); }
+.cl-msg-ruim { color: #ffb0c4; background: rgba(255,92,138,.1); border: 1px solid rgba(255,92,138,.3); }
