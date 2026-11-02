@@ -364,3 +364,6 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .ca-graf-titulo { font-size: 13px; font-weight: 700; color: #e8ecff; margin-bottom: 6px; }
 .ca-graf-titulo small { font-weight: normal; color: #8a93c9; font-size: 10.5px; margin-left: 4px; }
 .ca-graf-area { position: relative; height: 300px; }
+
+.ca-graf-cab-flex { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ca-graf-cab-flex small { font-weight: normal; color: #8a93c9; font-size: 11px; }

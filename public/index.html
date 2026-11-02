@@ -395,6 +395,7 @@
           </div>
           <button type="button" id="btnCompArmGrifes" class="ca-expandir" onclick="alternarExpandirCompArm('grifes')">▸ Expandir por grifes</button>
           <button type="button" id="btnCompArmLojas" class="ca-expandir" onclick="alternarExpandirCompArm('lojas')">▸ Expandir por loja</button>
+          <button type="button" id="btnCompArmGrifesLoja" class="ca-expandir" onclick="alternarExpandirCompArm('grifesLoja')" title="Um gráfico por loja com a evolução das grifes mais vendidas nela">▸ Grifes por loja</button>
           <label class="ca-topn" title="Quantos itens mais vendidos aparecem em cada gráfico (3 a 15)">Top
             <input type="number" id="compArmTopN" value="5" min="3" max="15" step="1" onchange="redesenharComparativoArmacoes()"></label>
         </div>
@@ -405,6 +406,7 @@
       </div>
       <div id="compArmGraficosGrifes" class="ca-graficos" style="display: none;"></div>
       <div id="compArmGraficosLojas" class="ca-graficos" style="display: none;"></div>
+      <div id="compArmGraficosGrifesLoja" class="ca-graficos" style="display: none;"></div>
     </div>
 
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; overflow-x: auto;">
