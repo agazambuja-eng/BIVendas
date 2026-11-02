@@ -382,3 +382,11 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .chip-turno.turno-T { background: rgba(157,123,255,.15); color: #c3b0ff; border: 1px solid rgba(157,123,255,.35); }
 .aviso-turno { color: #ffd35e; font-size: 12px; }
 .aviso-turno a { color: #5ee7ff; }
+
+/* Metas vendedor: turno no fim do nome e ritmo por faixa */
+.icone-turno { margin-left: 4px; font-size: 13px; filter: drop-shadow(0 0 4px rgba(255,211,94,.4)); cursor: help; }
+.icone-turno.sem-cadastro { opacity: .45; filter: grayscale(.6); }
+.ritmo-vend { display: block; font-size: 10.5px; margin-top: 1px; color: #8a93c9; font-weight: 600; }
+.ritmo-vend.ritmo-ok { color: #3dffa8; }
+.ritmo-vend.ritmo-atencao { color: #ffd35e; }
+.ritmo-vend.ritmo-dificil { color: #ff5c8a; }
