@@ -331,3 +331,23 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .cl-msg-prazo { margin: 4px 6px 0; padding: 5px 8px; border-radius: 7px; font-size: 11px; line-height: 1.35; }
 .cl-msg-bom { color: #3dffa8; background: rgba(61,255,168,.08); border: 1px solid rgba(61,255,168,.25); }
 .cl-msg-ruim { color: #ffb0c4; background: rgba(255,92,138,.1); border: 1px solid rgba(255,92,138,.3); }
+
+/* ===== Comparativo · Armações ===== */
+.ca-controles { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ca-alternar { display: inline-flex; border: 1px solid rgba(120,140,255,.3); border-radius: 8px; overflow: hidden; }
+.ca-alternar button { padding: 6px 12px; font-size: 12px; border-radius: 0; background: transparent !important; box-shadow: none !important; color: #8a93c9 !important; }
+.ca-alternar button.ativo { background: linear-gradient(90deg, #2f6bff, #8a3dff) !important; color: #fff !important; }
+.ca-expandir { padding: 6px 12px; font-size: 12px; border-radius: 8px; background: rgba(94,231,255,.06) !important; border: 1px solid rgba(94,231,255,.3) !important; color: #5ee7ff !important; box-shadow: none !important; }
+.ca-expandir.ativo { background: rgba(94,231,255,.18) !important; color: #fff !important; box-shadow: 0 0 12px rgba(94,231,255,.35) !important; }
+.ca-tabela td { padding: 7px 8px; border-bottom: 1px solid rgba(120,140,255,.08); }
+.ca-n1 { cursor: pointer; background: #1a2150; font-weight: 700; }
+.ca-n1 td:first-child { border-left: 3px solid var(--cor-linha); }
+.ca-n1:hover { background: #222a5e; }
+.ca-n2 { background: #121838; }
+.ca-n2[onclick] { cursor: pointer; }
+.ca-n2:hover { background: #1a2150; }
+.ca-n2 td.ca-nome { padding-left: 26px; font-weight: 600; }
+.ca-n3 { background: #0d1130; }
+.ca-n3 td.ca-nome { padding-left: 50px; color: #c9cff5; }
+.ca-total { background: #141a40; font-weight: 700; }
+.ca-total td { border-top: 1px solid rgba(94,231,255,.3); }

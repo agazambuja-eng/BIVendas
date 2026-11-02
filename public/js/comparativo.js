@@ -61,10 +61,12 @@ function idLojaDoItem(item) {
 function resumirVendas(itens, lojasFiltro) {
   const porLoja = {};
   const osPorLoja = {};
+  const filtrados = [];
   (itens || []).forEach(item => {
     const id = idLojaDoItem(item);
     if (lojasFiltro.length && !lojasFiltro.includes(id)) return;
     if (typeof tipoVendaPermitido === 'function' && !tipoVendaPermitido(item)) return;
+    filtrados.push(item);
     porLoja[id] = (porLoja[id] || 0) + parseNumeroBR(item.LIQUIDOPRODUTO);
     const os = String(item.OS || '').trim();
     if (os) {
@@ -76,7 +78,8 @@ function resumirVendas(itens, lojasFiltro) {
   Object.keys(osPorLoja).forEach(id => { vendas[id] = Object.values(osPorLoja[id]).filter(v => v > 0).length; });
   const total = Object.values(porLoja).reduce((s, v) => s + v, 0);
   const qtdTotal = Object.values(vendas).reduce((s, v) => s + v, 0);
-  return { porLoja, vendas, total, qtdTotal };
+  const armacoes = typeof resumirArmacoesDoPeriodo === 'function' ? resumirArmacoesDoPeriodo(filtrados) : {};
+  return { porLoja, vendas, total, qtdTotal, armacoes };
 }
 
 function isoParaBR(iso) {
@@ -228,6 +231,9 @@ function renderizarComparativo({ periodos, porPeriodo }) {
     rotuloRede: 'Ticket médio da rede', eixoRedeSeparado: false,
     anterior: graficosComparativo.ticket
   });
+
+  // ---- ARMAÇÕES: RX, Sun, Clip-on (comparativo-armacoes.js)
+  if (typeof renderizarComparativoArmacoes === 'function') renderizarComparativoArmacoes({ periodos, porPeriodo });
 }
 
 const graficosComparativo = { vendas: null, ticket: null };
