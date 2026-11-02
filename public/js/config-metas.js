@@ -35,11 +35,50 @@ function mesComercialAtualInput() {
 function textoPeriodo(ini, fim) {
   return `${formatarDataISOparaBR(ini)} a ${formatarDataISOparaBR(fim)}`;
 }
+/** "185.000,50" -> 185000.5 ; "" -> null (aceita também número puro) */
 function numeroOuNulo(v) {
   if (v === '' || v === null || v === undefined) return null;
-  const n = Number(String(v).replace(',', '.'));
+  if (typeof v === 'number') return v;
+  const t = String(v).trim().replace(/[R$\s]/g, '');
+  if (!t) return null;
+  const n = Number(t.replace(/\./g, '').replace(',', '.'));
   return isNaN(n) ? null : n;
 }
+
+/** 185000.5 -> "185.000,50" (para mostrar no campo) */
+function moedaParaCampo(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const n = Number(v);
+  return isNaN(n) ? '' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Máscara padrão Brasil enquanto digita: pontos nos milhares e vírgula nos
+ * centavos ("185000" -> "185.000"; "185000,5" -> "185.000,5"). Ao sair do
+ * campo completa os centavos ("185.000,00").
+ */
+function mascararMoedaDigitando(campo) {
+  const antes = campo.value;
+  const cursorDoFim = antes.length - (campo.selectionStart ?? antes.length);
+  let t = antes.replace(/[^\d,]/g, '');
+  const iv = t.indexOf(',');
+  let inteiro = iv >= 0 ? t.slice(0, iv) : t;
+  let dec = iv >= 0 ? t.slice(iv + 1).replace(/,/g, '').slice(0, 2) : null;
+  inteiro = inteiro.replace(/^0+(?=\d)/, '');
+  const comPontos = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  campo.value = comPontos + (dec !== null ? ',' + dec : '');
+  const pos = Math.max(0, campo.value.length - cursorDoFim);
+  try { campo.setSelectionRange(pos, pos); } catch (e) { /* sem cursor */ }
+}
+
+document.addEventListener('input', e => {
+  if (e.target && e.target.classList && e.target.classList.contains('cfg-moeda')) mascararMoedaDigitando(e.target);
+});
+document.addEventListener('focusout', e => {
+  if (e.target && e.target.classList && e.target.classList.contains('cfg-moeda') && e.target.value.trim()) {
+    e.target.value = moedaParaCampo(numeroOuNulo(e.target.value));
+  }
+});
 
 function cfgMensagem(texto, tipo = 'info') {
   const el = cfgEl('cfgMetasMensagem');
@@ -216,10 +255,10 @@ function cfgEditar(id) {
   cfgEl('cfgBtnCancelarEdicao').style.display = 'inline-block';
   cfgSelecionarLoja(m.codigo, m.descricao);
   cfgEl('cfgDescricao').value = m.descricao || '';
-  cfgEl('cfgValorMeta').value = m.valor_meta ?? '';
-  cfgEl('cfgValorMetaBronze').value = m.valor_meta_bronze ?? m.valor_meta_vendedor ?? '';
-  cfgEl('cfgValorMetaPrata').value = m.valor_meta_prata ?? '';
-  cfgEl('cfgValorMetaOuro').value = m.valor_meta_ouro ?? '';
+  cfgEl('cfgValorMeta').value = moedaParaCampo(m.valor_meta ?? '');
+  cfgEl('cfgValorMetaBronze').value = moedaParaCampo(m.valor_meta_bronze ?? m.valor_meta_vendedor ?? '');
+  cfgEl('cfgValorMetaPrata').value = moedaParaCampo(m.valor_meta_prata ?? '');
+  cfgEl('cfgValorMetaOuro').value = moedaParaCampo(m.valor_meta_ouro ?? '');
   cfgEl('cfgDataInicio').value = m.data_inicio || '';
   cfgEl('cfgDataFim').value = m.data_fim || '';
   cfgMensagem('');
