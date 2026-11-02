@@ -60,11 +60,14 @@ function resumirArmacoes(dados, campos) {
       const q = parseNumeroBR(item.QUANTIDADE) || 0;
       const l = mapa[chave];
       l.liquido += liq; l.qtd += q;
-      if (!l.grifes[grife]) l.grifes[grife] = { nome: grife, liquido: 0, qtd: 0 };
-      l.grifes[grife].liquido += liq; l.grifes[grife].qtd += q;
-      // por loja (para a janela "por loja" de cada linha)
+      // loja do item
       const m = String(item.LOJANOME ?? item.CODIGOLOJA ?? item.LOJA ?? '').match(/^0*(\d+)/);
       const loja = m ? m[1] : '?';
+      if (!l.grifes[grife]) l.grifes[grife] = { nome: grife, liquido: 0, qtd: 0, porLoja: {}, produtos: {} };
+      const gf = l.grifes[grife];
+      gf.liquido += liq; gf.qtd += q;
+      gf.porLoja[loja] = (gf.porLoja[loja] || 0) + q;
+      // por loja (para a janela "por loja" de cada linha)
       if (!l.lojas[loja]) l.lojas[loja] = { id: loja, liquido: 0, qtd: 0, grifes: {} };
       const lj = l.lojas[loja];
       lj.liquido += liq; lj.qtd += q;
@@ -74,8 +77,11 @@ function resumirArmacoes(dados, campos) {
       const cod = campos.codigo ? String(item[campos.codigo] ?? '').trim() : '';
       const desc = campos.descricao ? String(item[campos.descricao] ?? '').trim() : '';
       const kp = `${cod}|${desc}`;
-      if (!l.produtos[kp]) l.produtos[kp] = { codigo: cod, descricao: desc || cod || '—', grife, liquido: 0, qtd: 0 };
-      l.produtos[kp].liquido += liq; l.produtos[kp].qtd += q;
+      if (!l.produtos[kp]) l.produtos[kp] = { codigo: cod, descricao: desc || cod || '—', grife, liquido: 0, qtd: 0, porLoja: {} };
+      const pr = l.produtos[kp];
+      pr.liquido += liq; pr.qtd += q;
+      pr.porLoja[loja] = (pr.porLoja[loja] || 0) + q;
+      gf.produtos[kp] = pr;   // mesmo objeto: lista "Listar armações" (linha > grife > produto)
       totalGrife[grife] = (totalGrife[grife] || 0) + liq;
       total += liq; qtd += q;
     });
@@ -128,6 +134,7 @@ function renderizarArmacoes(dados, campos) {
       </li>`).join('') : '';
   }
   renderizarPodioArmacoes(temDados ? linhas : []);
+  if (typeof renderizarListaArmacoes === 'function') renderizarListaArmacoes();
   if (!canvas || !temDados) return;
 
   graficoArmacoes = new Chart(canvas, {

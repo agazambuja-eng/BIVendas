@@ -284,3 +284,35 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
   border-radius: 8px; text-decoration: none; font-size: 15px; background: rgba(94,231,255,.08); border: 1px solid rgba(94,231,255,.25);
   transition: transform .15s, box-shadow .15s, background .15s; }
 .arm-lupa:hover { transform: scale(1.12); background: rgba(94,231,255,.18); box-shadow: 0 0 12px rgba(94,231,255,.45); }
+
+/* ===== Listar armações (árvore linha > grife > produto, com lojas ao lado) ===== */
+.la-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
+.la-acoes { display: flex; gap: 10px; }
+.la-seta { display: inline-block; width: 14px; color: #5ee7ff; transition: transform .2s ease; font-size: 12px; }
+.la-seta.aberta, .la-aberto .la-seta-grande { transform: rotate(90deg); }
+.la-seta-grande { font-size: 14px; }
+.la-corpo { overflow: auto; max-height: 640px; margin-top: 10px; }
+.la-corpo:empty { display: none; }
+.la-tabela { width: 100%; border-collapse: collapse; font-size: 12px; }
+.la-tabela thead th { position: sticky; top: 0; z-index: 2; background: #141a40; padding: 7px 8px; white-space: nowrap; }
+.la-tabela th.la-nome { left: 0; z-index: 3; text-align: left; }
+.la-tabela th.la-loja small { display: block; font-size: 9.5px; font-weight: normal; color: #8a93c9; max-width: 80px; overflow: hidden; text-overflow: ellipsis; margin-left: auto; }
+.la-tabela td { padding: 6px 8px; border-bottom: 1px solid rgba(120,140,255,.08); }
+.la-tabela td.la-nome { position: sticky; left: 0; background: inherit; min-width: 300px; max-width: 420px; }
+.la-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.la-zero { color: #4a5180; }
+.la-n1 { cursor: pointer; background: #1a2150; font-weight: 700; font-size: 13px; }
+.la-n1 td:first-child { border-left: 3px solid var(--cor-linha); }
+.la-n1:hover { background: #222a5e; }
+.la-n2 { cursor: pointer; background: #121838; }
+.la-n2:hover { background: #1a2150; }
+.la-n2 td.la-nome { padding-left: 26px; font-weight: 600; }
+.la-n2 td.la-nome i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; }
+.la-n3 { background: #0d1130; }
+.la-n3:hover { background: #151b42; }
+.la-n3 td.la-nome { padding-left: 50px; }
+.la-n3 .la-desc { color: #e8ecff; }
+.la-n3 .la-prod:not(.la-zero) { color: #3dffa8; font-weight: 700; }
+.la-tabela small { color: #8a93c9; font-weight: normal; font-size: 10.5px; margin-left: 6px; }
+.la-lupa { text-decoration: none; margin-left: 6px; font-size: 12px; opacity: .7; }
+.la-lupa:hover { opacity: 1; filter: drop-shadow(0 0 6px rgba(94,231,255,.7)); }

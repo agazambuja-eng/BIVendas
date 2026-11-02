@@ -327,27 +327,15 @@
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 15px;">
-      <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-        <h4 style="margin: 0 0 8px; font-size: 15px;">🏷️ Top 10 grifes (valor líquido)</h4>
-        <div style="position: relative; height: 320px;"><canvas id="graficoProdGrifes"></canvas></div>
+    <div id="quadroListaArmacoes" class="la-quadro" style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <div class="la-cabecalho" onclick="alternarQuadroListaArm()" title="Clique para abrir ou fechar a lista">
+        <h4 style="margin: 0; font-size: 15px;"><span class="la-seta la-seta-grande">▸</span> 📋 Listar armações <small id="listaArmacoesResumo" class="arm-sub"></small></h4>
+        <div class="la-acoes">
+          <button type="button" class="tv-link" onclick="expandirListaArm(true, event)">Expandir tudo</button>
+          <button type="button" class="tv-link" onclick="expandirListaArm(false, event)">Recolher tudo</button>
+        </div>
       </div>
-      <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-        <h4 style="margin: 0 0 8px; font-size: 15px;">🧩 Participação por linha</h4>
-        <div style="position: relative; height: 320px;"><canvas id="graficoProdLinhas"></canvas></div>
-      </div>
-    </div>
-
-    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; overflow-x: auto; max-height: 420px;">
-      <h4 style="margin: 0 0 8px; font-size: 15px;">Resumo por grife</h4>
-      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-        <thead><tr>
-          <th style="padding: 7px 8px; text-align: left;">Grife</th><th style="padding: 7px 8px; text-align: right;">Produtos</th>
-          <th style="padding: 7px 8px; text-align: right;">Qtd</th><th style="padding: 7px 8px; text-align: right;">Valor líquido</th>
-          <th style="padding: 7px 8px; text-align: right;">% do total</th><th style="padding: 7px 8px; text-align: right;">Desconto</th>
-        </tr></thead>
-        <tbody id="corpoProdGrifes"></tbody>
-      </table>
+      <div id="listaArmacoesCorpo" class="la-corpo"></div>
     </div>
 
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -631,5 +619,6 @@
   <script src="/js/comparar-lojas.js"></script>
   <script src="/js/produtos.js"></script>
   <script src="/js/armacoes.js"></script>
+  <script src="/js/listar-armacoes.js"></script>
 </body>
 </html>
