@@ -117,6 +117,9 @@ async function renderizarMetas(totaisPorLoja) {
     porLoja[id].metaPrata += Number(m.valor_meta_prata) || 0;
     porLoja[id].metaOuro += Number(m.valor_meta_ouro) || 0;
     if (m.descricao) porLoja[id].descricao = m.descricao;
+    // período da meta (para o ritmo diário necessário)
+    if (m.data_inicio && (!porLoja[id].metaInicio || m.data_inicio < porLoja[id].metaInicio)) porLoja[id].metaInicio = m.data_inicio;
+    if (m.data_fim && (!porLoja[id].metaFim || m.data_fim > porLoja[id].metaFim)) porLoja[id].metaFim = m.data_fim;
   });
   Object.keys(totaisPorLoja || {}).forEach(id => {
     if (!porLoja[id]) porLoja[id] = novoRegistroLoja(id, '');
@@ -605,6 +608,49 @@ function renderizarGraficoComparativo(canvasId, lista, funcRotulo, funcGrupo = n
   graficosMetas[canvasId] = grafico;
 }
 
+/** "2026-11-25" -> Date local à meia-noite */
+function dataLocalISO(iso) {
+  const [a, m, d] = String(iso).split('-').map(Number);
+  return new Date(a, m - 1, d);
+}
+function diasEntre(a, b) { return Math.round((b - a) / 86400000); }
+
+/**
+ * Ritmo diário necessário: quanto a loja precisa vender por dia, de hoje
+ * (contando hoje) até o último dia da meta, para chegar a 100%.
+ * Compara com a média por dia vendida até ontem.
+ */
+function ritmoDiarioMeta(l, hoje = new Date()) {
+  if (!l.meta || !l.metaFim) return { tipo: 'sem' };
+  const h = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const ini = l.metaInicio ? dataLocalISO(l.metaInicio) : h;
+  const fim = dataLocalISO(l.metaFim);
+  const falta = l.meta - l.realizado;
+  if (falta <= 0) return { tipo: 'batida' };
+  if (h > fim) return { tipo: 'encerrado', falta };
+  const inicioContagem = h < ini ? ini : h;
+  const diasRestantes = diasEntre(inicioContagem, fim) + 1;               // contando hoje
+  const diasPassados = Math.max(0, diasEntre(ini, h));                     // até ontem
+  const porDia = falta / diasRestantes;
+  const mediaAtual = diasPassados > 0 ? l.realizado / diasPassados : null;
+  let nivel = 'ok';
+  if (mediaAtual !== null) nivel = porDia <= mediaAtual ? 'ok' : (porDia <= mediaAtual * 1.5 ? 'atencao' : 'dificil');
+  return { tipo: 'ritmo', porDia, diasRestantes, mediaAtual, nivel, falta };
+}
+
+function celulaRitmo(l) {
+  const r = ritmoDiarioMeta(l);
+  if (r.tipo === 'sem') return '<td style="text-align:right; color:#8a93c9">—</td>';
+  if (r.tipo === 'batida') return '<td style="text-align:right" class="ritmo-ok">✔ Meta batida</td>';
+  if (r.tipo === 'encerrado') return '<td style="text-align:right; color:#8a93c9" title="O período da meta já terminou">período encerrado</td>';
+  const dica = `Falta ${formatarMoedaBR(r.falta)} em ${r.diasRestantes} dia(s), contando hoje` +
+    (r.mediaAtual !== null ? `. Média vendida até ontem: ${formatarMoedaBR(r.mediaAtual)}/dia` : '');
+  return `<td style="text-align:right" class="ritmo-${r.nivel}" title="${escaparHTML(dica)}">
+      <b>${formatarMoedaBR(r.porDia)}</b><small>/dia · ${r.diasRestantes} dia(s)</small>
+      ${r.mediaAtual !== null ? `<span class="ritmo-media">média atual ${formatarMoedaBR(r.mediaAtual)}/dia</span>` : ''}
+    </td>`;
+}
+
 function renderizarTabelaComparativo(tbodyId, lista, funcNomeHTML) {
   const corpo = document.getElementById(tbodyId);
   if (!corpo) return;
@@ -617,6 +663,7 @@ function renderizarTabelaComparativo(tbodyId, lista, funcNomeHTML) {
       <td style="text-align:right">${formatarMoedaBR(l.realizado)}</td>
       <td style="text-align:right; color:${cor}">${l.meta ? (dif >= 0 ? '+' : '') + formatarMoedaBR(dif) : '—'}</td>
       <td style="text-align:right; color:${cor}; font-weight:bold">${l.atingimento === null ? 'sem meta' : formatarPct(l.atingimento)}</td>
+      ${celulaRitmo(l)}
     </tr>`;
   }).join('');
 }
