@@ -351,3 +351,16 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .ca-n3 td.ca-nome { padding-left: 50px; color: #c9cff5; }
 .ca-total { background: #141a40; font-weight: 700; }
 .ca-total td { border-top: 1px solid rgba(94,231,255,.3); }
+
+.ca-topn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #8a93c9; }
+.ca-topn input { width: 52px; padding: 4px 6px; }
+.ca-graficos { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(120,140,255,.18); animation: caSurgir .35s ease; }
+@keyframes caSurgir { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.ca-graf-cabecalho { font-size: 14px; font-weight: 700; color: #e8ecff; margin-bottom: 10px; }
+.ca-graf-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 1100px) { .ca-graf-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .ca-graf-grade { grid-template-columns: minmax(0, 1fr); } }
+.ca-graf-card { padding: 12px; border-radius: 12px; background: rgba(10,14,38,.55); border: 1px solid rgba(120,140,255,.15); border-top: 3px solid var(--cor-linha); }
+.ca-graf-titulo { font-size: 13px; font-weight: 700; color: #e8ecff; margin-bottom: 6px; }
+.ca-graf-titulo small { font-weight: normal; color: #8a93c9; font-size: 10.5px; margin-left: 4px; }
+.ca-graf-area { position: relative; height: 300px; }

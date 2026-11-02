@@ -395,12 +395,16 @@
           </div>
           <button type="button" id="btnCompArmGrifes" class="ca-expandir" onclick="alternarExpandirCompArm('grifes')">▸ Expandir por grifes</button>
           <button type="button" id="btnCompArmLojas" class="ca-expandir" onclick="alternarExpandirCompArm('lojas')">▸ Expandir por loja</button>
+          <label class="ca-topn" title="Quantos itens mais vendidos aparecem em cada gráfico (3 a 15)">Top
+            <input type="number" id="compArmTopN" value="5" min="3" max="15" step="1" onchange="redesenharComparativoArmacoes()"></label>
         </div>
       </div>
       <p id="compArmVazio" class="arm-vazio" style="display: none;">Nenhuma armação (linha ARMACAO RX / SUN / CLIPON) nos períodos.</p>
       <div style="position: relative; width: 100%; height: 340px; margin-top: 10px;">
         <canvas id="graficoComparativoArmacoes"></canvas>
       </div>
+      <div id="compArmGraficosGrifes" class="ca-graficos" style="display: none;"></div>
+      <div id="compArmGraficosLojas" class="ca-graficos" style="display: none;"></div>
     </div>
 
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; overflow-x: auto;">
