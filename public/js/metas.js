@@ -446,6 +446,29 @@ function renderizarGraficoVendedores(lista) {
   graficosMetas.graficoMetasVendedores = grafico;
 }
 
+/** Ícone único no fim do nome: ☀️ manhã ou 🌙 tarde (cadastro de vendedores). */
+function iconeTurnoFinal(l) {
+  if (ehSemVendedor(l.vendedor)) return '';
+  const cad = vendedoresCadastro[codigoDoVendedor(l.vendedor)];
+  if (!cad && !l.porTurno) return '';
+  const info = TURNO_INFO[l.turno];
+  const dica = `Turno da ${info.nome}` + (cad ? '' : ' (sem cadastro: conta como tarde)') +
+    (l.porTurno ? ` · disputa a meta da ${info.nome}` : ' · loja com meta única');
+  return ` <span class="icone-turno${cad ? '' : ' sem-cadastro'}" title="${escaparHTML(dica)}">${info.icone}</span>`;
+}
+
+/** Valor da faixa + quanto o vendedor precisa vender por dia para alcançá-la. */
+function celulaMetaVendedor(l, valor, loja) {
+  if (!valor) return '—';
+  const r = ritmoDiarioMeta({ meta: valor, realizado: l.realizado, metaInicio: loja.metaInicio, metaFim: loja.metaFim });
+  let extra = '';
+  if (r.tipo === 'batida') extra = '<small class="ritmo-vend ritmo-ok">✔ atingida</small>';
+  else if (r.tipo === 'ritmo') {
+    extra = `<small class="ritmo-vend ritmo-${r.nivel}" title="Falta ${escaparHTML(formatarMoedaBR(r.falta))} em ${r.diasRestantes} dia(s), contando hoje${r.mediaAtual !== null ? ` · média atual ${escaparHTML(formatarMoedaBR(r.mediaAtual))}/dia` : ''}">${formatarMoedaBR(r.porDia)}/dia</small>`;
+  }
+  return formatarMoedaBR(valor) + extra;
+}
+
 /** Tabela de vendedores com um cabeçalho por loja. */
 function renderizarTabelaVendedoresPorLoja(lista, porLoja) {
   const corpo = document.getElementById('tabelaMetasVendedoresCorpo');
@@ -488,11 +511,10 @@ function renderizarTabelaVendedoresPorLoja(lista, porLoja) {
         situacao = conquista + falta;
       }
       return `<tr>
-        <td style="padding-left:24px;">${trofeu ? trofeu + ' ' : ''}${l.porTurno && !ehSemVendedor(l.vendedor)
-          ? `<span class="chip-turno turno-${l.turno}" title="Meta do turno da ${TURNO_INFO[l.turno].nome}${l.semCadastro ? ' (sem cadastro: conta como tarde)' : ''}">${TURNO_INFO[l.turno].icone} ${TURNO_INFO[l.turno].nome}${l.semCadastro ? ' ?' : ''}</span> ` : ''}${escaparHTML(l.vendedor)}</td>
-        <td style="text-align:right">${moeda(l.bronze)}</td>
-        <td style="text-align:right">${moeda(l.prata)}</td>
-        <td style="text-align:right">${moeda(l.ouro)}</td>
+        <td style="padding-left:24px;">${trofeu ? trofeu + ' ' : ''}${escaparHTML(l.vendedor)}${iconeTurnoFinal(l)}</td>
+        <td style="text-align:right">${celulaMetaVendedor(l, l.bronze, loja)}</td>
+        <td style="text-align:right">${celulaMetaVendedor(l, l.prata, loja)}</td>
+        <td style="text-align:right">${celulaMetaVendedor(l, l.ouro, loja)}</td>
         <td style="text-align:right; font-weight:bold; color:${corRealizadoVendedor(l)}">${formatarMoedaBR(l.realizado)}</td>
         <td style="text-align:right">${situacao}</td>
       </tr>`;
