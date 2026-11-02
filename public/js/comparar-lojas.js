@@ -12,6 +12,7 @@
 let pagamentosParaComparar = [];   // preenchido por main.js a cada consulta
 let coresPagamentoGlobal = {};     // rótulo -> cor, igual ao gráfico principal
 let graficosComparaLojas = [];
+const LIMITE_PRAZO_CURTO = 5;      // à vista até 5x = prazo curto; 6 a 10x = prazo longo
 
 function rotuloPagamento(pgto) {
   const meio = (pgto.MEIO_PAGAMENTO || pgto.MEIOPAGAMENTO || 'NÃO ESPECIFICADO').trim();
@@ -107,12 +108,12 @@ function abrirCompararLojas() {
   } else {
     grade.innerHTML = lista.map((l, i) => {
       const { titulo, nome } = nomeLojaComparar(l.id);
-      // indicadores rápidos: à vista e cartão 9-10x
-      let aVista = 0, longo = 0;
+      // indicadores: à vista até 5x (prazo curto) x 6 a 10x (prazo longo)
+      let curto = 0, longo = 0;
       Object.entries(l.porRotulo).forEach(([r, v]) => {
         const info = infoRotulo[r];
-        if (ordemMeioPagamento(info.meio) <= 2) aVista += v;
-        else if (numeroParcelas(info.parcelas) >= 9) longo += v;
+        if (ordemMeioPagamento(info.meio) <= 2 || numeroParcelas(info.parcelas) <= LIMITE_PRAZO_CURTO) curto += v;
+        else longo += v;
       });
       // lista ao lado: só as formas que a loja usou, na ordem padrão
       const linhas = rotulos.map((r, k) => ({ r, k, v: l.porRotulo[r] || 0 })).filter(x => x.v > 0);
@@ -123,7 +124,8 @@ function abrirCompararLojas() {
             <span>${escHTML(nomeCurtoPagamento(infoRotulo[x.r]))}</span>
             <b>${fmtPct(pct(x.v, l.total))}</b>
           </li>`).join('');
-      const pctLongo = pct(longo, l.total);
+      const pctCurto = pct(curto, l.total), pctLongo = pct(longo, l.total);
+      const noCaminho = pctCurto >= pctLongo;
       return `<div class="cl-card" style="animation-delay:${i * 90}ms">
         <div class="cl-card-topo">
           <div><strong>${escHTML(titulo)}</strong><small>${escHTML(nome)}</small></div>
@@ -136,8 +138,14 @@ function abrirCompararLojas() {
           <div class="cl-lado">
             <ul class="cl-lista">${listaHTML}</ul>
             <div class="cl-resumo">
-              <span title="Dinheiro, Pix e Débito">💵 À vista <b class="cl-bom">${fmtPct(pct(aVista, l.total))}</b></span>
-              <span title="Cartão em 9 ou 10 parcelas">💳 9-10x <b class="${pctLongo >= 40 ? 'cl-ruim' : ''}">${fmtPct(pctLongo)}</b></span>
+              <span title="Dinheiro, Pix, Débito e Cartão de 1 a ${LIMITE_PRAZO_CURTO} parcelas">💵 À vista a ${LIMITE_PRAZO_CURTO}x <b class="cl-bom">${fmtPct(pctCurto)}</b></span>
+              <span title="Cartão de ${LIMITE_PRAZO_CURTO + 1} a 10 parcelas">💳 ${LIMITE_PRAZO_CURTO + 1} a 10x <b class="${noCaminho ? '' : 'cl-ruim'}">${fmtPct(pctLongo)}</b></span>
+              <div class="cl-barra-prazo" title="À vista a ${LIMITE_PRAZO_CURTO}x: ${fmtPct(pctCurto)} · ${LIMITE_PRAZO_CURTO + 1} a 10x: ${fmtPct(pctLongo)}">
+                <i class="cl-barra-curto" style="width:${pctCurto.toFixed(1)}%"></i><i class="cl-barra-longo" style="width:${pctLongo.toFixed(1)}%"></i>
+              </div>
+              <div class="cl-msg-prazo ${noCaminho ? 'cl-msg-bom' : 'cl-msg-ruim'}">
+                ${noCaminho ? '👏 Parabéns! No caminho da redução de parcelamentos.' : '⚠️ Reduzir vendas com prazos longos.'}
+              </div>
             </div>
           </div>
         </div>
