@@ -81,7 +81,7 @@ function resumirArmacoes(dados, campos) {
       const pr = l.produtos[kp];
       pr.liquido += liq; pr.qtd += q;
       pr.porLoja[loja] = (pr.porLoja[loja] || 0) + q;
-      gf.produtos[kp] = pr;   // mesmo objeto: lista "Listar armações" (linha > grife > produto)
+      gf.produtos[kp] = pr;   // mesmo objeto: lista "Lista de armações e solares" (linha > grife > produto)
       totalGrife[grife] = (totalGrife[grife] || 0) + liq;
       total += liq; qtd += q;
     });

@@ -285,7 +285,7 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
   transition: transform .15s, box-shadow .15s, background .15s; }
 .arm-lupa:hover { transform: scale(1.12); background: rgba(94,231,255,.18); box-shadow: 0 0 12px rgba(94,231,255,.45); }
 
-/* ===== Listar armações (árvore linha > grife > produto, com lojas ao lado) ===== */
+/* ===== Lista de armações e solares (árvore linha > grife > produto, com lojas ao lado) ===== */
 .la-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
 .la-acoes { display: flex; gap: 10px; }
 .la-seta { display: inline-block; width: 14px; color: #5ee7ff; transition: transform .2s ease; font-size: 12px; }

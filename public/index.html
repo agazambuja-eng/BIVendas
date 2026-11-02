@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Auditoria: BI</title>
+  <title>BI Vendas</title>
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Chart.js 4.4.9 dentro do projeto (versão fixa) + tema neon 3D -->
@@ -16,7 +16,7 @@
 <body class="so-logado tema-escuro">
 
   <div class="header-titulo">
-    <h2>Auditoria: BI</h2>
+    <h2>BI Vendas</h2>
     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end;">
       <nav class="barra-usuario" id="barraUsuarioBI"></nav>
       <span class="titulo-aga">by AGA</span>
@@ -329,7 +329,7 @@
 
     <div id="quadroListaArmacoes" class="la-quadro" style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
       <div class="la-cabecalho" onclick="alternarQuadroListaArm()" title="Clique para abrir ou fechar a lista">
-        <h4 style="margin: 0; font-size: 15px;"><span class="la-seta la-seta-grande">▸</span> 📋 Listar armações <small id="listaArmacoesResumo" class="arm-sub"></small></h4>
+        <h4 style="margin: 0; font-size: 15px;"><span class="la-seta la-seta-grande">▸</span> 📋 Lista de armações e solares <small id="listaArmacoesResumo" class="arm-sub"></small></h4>
         <div class="la-acoes">
           <button type="button" class="tv-link" onclick="expandirListaArm(true, event)">Expandir tudo</button>
           <button type="button" class="tv-link" onclick="expandirListaArm(false, event)">Recolher tudo</button>
@@ -338,32 +338,6 @@
       <div id="listaArmacoesCorpo" class="la-corpo"></div>
     </div>
 
-    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
-        <h4 style="margin: 0; font-size: 15px;">Produtos vendidos</h4>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span id="infoProdutos" style="font-size: 12px; color: #666;"></span>
-          <input type="search" id="buscaProdutos" placeholder="Buscar grife, linha, código ou descrição..." oninput="renderizarTabelaProdutos()" style="width: 300px;">
-        </div>
-      </div>
-      <div style="overflow: auto; max-height: 520px;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-          <thead><tr id="cabecalhoProdutos">
-            <th data-campo="grife" data-rotulo="Grife" onclick="ordenarProdutos('grife')" class="th-ordenavel">Grife</th>
-            <th data-campo="linha" data-rotulo="Linha" onclick="ordenarProdutos('linha')" class="th-ordenavel">Linha</th>
-            <th data-campo="codigo" data-rotulo="Código" onclick="ordenarProdutos('codigo')" class="th-ordenavel">Código</th>
-            <th data-campo="descricao" data-rotulo="Descrição" onclick="ordenarProdutos('descricao')" class="th-ordenavel">Descrição</th>
-            <th data-campo="qtd" data-rotulo="Qtd" onclick="ordenarProdutos('qtd')" class="th-ordenavel" style="text-align: right;">Qtd</th>
-            <th data-campo="precoMedio" data-rotulo="Preço médio" onclick="ordenarProdutos('precoMedio')" class="th-ordenavel" style="text-align: right;">Preço médio</th>
-            <th data-campo="liquido" data-rotulo="Valor líquido" onclick="ordenarProdutos('liquido')" class="th-ordenavel" style="text-align: right;">Valor líquido</th>
-            <th data-campo="pctDesc" data-rotulo="Desconto" onclick="ordenarProdutos('pctDesc')" class="th-ordenavel" style="text-align: right;">Desconto</th>
-            <th data-campo="vendas" data-rotulo="Vendas (OS)" onclick="ordenarProdutos('vendas')" class="th-ordenavel" style="text-align: right;">Vendas (OS)</th>
-            <th data-campo="nLojas" data-rotulo="Lojas" onclick="ordenarProdutos('nLojas')" class="th-ordenavel" style="text-align: right;">Lojas</th>
-          </tr></thead>
-          <tbody id="corpoProdutos"></tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
   <!-- === ABA: COMPARATIVO DOS ÚLTIMOS 3 MESES === -->
