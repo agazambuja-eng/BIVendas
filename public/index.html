@@ -573,11 +573,17 @@
             <label class="cfg-label cfg-col2">Descrição <input type="text" id="cfgDescricao" maxlength="120" placeholder="Nome da loja"></label>
             <label class="cfg-label">Data inicial da meta <input type="date" id="cfgDataInicio"></label>
             <label class="cfg-label">Data final da meta <input type="date" id="cfgDataFim"></label>
-            <label class="cfg-label">Meta da loja (R$) <input type="number" id="cfgValorMeta" min="0" step="0.01" placeholder="185000"></label>
-            <label class="cfg-label">🥉 Vendedor Bronze (R$) <input type="number" id="cfgValorMetaBronze" min="0" step="0.01" placeholder="90000"></label>
-            <label class="cfg-label">🥈 Vendedor Prata (R$) <input type="number" id="cfgValorMetaPrata" min="0" step="0.01" placeholder="110000"></label>
-            <label class="cfg-label">🥇 Vendedor Ouro (R$) <input type="number" id="cfgValorMetaOuro" min="0" step="0.01" placeholder="130000"></label>
+            <label class="cfg-label">Meta da loja (R$) <input type="text" id="cfgValorMeta" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="185.000,00"></label>
+            <div class="cfg-subtitulo cfg-col3">🌙 Meta do vendedor · <b>Tarde</b> <small>(vale para todos quando a loja não tem meta da manhã)</small></div>
+            <label class="cfg-label">🥉 Tarde Bronze (R$) <input type="text" id="cfgValorMetaBronze" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="90.000,00"></label>
+            <label class="cfg-label">🥈 Tarde Prata (R$) <input type="text" id="cfgValorMetaPrata" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="110.000,00"></label>
+            <label class="cfg-label">🥇 Tarde Ouro (R$) <input type="text" id="cfgValorMetaOuro" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="130.000,00"></label>
+            <div class="cfg-subtitulo cfg-col3">☀️ Meta do vendedor · <b>Manhã</b> <small>(opcional · deixe vazio se a loja não separa por turno)</small></div>
+            <label class="cfg-label">🥉 Manhã Bronze (R$) <input type="text" id="cfgValorMetaManhaBronze" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="60.000,00"></label>
+            <label class="cfg-label">🥈 Manhã Prata (R$) <input type="text" id="cfgValorMetaManhaPrata" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="70.000,00"></label>
+            <label class="cfg-label">🥇 Manhã Ouro (R$) <input type="text" id="cfgValorMetaManhaOuro" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="80.000,00"></label>
           </div>
+          <div class="cfg-link-vendedores">👥 O turno de cada vendedor (manhã ou tarde) fica no <a href="/vendedores.html" target="_blank" rel="noopener">cadastro de vendedores</a>.</div>
           <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
             <button type="button" id="cfgBtnCancelarEdicao" class="btn-secundario" onclick="cfgLimparFormulario(); cfgCarregarMetas();" style="display: none;">Cancelar alteração</button>
             <button type="submit" id="cfgBtnSalvar">Incluir</button>
@@ -599,7 +605,7 @@
                   <th style="padding: 6px 8px; text-align: left;">Loja</th>
                   <th style="padding: 6px 8px; text-align: left;">Período</th>
                   <th style="padding: 6px 8px; text-align: right;">Meta loja</th>
-                  <th style="padding: 6px 8px; text-align: right;">🥉 Bronze</th>
+                  <th style="padding: 6px 8px; text-align: right;" title="Tarde (em cima) e Manhã (embaixo, se houver)">🥉 Bronze</th>
                   <th style="padding: 6px 8px; text-align: right;">🥈 Prata</th>
                   <th style="padding: 6px 8px; text-align: right;">🥇 Ouro</th>
                   <th style="padding: 6px 8px; text-align: center;">Ações</th>

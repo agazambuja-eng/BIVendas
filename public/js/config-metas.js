@@ -35,11 +35,50 @@ function mesComercialAtualInput() {
 function textoPeriodo(ini, fim) {
   return `${formatarDataISOparaBR(ini)} a ${formatarDataISOparaBR(fim)}`;
 }
+/** "185.000,50" -> 185000.5 ; "" -> null (aceita também número puro) */
 function numeroOuNulo(v) {
   if (v === '' || v === null || v === undefined) return null;
-  const n = Number(String(v).replace(',', '.'));
+  if (typeof v === 'number') return v;
+  const t = String(v).trim().replace(/[R$\s]/g, '');
+  if (!t) return null;
+  const n = Number(t.replace(/\./g, '').replace(',', '.'));
   return isNaN(n) ? null : n;
 }
+
+/** 185000.5 -> "185.000,50" (para mostrar no campo) */
+function moedaParaCampo(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const n = Number(v);
+  return isNaN(n) ? '' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Máscara padrão Brasil enquanto digita: pontos nos milhares e vírgula nos
+ * centavos ("185000" -> "185.000"; "185000,5" -> "185.000,5"). Ao sair do
+ * campo completa os centavos ("185.000,00").
+ */
+function mascararMoedaDigitando(campo) {
+  const antes = campo.value;
+  const cursorDoFim = antes.length - (campo.selectionStart ?? antes.length);
+  let t = antes.replace(/[^\d,]/g, '');
+  const iv = t.indexOf(',');
+  let inteiro = iv >= 0 ? t.slice(0, iv) : t;
+  let dec = iv >= 0 ? t.slice(iv + 1).replace(/,/g, '').slice(0, 2) : null;
+  inteiro = inteiro.replace(/^0+(?=\d)/, '');
+  const comPontos = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  campo.value = comPontos + (dec !== null ? ',' + dec : '');
+  const pos = Math.max(0, campo.value.length - cursorDoFim);
+  try { campo.setSelectionRange(pos, pos); } catch (e) { /* sem cursor */ }
+}
+
+document.addEventListener('input', e => {
+  if (e.target && e.target.classList && e.target.classList.contains('cfg-moeda')) mascararMoedaDigitando(e.target);
+});
+document.addEventListener('focusout', e => {
+  if (e.target && e.target.classList && e.target.classList.contains('cfg-moeda') && e.target.value.trim()) {
+    e.target.value = moedaParaCampo(numeroOuNulo(e.target.value));
+  }
+});
 
 function cfgMensagem(texto, tipo = 'info') {
   const el = cfgEl('cfgMetasMensagem');
@@ -133,9 +172,9 @@ async function cfgCarregarMetas() {
       <td style="padding:6px 8px;"><strong>${escaparHTML(m.codigo)}</strong> – ${escaparHTML(m.descricao)}</td>
       <td style="padding:6px 8px; white-space:nowrap; ${m.data_inicio !== periodo.inicio || m.data_fim !== periodo.fim ? 'color:#b07a00;' : 'color:#555;'}">${textoPeriodo(m.data_inicio, m.data_fim)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta)}</td>
-      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_bronze ?? m.valor_meta_vendedor)}</td>
-      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_prata)}</td>
-      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_ouro)}</td>
+      <td style="padding:6px 8px; text-align:right;">${cfgCelulaTurnos(m.valor_meta_bronze ?? m.valor_meta_vendedor, m.valor_meta_manha_bronze, fmt)}</td>
+      <td style="padding:6px 8px; text-align:right;">${cfgCelulaTurnos(m.valor_meta_prata, m.valor_meta_manha_prata, fmt)}</td>
+      <td style="padding:6px 8px; text-align:right;">${cfgCelulaTurnos(m.valor_meta_ouro, m.valor_meta_manha_ouro, fmt)}</td>
       <td style="padding:6px 8px; text-align:center; white-space:nowrap;">
         ${temPermissao('alterar_metas') ? `<button type="button" class="cfg-btn-mini" onclick="cfgEditar(${m.id})" title="Alterar">✏️</button>` : ''}
         ${temPermissao('excluir_metas') ? `<button type="button" class="cfg-btn-mini cfg-btn-perigo" onclick="cfgExcluir(${m.id})" title="Excluir">🗑️</button>` : ''}
@@ -175,6 +214,14 @@ function cfgSelecionarLoja(codigo, descricao) {
   sel.value = v === 'NaN' ? '' : v;
 }
 
+/** Célula Bronze/Prata/Ouro: tarde em cima e, se houver, manhã embaixo. */
+function cfgCelulaTurnos(tarde, manha, fmt) {
+  const temManha = manha !== null && manha !== undefined && manha !== '';
+  return temManha
+    ? `<span title="Tarde">🌙 ${fmt(tarde)}</span><br><small class="cfg-manha" title="Manhã">☀️ ${fmt(manha)}</small>`
+    : fmt(tarde);
+}
+
 // ---------- formulário ----------
 function cfgLimparFormulario() {
   cfgMetasEmEdicao = null;
@@ -189,6 +236,9 @@ function cfgLimparFormulario() {
   cfgEl('cfgValorMetaBronze').value = '';
   cfgEl('cfgValorMetaPrata').value = '';
   cfgEl('cfgValorMetaOuro').value = '';
+  cfgEl('cfgValorMetaManhaBronze').value = '';
+  cfgEl('cfgValorMetaManhaPrata').value = '';
+  cfgEl('cfgValorMetaManhaOuro').value = '';
   const p = periodoDoMes(cfgEl('cfgFiltroCompetencia').value || mesComercialAtualInput());
   cfgEl('cfgDataInicio').value = p.inicio;
   cfgEl('cfgDataFim').value = p.fim;
@@ -216,10 +266,13 @@ function cfgEditar(id) {
   cfgEl('cfgBtnCancelarEdicao').style.display = 'inline-block';
   cfgSelecionarLoja(m.codigo, m.descricao);
   cfgEl('cfgDescricao').value = m.descricao || '';
-  cfgEl('cfgValorMeta').value = m.valor_meta ?? '';
-  cfgEl('cfgValorMetaBronze').value = m.valor_meta_bronze ?? m.valor_meta_vendedor ?? '';
-  cfgEl('cfgValorMetaPrata').value = m.valor_meta_prata ?? '';
-  cfgEl('cfgValorMetaOuro').value = m.valor_meta_ouro ?? '';
+  cfgEl('cfgValorMeta').value = moedaParaCampo(m.valor_meta ?? '');
+  cfgEl('cfgValorMetaBronze').value = moedaParaCampo(m.valor_meta_bronze ?? m.valor_meta_vendedor ?? '');
+  cfgEl('cfgValorMetaPrata').value = moedaParaCampo(m.valor_meta_prata ?? '');
+  cfgEl('cfgValorMetaOuro').value = moedaParaCampo(m.valor_meta_ouro ?? '');
+  cfgEl('cfgValorMetaManhaBronze').value = moedaParaCampo(m.valor_meta_manha_bronze ?? '');
+  cfgEl('cfgValorMetaManhaPrata').value = moedaParaCampo(m.valor_meta_manha_prata ?? '');
+  cfgEl('cfgValorMetaManhaOuro').value = moedaParaCampo(m.valor_meta_manha_ouro ?? '');
   cfgEl('cfgDataInicio').value = m.data_inicio || '';
   cfgEl('cfgDataFim').value = m.data_fim || '';
   cfgMensagem('');
@@ -237,7 +290,10 @@ async function cfgSalvar(event) {
     valor_meta: numeroOuNulo(cfgEl('cfgValorMeta').value),
     valor_meta_bronze: numeroOuNulo(cfgEl('cfgValorMetaBronze').value),
     valor_meta_prata: numeroOuNulo(cfgEl('cfgValorMetaPrata').value),
-    valor_meta_ouro: numeroOuNulo(cfgEl('cfgValorMetaOuro').value)
+    valor_meta_ouro: numeroOuNulo(cfgEl('cfgValorMetaOuro').value),
+    valor_meta_manha_bronze: numeroOuNulo(cfgEl('cfgValorMetaManhaBronze').value),
+    valor_meta_manha_prata: numeroOuNulo(cfgEl('cfgValorMetaManhaPrata').value),
+    valor_meta_manha_ouro: numeroOuNulo(cfgEl('cfgValorMetaManhaOuro').value)
   };
 
   if (isNaN(registro.codigo)) return cfgMensagem('Selecione a loja.', 'erro');
@@ -251,6 +307,18 @@ async function cfgSalvar(event) {
   }
   if ((b !== null && p !== null && p <= b) || (p !== null && o !== null && o <= p) || (b !== null && o !== null && o <= b)) {
     return cfgMensagem('As metas do vendedor precisam crescer: Bronze < Prata < Ouro.', 'erro');
+  }
+  const { valor_meta_manha_bronze: mb, valor_meta_manha_prata: mp, valor_meta_manha_ouro: mo } = registro;
+  if ([mb, mp, mo].some(v => v !== null && v < 0)) {
+    return cfgMensagem('As metas da manhã não podem ser negativas.', 'erro');
+  }
+  if ((mb !== null && mp !== null && mp <= mb) || (mp !== null && mo !== null && mo <= mp) || (mb !== null && mo !== null && mo <= mb)) {
+    return cfgMensagem('As metas da manhã precisam crescer: Bronze < Prata < Ouro.', 'erro');
+  }
+  // Banco ainda sem o script 09: não envia as colunas da manhã quando estão vazias
+  const original = cfgMetasEmEdicao ? cfgMetasLista.find(x => x.id === cfgMetasEmEdicao) : null;
+  if (mb === null && mp === null && mo === null && !(original && 'valor_meta_manha_bronze' in original)) {
+    delete registro.valor_meta_manha_bronze; delete registro.valor_meta_manha_prata; delete registro.valor_meta_manha_ouro;
   }
 
   cfgEl('cfgBtnSalvar').disabled = true;
