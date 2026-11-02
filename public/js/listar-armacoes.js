@@ -1,5 +1,5 @@
 /**
- * Aba Avaliação de Produtos · "Listar armações" (abaixo do gráfico de armações).
+ * Aba Avaliação de Produtos · "Lista de armações e solares" (abaixo do gráfico de armações).
  *
  * Lista em árvore, com triângulo para abrir/fechar (▸ / ▾):
  *   Linha (Armação RX, Sun, Clip-on)  >  Grife  >  Produto
