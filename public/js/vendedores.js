@@ -268,7 +268,9 @@ async function confirmarImportacao() {
 // ------------------------------------------------------------- início
 (async () => {
   await exigirLogin('acessar_bi');
+  if (!podeConfigVendedores()) { location.replace('/inicio.html?semAcesso=criar_metas'); return; }
   montarBarraUsuario($('barraUsuario'));
+  montarSubmenuConfig($('submenuConfig'), 'vendedores');
   $('btnNovoVend').style.display = podeIncluir() ? '' : 'none';
   $('btnImportarVend').style.display = podeIncluir() ? '' : 'none';
   $('formVendedor').addEventListener('submit', salvarVendedor);

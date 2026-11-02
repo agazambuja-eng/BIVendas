@@ -207,3 +207,12 @@ button.chip:hover { border-color: currentColor; }
 .inicio-opcao.vendedores { border-left-color: #e8a100; }
 .acesso-modal.largo.importar { max-width: 820px; width: calc(100% - 32px); }
 .acesso-modal.importar .tabela-usuarios select { min-width: 150px; }
+
+/* Submenu de Configurações */
+.submenu-config { display: flex; align-items: center; gap: 6px; max-width: 1000px; margin: 0 auto; padding: 12px 16px 0; font-size: 14px; flex-wrap: wrap; }
+.submenu-raiz { color: var(--texto-suave); text-decoration: none; font-weight: 600; }
+.submenu-raiz:hover { color: var(--azul); }
+.submenu-sep { color: #b0b7c0; }
+.submenu-item { text-decoration: none; color: #444; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--borda); background: #fff; }
+.submenu-item:hover { border-color: var(--azul); color: var(--azul); }
+.submenu-item.ativo { background: var(--azul); border-color: var(--azul); color: #fff; }
