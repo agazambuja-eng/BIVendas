@@ -149,6 +149,14 @@ function renderizarArmacoes(dados, campos) {
   });
 }
 
+/** Link do Google Imagens pela descrição do produto (acrescenta a grife se ela não estiver na descrição). */
+function linkImagemProduto(p) {
+  const desc = String(p.descricao || '').trim();
+  const grife = String(p.grife || '').trim();
+  const termo = (grife && grife !== 'SEM GRIFE' && grife !== '—' && !desc.toUpperCase().includes(grife.toUpperCase()) ? grife + ' ' : '') + desc;
+  return 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(termo);
+}
+
 const MEDALHAS = [
   { icone: '🏆', classe: 'ouro', nome: 'Ouro' },
   { icone: '🥈', classe: 'prata', nome: 'Prata' },
@@ -171,6 +179,8 @@ function renderizarPodioArmacoes(linhas) {
             <small>${escHTML(p.grife)}${p.codigo ? ' · cód. ' + escHTML(p.codigo) : ''}</small>
             <span class="arm-podio-num"><b>${p.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</b> · ${formatarMoedaBR(p.liquido)}</span>
           </div>
+          <a class="arm-lupa" href="${linkImagemProduto(p)}" target="_blank" rel="noopener noreferrer"
+             title="Ver imagens deste modelo na internet (abre o Google Imagens em outra aba)">🔍</a>
         </div>`).join('') : '<div class="arm-sem">Sem vendas.</div>'}
     </div>`).join('');
 }
