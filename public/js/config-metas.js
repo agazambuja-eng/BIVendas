@@ -172,9 +172,9 @@ async function cfgCarregarMetas() {
       <td style="padding:6px 8px;"><strong>${escaparHTML(m.codigo)}</strong> – ${escaparHTML(m.descricao)}</td>
       <td style="padding:6px 8px; white-space:nowrap; ${m.data_inicio !== periodo.inicio || m.data_fim !== periodo.fim ? 'color:#b07a00;' : 'color:#555;'}">${textoPeriodo(m.data_inicio, m.data_fim)}</td>
       <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta)}</td>
-      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_bronze ?? m.valor_meta_vendedor)}</td>
-      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_prata)}</td>
-      <td style="padding:6px 8px; text-align:right;">${fmt(m.valor_meta_ouro)}</td>
+      <td style="padding:6px 8px; text-align:right;">${cfgCelulaTurnos(m.valor_meta_bronze ?? m.valor_meta_vendedor, m.valor_meta_manha_bronze, fmt)}</td>
+      <td style="padding:6px 8px; text-align:right;">${cfgCelulaTurnos(m.valor_meta_prata, m.valor_meta_manha_prata, fmt)}</td>
+      <td style="padding:6px 8px; text-align:right;">${cfgCelulaTurnos(m.valor_meta_ouro, m.valor_meta_manha_ouro, fmt)}</td>
       <td style="padding:6px 8px; text-align:center; white-space:nowrap;">
         ${temPermissao('alterar_metas') ? `<button type="button" class="cfg-btn-mini" onclick="cfgEditar(${m.id})" title="Alterar">✏️</button>` : ''}
         ${temPermissao('excluir_metas') ? `<button type="button" class="cfg-btn-mini cfg-btn-perigo" onclick="cfgExcluir(${m.id})" title="Excluir">🗑️</button>` : ''}
@@ -214,6 +214,14 @@ function cfgSelecionarLoja(codigo, descricao) {
   sel.value = v === 'NaN' ? '' : v;
 }
 
+/** Célula Bronze/Prata/Ouro: tarde em cima e, se houver, manhã embaixo. */
+function cfgCelulaTurnos(tarde, manha, fmt) {
+  const temManha = manha !== null && manha !== undefined && manha !== '';
+  return temManha
+    ? `<span title="Tarde">🌙 ${fmt(tarde)}</span><br><small class="cfg-manha" title="Manhã">☀️ ${fmt(manha)}</small>`
+    : fmt(tarde);
+}
+
 // ---------- formulário ----------
 function cfgLimparFormulario() {
   cfgMetasEmEdicao = null;
@@ -228,6 +236,9 @@ function cfgLimparFormulario() {
   cfgEl('cfgValorMetaBronze').value = '';
   cfgEl('cfgValorMetaPrata').value = '';
   cfgEl('cfgValorMetaOuro').value = '';
+  cfgEl('cfgValorMetaManhaBronze').value = '';
+  cfgEl('cfgValorMetaManhaPrata').value = '';
+  cfgEl('cfgValorMetaManhaOuro').value = '';
   const p = periodoDoMes(cfgEl('cfgFiltroCompetencia').value || mesComercialAtualInput());
   cfgEl('cfgDataInicio').value = p.inicio;
   cfgEl('cfgDataFim').value = p.fim;
@@ -259,6 +270,9 @@ function cfgEditar(id) {
   cfgEl('cfgValorMetaBronze').value = moedaParaCampo(m.valor_meta_bronze ?? m.valor_meta_vendedor ?? '');
   cfgEl('cfgValorMetaPrata').value = moedaParaCampo(m.valor_meta_prata ?? '');
   cfgEl('cfgValorMetaOuro').value = moedaParaCampo(m.valor_meta_ouro ?? '');
+  cfgEl('cfgValorMetaManhaBronze').value = moedaParaCampo(m.valor_meta_manha_bronze ?? '');
+  cfgEl('cfgValorMetaManhaPrata').value = moedaParaCampo(m.valor_meta_manha_prata ?? '');
+  cfgEl('cfgValorMetaManhaOuro').value = moedaParaCampo(m.valor_meta_manha_ouro ?? '');
   cfgEl('cfgDataInicio').value = m.data_inicio || '';
   cfgEl('cfgDataFim').value = m.data_fim || '';
   cfgMensagem('');
@@ -276,7 +290,10 @@ async function cfgSalvar(event) {
     valor_meta: numeroOuNulo(cfgEl('cfgValorMeta').value),
     valor_meta_bronze: numeroOuNulo(cfgEl('cfgValorMetaBronze').value),
     valor_meta_prata: numeroOuNulo(cfgEl('cfgValorMetaPrata').value),
-    valor_meta_ouro: numeroOuNulo(cfgEl('cfgValorMetaOuro').value)
+    valor_meta_ouro: numeroOuNulo(cfgEl('cfgValorMetaOuro').value),
+    valor_meta_manha_bronze: numeroOuNulo(cfgEl('cfgValorMetaManhaBronze').value),
+    valor_meta_manha_prata: numeroOuNulo(cfgEl('cfgValorMetaManhaPrata').value),
+    valor_meta_manha_ouro: numeroOuNulo(cfgEl('cfgValorMetaManhaOuro').value)
   };
 
   if (isNaN(registro.codigo)) return cfgMensagem('Selecione a loja.', 'erro');
@@ -290,6 +307,18 @@ async function cfgSalvar(event) {
   }
   if ((b !== null && p !== null && p <= b) || (p !== null && o !== null && o <= p) || (b !== null && o !== null && o <= b)) {
     return cfgMensagem('As metas do vendedor precisam crescer: Bronze < Prata < Ouro.', 'erro');
+  }
+  const { valor_meta_manha_bronze: mb, valor_meta_manha_prata: mp, valor_meta_manha_ouro: mo } = registro;
+  if ([mb, mp, mo].some(v => v !== null && v < 0)) {
+    return cfgMensagem('As metas da manhã não podem ser negativas.', 'erro');
+  }
+  if ((mb !== null && mp !== null && mp <= mb) || (mp !== null && mo !== null && mo <= mp) || (mb !== null && mo !== null && mo <= mb)) {
+    return cfgMensagem('As metas da manhã precisam crescer: Bronze < Prata < Ouro.', 'erro');
+  }
+  // Banco ainda sem o script 09: não envia as colunas da manhã quando estão vazias
+  const original = cfgMetasEmEdicao ? cfgMetasLista.find(x => x.id === cfgMetasEmEdicao) : null;
+  if (mb === null && mp === null && mo === null && !(original && 'valor_meta_manha_bronze' in original)) {
+    delete registro.valor_meta_manha_bronze; delete registro.valor_meta_manha_prata; delete registro.valor_meta_manha_ouro;
   }
 
   cfgEl('cfgBtnSalvar').disabled = true;

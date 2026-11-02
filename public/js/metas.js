@@ -89,7 +89,15 @@ async function renderizarMetas(totaisPorLoja) {
     .gte('data_fim', dataIni);
   if (lojasFiltro.length) query = query.in('codigo', lojasFiltro);
 
-  const { data: metas, error } = await query;
+  // cadastro de vendedores (turno da meta) em paralelo com as metas
+  const [respMetas, respVend] = await Promise.all([
+    query,
+    metasClient.from('vendedores').select('codigo, nome, loja_codigo, turno, ativo')
+  ]);
+  const { data: metas, error } = respMetas;
+  vendedoresCadastro = {};
+  if (!respVend.error) (respVend.data || []).forEach(v => { vendedoresCadastro[Number(v.codigo)] = v; });
+  cadastroVendedoresOk = !respVend.error;
   if (error) {
     const semColuna = /data_inicio|data_fim/.test(error.message || '');
     mostrarAvisoMetas('❌ Erro ao buscar metas no Supabase: ' + escaparHTML(error.message) +
@@ -116,6 +124,10 @@ async function renderizarMetas(totaisPorLoja) {
     porLoja[id].metaBronze += Number(m.valor_meta_bronze ?? m.valor_meta_vendedor) || 0;
     porLoja[id].metaPrata += Number(m.valor_meta_prata) || 0;
     porLoja[id].metaOuro += Number(m.valor_meta_ouro) || 0;
+    // meta do vendedor da MANHÃ (script 09); vazio = usa a da tarde
+    porLoja[id].metaManhaBronze += Number(m.valor_meta_manha_bronze) || 0;
+    porLoja[id].metaManhaPrata += Number(m.valor_meta_manha_prata) || 0;
+    porLoja[id].metaManhaOuro += Number(m.valor_meta_manha_ouro) || 0;
     if (m.descricao) porLoja[id].descricao = m.descricao;
     // período da meta (para o ritmo diário necessário)
     if (m.data_inicio && (!porLoja[id].metaInicio || m.data_inicio < porLoja[id].metaInicio)) porLoja[id].metaInicio = m.data_inicio;
@@ -157,7 +169,22 @@ async function renderizarMetas(totaisPorLoja) {
 }
 
 function novoRegistroLoja(id, descricao) {
-  return { id, descricao, meta: 0, metaBronze: 0, metaPrata: 0, metaOuro: 0, realizado: 0 };
+  return { id, descricao, meta: 0, metaBronze: 0, metaPrata: 0, metaOuro: 0,
+           metaManhaBronze: 0, metaManhaPrata: 0, metaManhaOuro: 0, realizado: 0 };
+}
+
+let vendedoresCadastro = {};      // codigo -> { codigo, nome, loja_codigo, turno, ativo }
+let cadastroVendedoresOk = false;
+const TURNO_INFO = { M: { icone: '☀️', nome: 'manhã' }, T: { icone: '🌙', nome: 'tarde' } };
+
+/** "1807 - ANA PAULA" -> 1807 */
+function codigoDoVendedor(texto) {
+  const m = String(texto || '').trim().match(/^0*(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function lojaTemMetaManha(loja) {
+  return !!(loja && (loja.metaManhaBronze > 0 || loja.metaManhaPrata > 0 || loja.metaManhaOuro > 0));
 }
 
 /**
@@ -295,11 +322,17 @@ function renderizarMetasVendedores(porLoja) {
   const lista = Object.values(vendas).map(v => {
     const loja = porLoja[v.idLoja] || {};
     const sem = ehSemVendedor(v.vendedor);
-    const bronze = sem ? 0 : (loja.metaBronze || 0);
-    const prata = sem ? 0 : (loja.metaPrata || 0);
-    const ouro = sem ? 0 : (loja.metaOuro || 0);
+    // turno do cadastro de vendedores; sem cadastro = tarde (meta padrão)
+    const cad = vendedoresCadastro[codigoDoVendedor(v.vendedor)];
+    const turno = cad && cad.turno === 'M' ? 'M' : 'T';
+    const porTurno = lojaTemMetaManha(loja);
+    const usaManha = porTurno && turno === 'M';
+    const bronze = sem ? 0 : ((usaManha ? loja.metaManhaBronze : loja.metaBronze) || 0);
+    const prata = sem ? 0 : ((usaManha ? loja.metaManhaPrata : loja.metaPrata) || 0);
+    const ouro = sem ? 0 : ((usaManha ? loja.metaManhaOuro : loja.metaOuro) || 0);
     const n = nivelDoVendedor(v.realizado, bronze, prata, ouro);
-    return { ...v, bronze, prata, ouro, ...n, atingimento: n.semMeta ? null : (v.realizado / n.base) * 100 };
+    return { ...v, bronze, prata, ouro, ...n, turno, porTurno, semCadastro: !sem && !cad,
+             atingimento: n.semMeta ? null : (v.realizado / n.base) * 100 };
   });
   // Agrupado por loja; dentro da loja: maior troféu, depois maior venda
   lista.sort((a, b) =>
@@ -316,6 +349,14 @@ function renderizarMetasVendedores(porLoja) {
         `🥉 Bronze: <strong>${conta('bronze')}</strong> · abaixo do Bronze: <strong>${abaixo}</strong>` +
         (semMeta ? ` · sem meta: ${semMeta}` : '')
       : 'Nenhuma venda por vendedor no período.';
+    const semCad = lista.filter(l => l.semCadastro && l.porTurno);
+    if (semCad.length) {
+      resumo.innerHTML += `<br><span class="aviso-turno">⚠️ ${semCad.length} vendedor(es) de loja com meta manhã/tarde sem cadastro (contados como 🌙 tarde): ` +
+        `${semCad.slice(0, 6).map(l => escaparHTML(l.vendedor)).join(', ')}${semCad.length > 6 ? '…' : ''} · ` +
+        `<a href="/vendedores.html" target="_blank" rel="noopener">cadastrar vendedores</a></span>`;
+    } else if (!cadastroVendedoresOk && lista.some(l => l.porTurno)) {
+      resumo.innerHTML += '<br><span class="aviso-turno">⚠️ Cadastro de vendedores indisponível: rode database/09_vendedores_e_meta_turno.sql no Supabase.</span>';
+    }
   }
 
   const area = document.getElementById('areaGraficoMetasVendedores');
@@ -336,9 +377,14 @@ function textoNivel(l) {
   return `▼ ${formatarPct(100 - l.atingimento)} abaixo do Bronze`;
 }
 
+/** ☀️ / 🌙 só aparece nas lojas que têm meta da manhã */
+function iconeTurno(l) {
+  return l.porTurno && !ehSemVendedor(l.vendedor) ? TURNO_INFO[l.turno].icone + ' ' : '';
+}
+
 function rotuloVendedor(l) {
   const trofeu = l.nivel ? NIVEIS[l.nivel].trofeu + ' ' : '';
-  return [trofeu + l.vendedor, textoNivel(l)];
+  return [trofeu + iconeTurno(l) + l.vendedor, textoNivel(l)];
 }
 
 function renderizarGraficoVendedores(lista) {
@@ -422,7 +468,9 @@ function renderizarTabelaVendedoresPorLoja(lista, porLoja) {
       <td colspan="6" style="padding:7px 8px; font-weight:bold; color:#0b4f8a; border-top:2px solid #cfe0f3;">
         🏬 ${nomeLoja}
         <span style="font-weight:normal; color:#555; font-size:12px;">
-          · ${g.itens.length} vendedor(es) · 🥇 ${qtd('ouro')} · 🥈 ${qtd('prata')} · 🥉 ${qtd('bronze')} · total ${formatarMoedaBR(totalReal)}
+          · ${g.itens.length} vendedor(es)${lojaTemMetaManha(loja)
+            ? ` (☀️ ${g.itens.filter(l => l.turno === 'M' && !ehSemVendedor(l.vendedor)).length} manhã · 🌙 ${g.itens.filter(l => l.turno === 'T' && !ehSemVendedor(l.vendedor)).length} tarde)` : ''}
+          · 🥇 ${qtd('ouro')} · 🥈 ${qtd('prata')} · 🥉 ${qtd('bronze')} · total ${formatarMoedaBR(totalReal)}
         </span>
       </td></tr>`;
 
@@ -440,7 +488,8 @@ function renderizarTabelaVendedoresPorLoja(lista, porLoja) {
         situacao = conquista + falta;
       }
       return `<tr>
-        <td style="padding-left:24px;">${trofeu ? trofeu + ' ' : ''}${escaparHTML(l.vendedor)}</td>
+        <td style="padding-left:24px;">${trofeu ? trofeu + ' ' : ''}${l.porTurno && !ehSemVendedor(l.vendedor)
+          ? `<span class="chip-turno turno-${l.turno}" title="Meta do turno da ${TURNO_INFO[l.turno].nome}${l.semCadastro ? ' (sem cadastro: conta como tarde)' : ''}">${TURNO_INFO[l.turno].icone} ${TURNO_INFO[l.turno].nome}${l.semCadastro ? ' ?' : ''}</span> ` : ''}${escaparHTML(l.vendedor)}</td>
         <td style="text-align:right">${moeda(l.bronze)}</td>
         <td style="text-align:right">${moeda(l.prata)}</td>
         <td style="text-align:right">${moeda(l.ouro)}</td>

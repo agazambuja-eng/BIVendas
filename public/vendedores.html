@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vendedores · BI Vendas</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Vendedores<span>código, loja e turno da meta</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+
+  <main class="acesso-conteudo so-logado">
+    <div class="usuarios-cabecalho">
+      <h2>Cadastro de vendedores</h2>
+      <div class="usuarios-filtros">
+        <select id="filtroLojaVend" onchange="renderizarVendedores()"><option value="">Todas as lojas</option></select>
+        <input type="search" id="buscaVendedor" placeholder="Buscar por código ou nome..." oninput="renderizarVendedores()">
+        <label><input type="checkbox" id="mostrarInativosVend" onchange="renderizarVendedores()"> Mostrar inativos</label>
+        <button type="button" class="acesso-btn-sec" id="btnImportarVend" onclick="abrirImportarVendedores()" title="Busca no ERP os vendedores que venderam no período atual e ainda não estão cadastrados">⬇ Importar do ERP</button>
+        <button type="button" class="acesso-btn" id="btnNovoVend" onclick="abrirFormVendedor()">+ Novo vendedor</button>
+      </div>
+    </div>
+    <p class="acesso-ajuda" style="margin: 0 0 12px;">
+      O turno define qual meta o vendedor disputa na aba Metas: <b>☀️ Manhã</b> ou <b>🌙 Tarde</b>.
+      Lojas sem meta da manhã cadastrada usam a meta da tarde para todos.
+      Clique no turno da lista para trocar rapidamente.
+    </p>
+    <div id="msgVendedores" class="acesso-msg"></div>
+
+    <div class="tabela-card">
+      <table class="tabela-usuarios">
+        <thead>
+          <tr><th>Código</th><th>Nome</th><th>Loja</th><th>Turno</th><th>Situação</th><th>Ações</th></tr>
+        </thead>
+        <tbody id="corpoVendedores"><tr><td colspan="6">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Formulário: novo / editar vendedor -->
+  <div id="modalVendedor" class="acesso-modal-fundo">
+    <form class="acesso-modal" id="formVendedor" autocomplete="off">
+      <h3 id="tituloFormVendedor">Novo vendedor</h3>
+      <div class="acesso-grade">
+        <label>Código no ERP <input type="text" id="vendCodigo" inputmode="numeric" maxlength="9" required placeholder="ex.: 1807"></label>
+        <label>Loja <select id="vendLoja" required></select></label>
+        <label class="inteiro">Nome <input type="text" id="vendNome" maxlength="80" required placeholder="ex.: ANA PAULA DOS SANTOS SILVA"></label>
+      </div>
+      <fieldset class="permissoes-caixa">
+        <legend>Turno da meta</legend>
+        <label class="check"><input type="radio" name="vendTurno" value="M"> ☀️ Manhã</label>
+        <label class="check"><input type="radio" name="vendTurno" value="T" checked> 🌙 Tarde</label>
+      </fieldset>
+      <label class="check"><input type="checkbox" id="vendAtivo" checked> Vendedor ativo</label>
+      <div id="msgFormVendedor" class="acesso-msg"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" onclick="fecharModal('modalVendedor')">Cancelar</button>
+        <button type="submit" class="acesso-btn" id="btnSalvarVendedor">Salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Importar do ERP -->
+  <div id="modalImportarVend" class="acesso-modal-fundo">
+    <div class="acesso-modal largo importar">
+      <h3>Importar vendedores do ERP</h3>
+      <p class="acesso-ajuda" id="textoImportarVend">Buscando vendas do período atual...</p>
+      <div class="importar-acoes">
+        <label>Corte manhã/tarde
+          <input type="time" id="corteTurnoVend" value="14:00" onchange="sugerirTurnosImportacao()"></label>
+        <button type="button" class="acesso-btn-sec" onclick="marcarImportacao(true)">Marcar todos</button>
+        <button type="button" class="acesso-btn-sec" onclick="marcarImportacao(false)">Desmarcar todos</button>
+      </div>
+      <div class="tabela-card" style="max-height: 360px; overflow-y: auto;">
+        <table class="tabela-usuarios">
+          <thead><tr><th></th><th>Código</th><th>Nome</th><th>Loja</th><th title="Sugestão pela hora das vendas (antes do corte = manhã)">Turno</th></tr></thead>
+          <tbody id="corpoImportarVend"></tbody>
+        </table>
+      </div>
+      <div id="msgImportarVend" class="acesso-msg"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" onclick="fecharModal('modalImportarVend')">Fechar</button>
+        <button type="button" class="acesso-btn" id="btnConfirmarImportar" onclick="confirmarImportacao()">Cadastrar selecionados</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/periodo-comercial.js"></script>
+  <script src="/js/vendedores.js"></script>
+</body>
+</html>

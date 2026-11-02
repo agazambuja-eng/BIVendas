@@ -24,6 +24,11 @@
         <h2>BI</h2>
         <p>Dashboard, metas, pagamentos e auditoria de vendas.</p>
       </a>
+      <a class="inicio-opcao vendedores" id="opcaoVendedores" href="/vendedores.html" style="display: none;">
+        <div class="icone">👥</div>
+        <h2>Vendedores</h2>
+        <p>Cadastro de vendedores: código do ERP, loja e turno da meta (manhã ou tarde).</p>
+      </a>
       <a class="inicio-opcao config" id="opcaoConfig" href="/usuarios.html" style="display: none;">
         <div class="icone">⚙️</div>
         <h2>Configurações</h2>
@@ -47,6 +52,8 @@
       const podeConfig = temPermissao('gerenciar_usuarios');
       document.getElementById('opcaoBI').style.display = podeBI ? '' : 'none';
       document.getElementById('opcaoConfig').style.display = podeConfig ? '' : 'none';
+      const podeVend = podeBI && ['criar_metas', 'alterar_metas', 'excluir_metas'].some(p => temPermissao(p));
+      document.getElementById('opcaoVendedores').style.display = podeVend ? '' : 'none';
 
       const aviso = document.getElementById('avisoInicio');
       const semAcesso = new URLSearchParams(location.search).get('semAcesso');
