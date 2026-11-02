@@ -77,6 +77,7 @@ function traduzirErro(error) {
 async function abrirConfigMetas() {
   cfgEl('modalConfigMetas').style.display = 'flex';
   cfgMensagem('');
+  await cfgPreencherListaLojas();
   if (!cfgEl('cfgFiltroCompetencia').value) {
     cfgEl('cfgFiltroCompetencia').value = mesComercialAtualInput();
   }
@@ -142,6 +143,38 @@ async function cfgCarregarMetas() {
     </tr>`).join('');
 }
 
+// ---------- lista de lojas (cadastro de lojas) ----------
+/** Nome sem o código na frente: "520 FAROL" -> "FAROL" */
+function cfgNomeLoja(l) {
+  return String((l && l.nome) || '').replace(/^0*\d+\s*[-–]?\s*/, '').trim();
+}
+
+/** Monta o campo Loja com "520 – FAROL" a partir do cadastro de lojas (só as que o usuário vê). */
+async function cfgPreencherListaLojas() {
+  if (typeof lojasDisponiveis !== 'undefined' && !lojasDisponiveis.length && typeof carregarLojasSupabase === 'function') {
+    await carregarLojasSupabase();
+  }
+  const sel = cfgEl('cfgCodigo');
+  const atual = sel.value;
+  const lojas = (typeof lojasDisponiveis !== 'undefined' ? lojasDisponiveis : [])
+    .slice().sort((a, b) => Number(a.id) - Number(b.id));
+  sel.innerHTML = '<option value="">Selecione a loja...</option>' + lojas.map(l => {
+    const nome = cfgNomeLoja(l);
+    return `<option value="${Number(l.id)}">${Number(l.id)}${nome ? ' – ' + escHTML(nome) : ''}</option>`;
+  }).join('');
+  if (atual) cfgSelecionarLoja(atual);
+}
+
+/** Seleciona a loja; se ela não estiver no cadastro (meta antiga), acrescenta a opção. */
+function cfgSelecionarLoja(codigo, descricao) {
+  const sel = cfgEl('cfgCodigo');
+  const v = String(parseInt(codigo, 10));
+  if (v !== 'NaN' && ![...sel.options].some(o => o.value === v)) {
+    sel.add(new Option(`${v}${descricao ? ' – ' + descricao : ''} (fora do cadastro)`, v));
+  }
+  sel.value = v === 'NaN' ? '' : v;
+}
+
 // ---------- formulário ----------
 function cfgLimparFormulario() {
   cfgMetasEmEdicao = null;
@@ -149,7 +182,7 @@ function cfgLimparFormulario() {
   cfgEl('cfgFormTitulo').textContent = 'Incluir meta';
   cfgEl('cfgBtnSalvar').textContent = 'Incluir';
   cfgEl('cfgBtnCancelarEdicao').style.display = 'none';
-  cfgEl('cfgCodigo').value = '';
+  cfgSelecionarLoja('');
   cfgEl('cfgCodigo').disabled = false;
   cfgEl('cfgDescricao').value = '';
   cfgEl('cfgValorMeta').value = '';
@@ -161,14 +194,15 @@ function cfgLimparFormulario() {
   cfgEl('cfgDataFim').value = p.fim;
 }
 
-/** Preenche a descrição automaticamente pelo código da loja. */
-function cfgSugerirDescricao() {
+/** Preenche a descrição com o nome da loja escolhida (continua editável). */
+function cfgSugerirDescricao(trocouLoja) {
   const codigo = parseInt(cfgEl('cfgCodigo').value, 10);
-  if (isNaN(codigo) || cfgEl('cfgDescricao').value.trim()) return;
-  const daLista = cfgMetasLista.find(m => m.codigo === codigo);
+  if (isNaN(codigo)) return;
+  if (!trocouLoja && cfgEl('cfgDescricao').value.trim()) return;
   const doCadastro = (typeof lojasDisponiveis !== 'undefined' ? lojasDisponiveis : [])
     .find(l => Number(l.id) === codigo);
-  const nome = (daLista && daLista.descricao) || (doCadastro && doCadastro.nome);
+  const daLista = cfgMetasLista.find(m => m.codigo === codigo);
+  const nome = cfgNomeLoja(doCadastro) || (daLista && daLista.descricao) || '';
   if (nome) cfgEl('cfgDescricao').value = nome;
 }
 
@@ -180,7 +214,7 @@ function cfgEditar(id) {
   cfgEl('cfgFormTitulo').textContent = `Alterar meta – Loja ${m.codigo}`;
   cfgEl('cfgBtnSalvar').textContent = 'Salvar alteração';
   cfgEl('cfgBtnCancelarEdicao').style.display = 'inline-block';
-  cfgEl('cfgCodigo').value = m.codigo;
+  cfgSelecionarLoja(m.codigo, m.descricao);
   cfgEl('cfgDescricao').value = m.descricao || '';
   cfgEl('cfgValorMeta').value = m.valor_meta ?? '';
   cfgEl('cfgValorMetaBronze').value = m.valor_meta_bronze ?? m.valor_meta_vendedor ?? '';
@@ -206,7 +240,7 @@ async function cfgSalvar(event) {
     valor_meta_ouro: numeroOuNulo(cfgEl('cfgValorMetaOuro').value)
   };
 
-  if (isNaN(registro.codigo)) return cfgMensagem('Informe o código da loja.', 'erro');
+  if (isNaN(registro.codigo)) return cfgMensagem('Selecione a loja.', 'erro');
   if (!registro.descricao) return cfgMensagem('Informe a descrição da loja.', 'erro');
   if (!registro.data_inicio || !registro.data_fim) return cfgMensagem('Informe a data inicial e a data final da meta.', 'erro');
   if (registro.data_fim < registro.data_inicio) return cfgMensagem('A data final precisa ser depois da inicial.', 'erro');

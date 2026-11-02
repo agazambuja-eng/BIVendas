@@ -575,7 +575,7 @@
         <form class="cfg-form" id="cfgFormMetas" onsubmit="cfgSalvar(event)">
           <div id="cfgFormTitulo" class="cfg-form-titulo">Incluir meta</div>
           <div class="cfg-grid">
-            <label class="cfg-label">Código loja <input type="number" id="cfgCodigo" min="1" step="1" placeholder="520" onblur="cfgSugerirDescricao()"></label>
+            <label class="cfg-label">Loja <select id="cfgCodigo" onchange="cfgSugerirDescricao(true)"><option value="">Selecione a loja...</option></select></label>
             <label class="cfg-label cfg-col2">Descrição <input type="text" id="cfgDescricao" maxlength="120" placeholder="Nome da loja"></label>
             <label class="cfg-label">Data inicial da meta <input type="date" id="cfgDataInicio"></label>
             <label class="cfg-label">Data final da meta <input type="date" id="cfgDataFim"></label>
