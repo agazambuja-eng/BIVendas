@@ -75,8 +75,13 @@ function montarCabecalhoDetalhes(extras) {
 
 /** Baixa todos os registros e todos os campos da API em CSV (abre no Excel). */
 function exportarDetalhesCSV() {
-  const dados = typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : [];
-  if (!dados.length) return alert('Faça uma consulta primeiro.');
+  const todos = typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : [];
+  if (!todos.length) return alert('Faça uma consulta primeiro.');
+  // Com filtro/ordenação na tabela (detalhes-filtro.js), exporta o que está na tela
+  const filtrado = typeof detalhesVisiveis !== 'undefined' && typeof detalhesItens !== 'undefined' &&
+    (detalhesVisiveis.length !== detalhesItens.length || detalhesOrdem);
+  const dados = filtrado ? detalhesVisiveis : todos;
+  if (!dados.length) return alert('Nenhum registro com os filtros atuais.');
   const chaves = chavesDosDados(dados);
   const esc = v => {
     const s = v === null || v === undefined ? '' : String(v);

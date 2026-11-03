@@ -423,7 +423,8 @@
       <h3 style="margin: 0; color: #333; font-size: 16px;">Auditoria Completa de Itens por OS (API Bruta)</h3>
       <div style="display: flex; align-items: center; gap: 10px;">
         <span id="contadorRegistrosDetalhe" style="font-size: 12px; color: #666; font-weight: bold;">Exibindo 0 registros</span>
-        <button type="button" class="btn-comparar-lojas" onclick="exportarDetalhesCSV()" title="Baixa todos os registros com todos os campos da API (abre no Excel)">⬇️ Exportar CSV</button>
+        <button type="button" id="btnLimparFiltrosDetalhes" class="btn-secundario cfg-btn-pequeno" onclick="limparTodosFiltrosDetalhes()" style="display: none;" title="Tira todos os filtros e a ordenação da tabela">✖ Limpar filtros</button>
+        <button type="button" class="btn-comparar-lojas" onclick="exportarDetalhesCSV()" title="Baixa os registros com todos os campos da API (abre no Excel). Com filtro, baixa só o que está filtrado.">⬇️ Exportar CSV</button>
       </div>
     </div>
     <p style="font-size: 12px; color: #666; margin: 0;">Lista detalhada de todos os produtos, quantidades e valores retornados. Depois das colunas principais aparecem <b>todos os outros campos que a API devolve</b> (role para a direita).</p>
@@ -630,6 +631,7 @@
   <script src="/js/comparativo.js"></script>
   <script src="/js/comparar-lojas.js"></script>
   <script src="/js/produtos.js"></script>
+  <script src="/js/detalhes-filtro.js"></script>
   <script src="/js/armacoes.js"></script>
   <script src="/js/listar-armacoes.js"></script>
   <script src="/js/comparativo-armacoes.js"></script>
