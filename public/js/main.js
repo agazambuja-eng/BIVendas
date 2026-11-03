@@ -503,6 +503,17 @@ function corParcelas(texto, meio) {
   return '#d93025';               // vermelho
 }
 
+/** 12.3456 -> "12,3%" */
+function formatarPctDesconto(p) {
+  return (p || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+}
+/** Cor do % de desconto: até 10% verde, até 15% amarelo, acima vermelho. */
+const LIMITES_PCT_DESCONTO = { ok: 10, atencao: 15 };
+function classePctDesconto(p) {
+  if (!(p > 0)) return 'pct-desc pct-desc-zero';
+  return 'pct-desc ' + (p <= LIMITES_PCT_DESCONTO.ok ? 'pct-desc-ok' : p <= LIMITES_PCT_DESCONTO.atencao ? 'pct-desc-atencao' : 'pct-desc-alto');
+}
+
 function formatarMoedaBR(valor) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -905,7 +916,8 @@ function processarDadosBI(dados, dadosPagamentos) {
       return {
         ...v,
         qtdVendas: qtdVendasVendedor,
-        ticketMedio: ticketMedioVendedor
+        ticketMedio: ticketMedioVendedor,
+        pctDesconto: v.bruto > 0 ? (v.desconto / v.bruto) * 100 : 0
       };
     });
 
@@ -913,15 +925,19 @@ function processarDadosBI(dados, dadosPagamentos) {
     vendedoresProcessados.sort((a, b) => b.ticketMedio - a.ticketMedio);
 
     let totalQtdVendasLoja = loja.osUnicasLoja.size;
+    const brutoLoja = vendedoresProcessados.reduce((s, v) => s + (v.bruto || 0), 0);
+    const descLoja = vendedoresProcessados.reduce((s, v) => s + (v.desconto || 0), 0);
+    const pctDescLoja = brutoLoja > 0 ? (descLoja / brutoLoja) * 100 : 0;
 
     let linhasVendedoresHTML = vendedoresProcessados.map(v => {
       return `
-        <div style="padding: 6px 10px; border-bottom: 1px dashed #eee; font-size: 11px; background: #fff; display: grid; grid-template-columns: 2fr 0.8fr 1fr 1fr 1fr; align-items: center; text-align: right;">
+        <div style="padding: 6px 10px; border-bottom: 1px dashed #eee; font-size: 11px; background: #fff; display: grid; grid-template-columns: 2fr 0.6fr 1fr 0.9fr 0.6fr 1fr; gap: 6px; align-items: center; text-align: right;">
           <span style="font-weight: bold; color: #555; text-align: left;">👤 ${v.nome}</span>
-          <span style="color: #444; text-align: center;" title="Quantidade de Vendas">Qtd: <strong>${v.qtdVendas}</strong></span>
-          <span style="color: #666;" title="Líquido">Lq: ${formatarMoedaBR(v.liquido)}</span>
-          <span style="color: #d9534f;" title="Desconto">Desc: ${formatarMoedaBR(v.desconto)}</span>
-          <span style="color: #0078d7; font-weight: bold;" title="Ticket Médio">TM: ${formatarMoedaBR(v.ticketMedio)}</span>
+          <span style="color: #444; text-align: center;" title="Quantidade de Vendas"><strong>${v.qtdVendas}</strong></span>
+          <span style="color: #666; white-space: nowrap;" title="Líquido">${formatarMoedaBR(v.liquido)}</span>
+          <span style="color: #d9534f; white-space: nowrap;" title="Desconto">${formatarMoedaBR(v.desconto)}</span>
+          <span class="${classePctDesconto(v.pctDesconto)}" title="Desconto sobre o valor bruto (${formatarMoedaBR(v.desconto)} de ${formatarMoedaBR(v.bruto || 0)})">${formatarPctDesconto(v.pctDesconto)}</span>
+          <span style="color: #0078d7; font-weight: bold; white-space: nowrap;" title="Ticket Médio">${formatarMoedaBR(v.ticketMedio)}</span>
         </div>
       `;
     }).join("");
@@ -937,16 +953,18 @@ function processarDadosBI(dados, dadosPagamentos) {
           
           <div style="display: flex; gap: 12px; align-items: center; font-size: 12px;">
             <span style="color: #555; font-size: 11px;">Qtd: <strong>${totalQtdVendasLoja}</strong></span>
+            <span class="${classePctDesconto(pctDescLoja)}" style="font-size: 11px;" title="Desconto da loja sobre o bruto">Desc: ${formatarPctDesconto(pctDescLoja)}</span>
             <span style="color: #0078d7; font-weight: bold;">${formatarMoedaBR(loja.totalValorLiquido)}</span>
           </div>
         </div>
 
         <div id="${idUnicoLoja}" style="display: none; border-top: 1px solid #eee; background: #fff;">
-          <div style="padding: 4px 6px; background: #f1f3f5; font-size: 10px; font-weight: bold; color: #555; display: grid; grid-template-columns: 2fr 0.8fr 1fr 1fr 1fr; text-align: right;">
+          <div style="padding: 4px 6px; background: #f1f3f5; font-size: 10px; font-weight: bold; color: #555; display: grid; grid-template-columns: 2fr 0.6fr 1fr 0.9fr 0.6fr 1fr; gap: 6px; text-align: right;">
             <span style="text-align: left;">Vendedor</span>
             <span style="text-align: center;">Qtd Vendas</span>
             <span>Líquido</span>
             <span>Desconto</span>
+            <span title="Desconto ÷ valor bruto">% Desc</span>
             <span>Ticket Médio</span>
           </div>
           ${linhasVendedoresHTML}

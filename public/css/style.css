@@ -390,3 +390,10 @@ tfoot td { border-top: 2px solid #0078d7; color: #000; font-size: 13px; }
 .ritmo-vend.ritmo-ok { color: #3dffa8; }
 .ritmo-vend.ritmo-atencao { color: #ffd35e; }
 .ritmo-vend.ritmo-dificil { color: #ff5c8a; }
+
+/* % de desconto (Resumo por Vendedores) */
+.pct-desc { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pct-desc-zero { color: #8a93c9 !important; font-weight: normal; }
+.pct-desc-ok { color: #3dffa8 !important; }
+.pct-desc-atencao { color: #ffd35e !important; }
+.pct-desc-alto { color: #ff5c8a !important; }
