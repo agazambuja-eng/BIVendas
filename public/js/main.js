@@ -980,83 +980,8 @@ function processarDadosBI(dados, dadosPagamentos) {
   }
 
   // --- POPULAR TABELA DA ABA 3 (DETALHES / AUDITORIA) ---
-  const tabelaDetalhesCorpo = document.getElementById("tabelaDetalhesCorpo");
-  const contadorRegistrosDetalhe = document.getElementById("contadorRegistrosDetalhe");
-
-  if (tabelaDetalhesCorpo) {
-    let htmlTabelaDetalhes = "";
-    // Colunas extras: todos os outros campos que a API devolver (produtos.js)
-    const extras = (typeof camposExtrasDetalhes === 'function') ? camposExtrasDetalhes(dadosFiltrados) : [];
-    if (typeof montarCabecalhoDetalhes === 'function') montarCabecalhoDetalhes(extras);
-    const tot = { qtd: 0, bruto: 0, desconto: 0, liquido: 0, os: new Set(), clientes: new Set(), vendedores: new Set(), lojas: new Set() };
-    dadosFiltrados.forEach(item => {
-      const lojaNome = item.LOJA || "-";
-      const os = item.OS || item.CODIGODAVENDA || "-";
-      const data = item.DATA || "-";
-      const cliente = item.CLIENTE || "-";
-      const vendedor = item.VENDEDOR || "-";
-      const produtoDesc = `${item.CODIGO || ''} - ${item.DESCRICAO || item.PRODUTO || '-'}`;
-      const qtd = item.QUANTIDADE || "0";
-      const bruto = parseNumeroBR(item.VALORBRUTOPRODUTO);
-      const desconto = parseNumeroBR(item.DESCPRODUTO);
-      const liquido = parseNumeroBR(item.LIQUIDOPRODUTO);
-      const tipoVenda = item.TIPOVENDA || "-";
-
-      tot.qtd += parseNumeroBR(qtd);
-      tot.bruto += bruto;
-      tot.desconto += desconto;
-      tot.liquido += liquido;
-      if (os !== "-") tot.os.add(String(os));
-      if (cliente !== "-") tot.clientes.add(String(cliente));
-      if (vendedor !== "-") tot.vendedores.add(String(vendedor));
-      if (lojaNome !== "-") tot.lojas.add(String(lojaNome));
-
-      htmlTabelaDetalhes += `
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 6px 8px; white-space: nowrap;">${lojaNome}</td>
-          <td style="padding: 6px 8px; font-weight: bold; color: #0078d7;">${os}</td>
-          <td style="padding: 6px 8px; white-space: nowrap;">${data}</td>
-          <td style="padding: 6px 8px;">${cliente}</td>
-          <td style="padding: 6px 8px;">${vendedor}</td>
-          <td style="padding: 6px 8px;">${produtoDesc}</td>
-          <td style="padding: 6px 8px; text-align: center;">${qtd}</td>
-          <td style="padding: 6px 8px; text-align: right;">${formatarMoedaBR(bruto)}</td>
-          <td style="padding: 6px 8px; text-align: right; color: #d9534f;">${formatarMoedaBR(desconto)}</td>
-          <td style="padding: 6px 8px; text-align: right; font-weight: bold; color: #28a745;">${formatarMoedaBR(liquido)}</td>
-          <td style="padding: 6px 8px; font-size: 11px; color: #666;">${tipoVenda}</td>
-          ${extras.map(k => `<td style="padding: 6px 8px; white-space: nowrap;">${formatarCampoApi(item[k])}</td>`).join('')}
-        </tr>
-      `;
-    });
-
-    tabelaDetalhesCorpo.innerHTML = htmlTabelaDetalhes || `<tr><td colspan='${11 + extras.length}' style='text-align:center; padding: 20px;'>Nenhum registro encontrado.</td></tr>`;
-    if (contadorRegistrosDetalhe) {
-      contadorRegistrosDetalhe.innerText = `Exibindo ${dadosFiltrados.length} registros · ${11 + extras.length} colunas`;
-    }
-
-    // --- LINHA DE TOTAIS (rodapé fixo da tabela) ---
-    const tabelaDetalhesTotais = document.getElementById("tabelaDetalhesTotais");
-    if (tabelaDetalhesTotais) {
-      const pctDesc = tot.bruto > 0 ? (tot.desconto / tot.bruto) * 100 : 0;
-      const qtdFmt = tot.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-      const cel = "padding: 8px; border-top: 2px solid #b8daff; white-space: nowrap;";
-      tabelaDetalhesTotais.innerHTML = dadosFiltrados.length ? `
-        <tr>
-          <td style="${cel}">TOTAL · ${tot.lojas.size} loja(s)</td>
-          <td style="${cel} color: #0078d7;">${tot.os.size} OS</td>
-          <td style="${cel}"></td>
-          <td style="${cel}">${tot.clientes.size} cliente(s)</td>
-          <td style="${cel}">${tot.vendedores.size} vendedor(es)</td>
-          <td style="${cel}">${dadosFiltrados.length} item(ns)</td>
-          <td style="${cel} text-align: center;">${qtdFmt}</td>
-          <td style="${cel} text-align: right;">${formatarMoedaBR(tot.bruto)}</td>
-          <td style="${cel} text-align: right; color: #d9534f;">${formatarMoedaBR(tot.desconto)}</td>
-          <td style="${cel} text-align: right; color: #28a745;">${formatarMoedaBR(tot.liquido)}</td>
-          <td style="${cel} font-size: 11px; color: #d9534f;" title="Desconto sobre o valor bruto">${pctDesc.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% desc.</td>
-          ${extras.map(() => `<td style="${cel}"></td>`).join('')}
-        </tr>` : "";
-    }
-  }
+  // Tabela de Detalhes com filtro tipo Excel (detalhes-filtro.js)
+  if (typeof renderizarDetalhes === 'function') renderizarDetalhes(dadosFiltrados);
 
   renderizarDashboard(totaisPorLoja, totalLiquidoGeral, pagamentosFiltrados);
   if (typeof renderizarProdutos === 'function') {
