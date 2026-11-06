@@ -984,6 +984,9 @@ function processarDadosBI(dados, dadosPagamentos) {
   if (typeof renderizarDetalhes === 'function') renderizarDetalhes(dadosFiltrados);
 
   renderizarDashboard(totaisPorLoja, totalLiquidoGeral, pagamentosFiltrados);
+  if (typeof renderizarIndicacoes === 'function') {
+    try { renderizarIndicacoes(dadosFiltrados); } catch (err) { console.error("Erro no gráfico de Indicações:", err); }
+  }
   if (typeof renderizarProdutos === 'function') {
     try { renderizarProdutos(); } catch (err) { console.error("Erro na aba Produtos:", err); }
   }
