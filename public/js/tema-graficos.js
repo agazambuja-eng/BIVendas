@@ -75,6 +75,48 @@ function corEscuraDe(cor) {
   return par ? par[1] : ajustarCor(cor, -0.45);
 }
 
+// --------------------------------------------------- tooltip em HTML
+/**
+ * Tooltip desenhado fora do canvas (div fixa no body): em roscas pequenas
+ * (Comparar lojas, Indicações, Armações) o texto não fica cortado na borda.
+ * Usa os mesmos callbacks (title/label/footer) de cada gráfico.
+ */
+function tooltipHTMLExterno(context) {
+  const { chart, tooltip } = context;
+  let el = document.getElementById('tooltipGraficoHTML');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'tooltipGraficoHTML';
+    el.className = 'tooltip-grafico-html';
+    document.body.appendChild(el);
+  }
+  if (!tooltip || tooltip.opacity === 0) { el.style.opacity = '0'; return; }
+
+  const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const titulo = (tooltip.title || []).map(esc).join('<br>');
+  const linhas = (tooltip.body || []).map((b, i) => {
+    const cor = tooltip.labelColors && tooltip.labelColors[i];
+    const fundo = cor ? (cor.backgroundColor || cor.borderColor) : '#5ee7ff';
+    return `<div class="tg-linha"><i style="background:${fundo}"></i><span>${b.lines.map(l => esc(String(l).trim())).join('<br>')}</span></div>`;
+  }).join('');
+  const rodape = (tooltip.footer || []).map(esc).join('<br>');
+  el.innerHTML = (titulo ? `<div class="tg-titulo">${titulo}</div>` : '') + linhas + (rodape ? `<div class="tg-rodape">${rodape}</div>` : '');
+
+  // posição: ao lado do ponteiro, sem sair da tela
+  const r = chart.canvas.getBoundingClientRect();
+  el.style.opacity = '1';
+  const larg = el.offsetWidth, alt = el.offsetHeight;
+  let x = r.left + tooltip.caretX + 14;
+  let y = r.top + tooltip.caretY - alt / 2;
+  if (x + larg > window.innerWidth - 8) x = r.left + tooltip.caretX - larg - 14;
+  x = Math.max(8, x);
+  y = Math.max(8, Math.min(y, window.innerHeight - alt - 8));
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+}
+// some ao rolar / sair do gráfico
+window.addEventListener('scroll', () => { const el = document.getElementById('tooltipGraficoHTML'); if (el) el.style.opacity = '0'; }, true);
+
 // --------------------------------------------------- padrões globais
 function aplicarPadroesTema() {
   if (typeof Chart === 'undefined') return;
@@ -101,6 +143,14 @@ function aplicarPadroesTema() {
     padding: 10,
     cornerRadius: 8,
     boxPadding: 4
+  });
+
+  // Roscas: tooltip em HTML, por cima da página (não fica cortado em gráfico pequeno)
+  ['doughnut', 'pie'].forEach(tipo => {
+    const ov = Chart.overrides && Chart.overrides[tipo];
+    if (!ov) return;
+    ov.plugins = ov.plugins || {};
+    ov.plugins.tooltip = Object.assign({}, ov.plugins.tooltip, { enabled: false, external: tooltipHTMLExterno });
   });
 
   d.scale.grid.color = TEMA.grade;
