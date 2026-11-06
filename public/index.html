@@ -206,6 +206,25 @@
 
     </div>
 
+    <!-- Linha 3: Indicações (de onde vieram os clientes) -->
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <div class="titulo-com-acao" style="border-bottom: 1px solid #eee; padding-bottom: 10px;">
+        <h3 style="margin: 0; color: #333; font-size: 16px;">📣 Indicações (%) <small id="subIndicacoes" class="arm-sub"></small></h3>
+        <div class="ca-controles">
+          <div id="indicMetrica" class="ca-alternar">
+            <button type="button" data-m="vendas" onclick="escolherMetricaIndic('vendas')">Vendas</button>
+            <button type="button" data-m="valor" onclick="escolherMetricaIndic('valor')">Valor (R$)</button>
+          </div>
+          <button type="button" class="btn-comparar-lojas" onclick="abrirIndicacoesPorLoja()" title="Uma rosca por loja, lado a lado">🔎 Comparar lojas</button>
+        </div>
+      </div>
+      <p id="avisoIndicacoes" class="arm-vazio" style="display: none;"></p>
+      <div class="ind-corpo">
+        <div class="ind-grafico"><canvas id="graficoIndicacoes"></canvas></div>
+        <ul id="legendaIndicacoes" class="cl-lista ind-legenda"></ul>
+      </div>
+    </div>
+
   </div>
 
   <!-- === ABA 4: METAS (Meta do mês x Realizado por loja) === -->
@@ -474,6 +493,26 @@
     </div>
   </div>
 
+  <!-- Janela: Indicações por loja -->
+  <div id="modalIndicacoes" class="cl-overlay" style="display: none;" onclick="if (event.target === this) fecharIndicacoesPorLoja()">
+    <div class="cl-painel">
+      <div class="cl-cabecalho">
+        <div>
+          <h3 style="margin: 0; font-size: 18px;">📣 Comparar lojas · Indicações</h3>
+          <div id="subtituloIndicacoes" class="cl-subtitulo"></div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div id="indicMetricaJanela" class="ca-alternar">
+            <button type="button" data-m="vendas" onclick="escolherMetricaIndic('vendas')">Vendas</button>
+            <button type="button" data-m="valor" onclick="escolherMetricaIndic('valor')">Valor (R$)</button>
+          </div>
+          <button type="button" class="cfg-btn-fechar" onclick="fecharIndicacoesPorLoja()" title="Fechar (Esc)">✕</button>
+        </div>
+      </div>
+      <div id="gradeIndicacoes" class="cl-grade" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
   <!-- Janela: Armações por linha, com as grifes de cada uma -->
   <div id="modalArmacoes" class="cl-overlay" style="display: none;" onclick="if (event.target === this) fecharJanelaArmacoes()">
     <div class="cl-painel">
@@ -631,6 +670,7 @@
   <script src="/js/config-metas.js"></script>
   <script src="/js/comparativo.js"></script>
   <script src="/js/comparar-lojas.js"></script>
+  <script src="/js/indicacoes.js"></script>
   <script src="/js/produtos.js"></script>
   <script src="/js/detalhes-filtro.js"></script>
   <script src="/js/armacoes.js"></script>
