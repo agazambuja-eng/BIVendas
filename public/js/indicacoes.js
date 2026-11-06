@@ -120,7 +120,7 @@ function desenharIndicacoes() {
       <li class="${valIndic(x) === maior && maior > 0 ? 'cl-destaque' : ''}" title="${escHTML(x.nome)}: ${x.vendas} venda(s) · ${formatarMoedaBR(x.valor)}">
         <i style="background:${r.cores[x.nome]}; box-shadow: 0 0 8px ${r.cores[x.nome]};"></i>
         <span>${escHTML(x.nome)}</span>
-        <small>${indicMetrica === 'vendas' ? formatarMoedaBR(x.valor) : x.vendas + ' venda(s)'}</small>
+        <small>${fmtIndic(valIndic(x))}</small>
         <b>${pctIndic(valIndic(x), total)}</b>
       </li>`).join('') : '';
   }
