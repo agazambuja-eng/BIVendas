@@ -117,3 +117,48 @@ function expandirListaArm(abrir, event) {
   }
   renderizarListaArmacoes();
 }
+
+/* ---------- Tela cheia só deste quadro ---------- */
+function listaArmEmTelaCheia() {
+  const q = document.getElementById('quadroListaArmacoes');
+  return !!q && (document.fullscreenElement === q || q.classList.contains('la-tela-cheia'));
+}
+
+async function alternarTelaCheiaListaArm(event) {
+  if (event) event.stopPropagation();   // não abre/fecha a lista
+  const q = document.getElementById('quadroListaArmacoes');
+  if (!q) return;
+  if (listaArmEmTelaCheia()) {
+    if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+    q.classList.remove('la-tela-cheia');
+  } else {
+    if (!listaArmAberta) { listaArmAberta = true; renderizarListaArmacoes(); }
+    q.classList.add('la-tela-cheia');   // estilo da tela cheia (vale também se o navegador bloquear o modo nativo)
+    if (q.requestFullscreen) await q.requestFullscreen().catch(() => {});
+  }
+  atualizarBotaoTelaCheiaListaArm();
+}
+
+function atualizarBotaoTelaCheiaListaArm() {
+  const btn = document.getElementById('btnTelaCheiaListaArm');
+  const ativo = listaArmEmTelaCheia();
+  if (btn) {
+    btn.textContent = ativo ? '✕ Voltar ao normal' : '⛶ Tela cheia';
+    btn.title = ativo ? 'Sair da tela cheia (Esc)' : 'Ver só esta lista em tela cheia (Esc para sair)';
+    btn.classList.toggle('ativo', ativo);
+  }
+}
+
+// Esc / botão do navegador saem do modo nativo: tira o estilo também
+document.addEventListener('fullscreenchange', () => {
+  const q = document.getElementById('quadroListaArmacoes');
+  if (q && document.fullscreenElement !== q) q.classList.remove('la-tela-cheia');
+  atualizarBotaoTelaCheiaListaArm();
+});
+document.addEventListener('keydown', e => {
+  const q = document.getElementById('quadroListaArmacoes');
+  if (e.key === 'Escape' && q && q.classList.contains('la-tela-cheia') && !document.fullscreenElement) {
+    q.classList.remove('la-tela-cheia');
+    atualizarBotaoTelaCheiaListaArm();
+  }
+});

@@ -425,3 +425,15 @@ th.filtrada { color: #5ee7ff !important; }
 .pf-rodape { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
 .pf-rodape button { padding: 5px 10px !important; font-size: 12px !important; border-radius: 6px !important; }
 .pf-cancelar, .pf-limpar { background: rgba(120,140,255,.12) !important; box-shadow: none !important; color: #c9cff5 !important; }
+
+/* Lista de armações: tela cheia só do quadro */
+.la-btn-tela { padding: 5px 12px !important; font-size: 12px !important; border-radius: 8px !important; margin-left: 6px;
+  background: rgba(94,231,255,.08) !important; border: 1px solid rgba(94,231,255,.35) !important; color: #5ee7ff !important; box-shadow: none !important; }
+.la-btn-tela:hover, .la-btn-tela.ativo { background: rgba(94,231,255,.2) !important; color: #fff !important; box-shadow: 0 0 12px rgba(94,231,255,.35) !important; }
+.la-btn-tela.ativo { border-color: #ff5c8a !important; background: rgba(255,92,138,.18) !important; }
+#quadroListaArmacoes.la-tela-cheia { position: fixed !important; inset: 0; z-index: 4000; margin: 0; border-radius: 0 !important;
+  padding: 18px 22px !important; display: flex; flex-direction: column; box-sizing: border-box;
+  background: radial-gradient(120% 120% at 0% 0%, #1a2150 0%, #0d1130 55%, #080b1f 100%) !important; }
+#quadroListaArmacoes.la-tela-cheia .la-corpo { flex: 1; max-height: none; min-height: 0; }
+#quadroListaArmacoes.la-tela-cheia .la-tabela { font-size: 13px; }
+#quadroListaArmacoes:fullscreen { width: 100vw; height: 100vh; }
