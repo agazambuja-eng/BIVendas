@@ -490,3 +490,7 @@ th.filtrada { color: #5ee7ff !important; }
 .lf-top-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lf-top-item b { color: var(--cor-marca); white-space: nowrap; }
 .lf-btn-lojas { align-self: flex-end; margin-top: auto; }
+
+.lf-geral-legenda { flex: 0 1 520px !important; max-width: 520px; }
+.lf-geral-legenda li small { grid-column: 2; grid-row: 2; font-size: 11px; color: #8a93c9; }
+.lf-marca { font-style: normal; font-weight: normal; font-size: 11px; color: #8a93c9; margin-left: 4px; }
