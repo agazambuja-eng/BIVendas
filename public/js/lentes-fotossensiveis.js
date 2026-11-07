@@ -8,7 +8,8 @@
  *   HOYA             -> descrição com SENSITY
  *
  * Grupo (100%) = itens da marca (pela grife ou, sem grife, pela descrição),
- * sem armações. Alterna Unidades / Valor (R$).
+ * sem armações. Alterna Pares / Valor (R$). Quantidade em PARES:
+ * a API conta peças (2 lentes = 1 par).
  */
 
 const MARCAS_FOTO = [
@@ -17,6 +18,7 @@ const MARCAS_FOTO = [
   { chave: 'HOYA', titulo: 'HOYA', tecnologia: 'SENSITY', marca: /HOYA/, foto: /SENSITY/, cor: '#ffd35e' }
 ];
 const COR_DEMAIS_LENTES = '#3a4170';
+const PECAS_POR_PAR = 2;      // QUANTIDADE da API conta lentes (peças); 2 peças = 1 par = 1 venda
 
 let fotoMetrica = 'qtd';      // 'qtd' ou 'liquido'
 let resumoFoto = null;
@@ -38,7 +40,8 @@ function resumirLentesFoto(dados, campos) {
     const marca = (grife && MARCAS_FOTO.find(m => m.marca.test(grife))) ||
                   MARCAS_FOTO.find(m => m.marca.test(desc)) || MARCAS_FOTO.find(m => m.foto.test(desc));
     if (!marca) return;
-    const q = parseNumeroBR(item.QUANTIDADE) || 0;
+    // lente vem por peça na API (QUANTIDADE 2 = 1 par): conta em PARES
+    const q = (parseNumeroBR(item.QUANTIDADE) || 0) / PECAS_POR_PAR;
     const v = parseNumeroBR(item.LIQUIDOPRODUTO);
     const g = r[marca.chave];
     g.total.qtd += q; g.total.liquido += v;
@@ -61,7 +64,11 @@ function resumirLentesFoto(dados, campos) {
   return MARCAS_FOTO.map(m => r[m.chave]);
 }
 
-const fmtFoto = v => fotoMetrica === 'qtd' ? `${Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.` : formatarMoedaBR(v);
+const fmtFoto = v => {
+  if (fotoMetrica !== 'qtd') return formatarMoedaBR(v);
+  const n = Number(v) || 0;
+  return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ${Math.abs(n - 1) < 1e-9 ? 'par' : 'pares'}`;
+};
 const pctFoto = (v, t) => (t > 0 ? (v / t) * 100 : 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 
 /** Chamado por renderizarProdutos (produtos.js). */
