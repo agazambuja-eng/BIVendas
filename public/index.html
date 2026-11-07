@@ -334,6 +334,11 @@
       <div class="bi-card" style="border-left-color: #ff5c8a; padding: 10px;"><div class="bi-card-title" style="font-size: 11px;">DESCONTO MÉDIO</div><div class="bi-card-value" id="cardProdDesconto">0%</div></div>
     </div>
 
+    <section id="secaoArmacoesSolares" class="secao-prod">
+      <div class="secao-prod-cab" onclick="alternarSecaoProdutos('secaoArmacoesSolares')" title="Clique para abrir ou fechar">
+        <h3><span class="secao-prod-seta">▸</span> 🕶️ Armações e Solares</h3>
+      </div>
+      <div class="secao-prod-corpo">
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
       <div class="titulo-com-acao">
         <h4 style="margin: 0; font-size: 15px;">🕶️ Armações · participação por linha <small id="subArmacoes" class="arm-sub"></small></h4>
@@ -358,6 +363,26 @@
       </div>
       <div id="listaArmacoesCorpo" class="la-corpo"></div>
     </div>
+      </div>
+    </section>
+
+    <section id="secaoLentesFoto" class="secao-prod">
+      <div class="secao-prod-cab" onclick="alternarSecaoProdutos('secaoLentesFoto')" title="Clique para abrir ou fechar">
+        <h3><span class="secao-prod-seta">▸</span> 🌗 Lentes fotossensíveis <small id="subLentesFoto" class="arm-sub"></small></h3>
+        <div id="fotoMetrica" class="ca-alternar" onclick="event.stopPropagation()">
+          <button type="button" data-m="qtd" onclick="escolherMetricaFoto('qtd')">Unidades</button>
+          <button type="button" data-m="liquido" onclick="escolherMetricaFoto('liquido')">Valor (R$)</button>
+        </div>
+      </div>
+      <div class="secao-prod-corpo">
+        <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+          <p class="lf-ajuda">Quanto das lentes de cada marca saiu com a tecnologia fotossensível dela, lido na descrição do produto:
+            <b>ZEISS</b> → PHOTOFUSION · <b>ESSILOR / VARILUX</b> → TRANSITIONS · <b>HOYA</b> → SENSITY.
+            100% = todos os itens da marca na consulta (armações ficam de fora).</p>
+          <div id="gradeLentesFoto" class="lf-grade"></div>
+        </div>
+      </div>
+    </section>
 
   </div>
 
@@ -675,6 +700,7 @@
   <script src="/js/detalhes-filtro.js"></script>
   <script src="/js/armacoes.js"></script>
   <script src="/js/listar-armacoes.js"></script>
+  <script src="/js/lentes-fotossensiveis.js"></script>
   <script src="/js/comparativo-armacoes.js"></script>
 </body>
 </html>
