@@ -376,10 +376,29 @@
       </div>
       <div class="secao-prod-corpo">
         <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-          <p class="lf-ajuda">Quanto das lentes de cada marca saiu com a tecnologia fotossensível dela, lido na descrição do produto:
-            <b>ZEISS</b> → PHOTOFUSION · <b>ESSILOR / VARILUX</b> → TRANSITIONS · <b>HOYA</b> → SENSITY.
-            100% = todos os itens da marca na consulta (armações ficam de fora). Quantidade em <b>pares</b> (2 lentes = 1 par).</p>
-          <div id="gradeLentesFoto" class="lf-grade"></div>
+          <div class="titulo-com-acao">
+            <h4 style="margin: 0; font-size: 15px;">🌗 Venda de fotossensíveis · Photofusion, Transitions e Sensity</h4>
+            <div class="ca-controles">
+              <button type="button" id="btnFotoFabricante" class="ca-expandir" onclick="alternarExpandirFoto('fabricante')">▸ Expandir fabricante</button>
+              <button type="button" id="btnFotoLoja" class="ca-expandir" onclick="alternarExpandirFoto('loja')">▸ Expandir loja</button>
+            </div>
+          </div>
+          <div class="ind-corpo">
+            <div class="ind-grafico"><canvas id="graficoFotoGeral"></canvas></div>
+            <ul id="legendaFotoGeral" class="arm-legenda lf-geral-legenda"></ul>
+          </div>
+
+          <div id="blocoFotoFabricante" class="ca-graficos" style="display: none;">
+            <div class="ca-graf-cabecalho">🏭 Por fabricante · quanto das lentes de cada marca saiu fotossensível</div>
+            <p class="lf-ajuda">Lido na descrição do produto: <b>ZEISS</b> → PHOTOFUSION · <b>ESSILOR / VARILUX</b> → TRANSITIONS · <b>HOYA</b> → SENSITY.
+              100% = todos os itens da marca na consulta (armações ficam de fora). Quantidade em <b>pares</b> (2 lentes = 1 par).</p>
+            <div id="gradeLentesFoto" class="lf-grade"></div>
+          </div>
+
+          <div id="blocoFotoLoja" class="ca-graficos" style="display: none;">
+            <div class="ca-graf-cabecalho">🏬 Por loja · quanto cada fotossensível representa nas vendas de fotossensíveis da loja</div>
+            <div id="gradeFotoLojas" class="cl-grade"></div>
+          </div>
         </div>
       </div>
     </section>
