@@ -370,7 +370,7 @@
       <div class="secao-prod-cab" onclick="alternarSecaoProdutos('secaoLentesFoto')" title="Clique para abrir ou fechar">
         <h3><span class="secao-prod-seta">▸</span> 🌗 Lentes fotossensíveis <small id="subLentesFoto" class="arm-sub"></small></h3>
         <div id="fotoMetrica" class="ca-alternar" onclick="event.stopPropagation()">
-          <button type="button" data-m="qtd" onclick="escolherMetricaFoto('qtd')">Unidades</button>
+          <button type="button" data-m="qtd" onclick="escolherMetricaFoto('qtd')">Pares</button>
           <button type="button" data-m="liquido" onclick="escolherMetricaFoto('liquido')">Valor (R$)</button>
         </div>
       </div>
@@ -378,7 +378,7 @@
         <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
           <p class="lf-ajuda">Quanto das lentes de cada marca saiu com a tecnologia fotossensível dela, lido na descrição do produto:
             <b>ZEISS</b> → PHOTOFUSION · <b>ESSILOR / VARILUX</b> → TRANSITIONS · <b>HOYA</b> → SENSITY.
-            100% = todos os itens da marca na consulta (armações ficam de fora).</p>
+            100% = todos os itens da marca na consulta (armações ficam de fora). Quantidade em <b>pares</b> (2 lentes = 1 par).</p>
           <div id="gradeLentesFoto" class="lf-grade"></div>
         </div>
       </div>
@@ -528,7 +528,7 @@
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
           <div id="fotoMetricaJanela" class="ca-alternar">
-            <button type="button" data-m="qtd" onclick="escolherMetricaFotoJanela('qtd')">Unidades</button>
+            <button type="button" data-m="qtd" onclick="escolherMetricaFotoJanela('qtd')">Pares</button>
             <button type="button" data-m="liquido" onclick="escolherMetricaFotoJanela('liquido')">Valor (R$)</button>
           </div>
           <button type="button" class="cfg-btn-fechar" onclick="fecharLentesFotoPorLoja()" title="Fechar (Esc)">✕</button>
