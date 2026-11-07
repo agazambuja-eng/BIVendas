@@ -489,3 +489,4 @@ th.filtrada { color: #5ee7ff !important; }
 .lf-top-item { display: flex; gap: 8px; justify-content: space-between; color: #c9cff5; padding: 2px 0; }
 .lf-top-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lf-top-item b { color: var(--cor-marca); white-space: nowrap; }
+.lf-btn-lojas { align-self: flex-end; margin-top: auto; }
