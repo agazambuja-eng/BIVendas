@@ -494,3 +494,9 @@ th.filtrada { color: #5ee7ff !important; }
 .lf-geral-legenda { flex: 0 1 520px !important; max-width: 520px; }
 .lf-geral-legenda li small { grid-column: 2; grid-row: 2; font-size: 11px; color: #8a93c9; }
 .lf-marca { font-style: normal; font-weight: normal; font-size: 11px; color: #8a93c9; margin-left: 4px; }
+
+/* Comparativo · Pesquisa especial */
+.pesq-busca { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.pesq-busca input { flex: 1; min-width: 260px; padding: 10px 12px; font-size: 14px; }
+.pesq-btn { padding: 10px 18px !important; font-size: 14px !important; white-space: nowrap; }
+.pesq-cor { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }

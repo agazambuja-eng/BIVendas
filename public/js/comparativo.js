@@ -79,7 +79,8 @@ function resumirVendas(itens, lojasFiltro) {
   const total = Object.values(porLoja).reduce((s, v) => s + v, 0);
   const qtdTotal = Object.values(vendas).reduce((s, v) => s + v, 0);
   const armacoes = typeof resumirArmacoesDoPeriodo === 'function' ? resumirArmacoesDoPeriodo(filtrados) : {};
-  return { porLoja, vendas, total, qtdTotal, armacoes };
+  const codigos = typeof resumirCodigosDoPeriodo === 'function' ? resumirCodigosDoPeriodo(filtrados) : {};
+  return { porLoja, vendas, total, qtdTotal, armacoes, codigos };
 }
 
 function isoParaBR(iso) {
@@ -234,6 +235,9 @@ function renderizarComparativo({ periodos, porPeriodo }) {
 
   // ---- ARMAÇÕES: RX, Sun, Clip-on (comparativo-armacoes.js)
   if (typeof renderizarComparativoArmacoes === 'function') renderizarComparativoArmacoes({ periodos, porPeriodo });
+
+  // ---- PESQUISA ESPECIAL por código de produto (pesquisa-especial.js)
+  if (typeof renderizarPesquisaEspecial === 'function') renderizarPesquisaEspecial({ periodos, porPeriodo });
 }
 
 const graficosComparativo = { vendas: null, ticket: null };
