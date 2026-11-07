@@ -169,6 +169,7 @@ function renderizarProdutos() {
 
   renderizarGraficosProdutos(grifes, linhas, campos);
   if (typeof renderizarArmacoes === 'function') renderizarArmacoes(dados, campos);
+  if (typeof renderizarLentesFoto === 'function') renderizarLentesFoto(dados, campos);
   renderizarTabelaGrifes(grifes, totLiq, campos);
   renderizarTabelaProdutos();
 }
