@@ -518,6 +518,26 @@
     </div>
   </div>
 
+  <!-- Janela: Lentes fotossensíveis por loja (uma marca) -->
+  <div id="modalLentesFoto" class="cl-overlay" style="display: none;" onclick="if (event.target === this) fecharLentesFotoPorLoja()">
+    <div class="cl-painel">
+      <div class="cl-cabecalho">
+        <div>
+          <h3 id="tituloLentesFoto" style="margin: 0; font-size: 18px;">🌗 Lentes fotossensíveis por loja</h3>
+          <div id="subtituloLentesFoto" class="cl-subtitulo"></div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div id="fotoMetricaJanela" class="ca-alternar">
+            <button type="button" data-m="qtd" onclick="escolherMetricaFotoJanela('qtd')">Unidades</button>
+            <button type="button" data-m="liquido" onclick="escolherMetricaFotoJanela('liquido')">Valor (R$)</button>
+          </div>
+          <button type="button" class="cfg-btn-fechar" onclick="fecharLentesFotoPorLoja()" title="Fechar (Esc)">✕</button>
+        </div>
+      </div>
+      <div id="gradeLentesFotoLojas" class="cl-grade" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
   <!-- Janela: Indicações por loja -->
   <div id="modalIndicacoes" class="cl-overlay" style="display: none;" onclick="if (event.target === this) fecharIndicacoesPorLoja()">
     <div class="cl-painel">
