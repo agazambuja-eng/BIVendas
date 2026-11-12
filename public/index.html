@@ -491,6 +491,9 @@
       </div>
       <div class="pesq-busca">
         <input type="text" id="pesqCodigos" placeholder="Código do produto (um ou mais, separados por vírgula). Ex.: 14041873, 2008620" autocomplete="off">
+        <button type="button" class="pesq-lupa" onclick="abrirBuscaProdutos()" title="Procurar produto pelo nome (ex.: ray ban)" aria-label="Procurar produto pelo nome">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path></svg>
+        </button>
         <button type="button" class="pesq-btn" onclick="executarPesquisaEspecial()">🔎 Pesquisar</button>
         <button type="button" class="tv-link" onclick="limparPesquisaEspecial()">Limpar</button>
       </div>
@@ -581,6 +584,27 @@
         </div>
       </div>
       <div id="gradeLentesFotoLojas" class="cl-grade" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
+  <!-- Janela: procurar produto pelo nome (Pesquisa especial) -->
+  <div id="modalBuscaProdutos" class="cl-overlay" style="display: none;" onclick="if (event.target === this) fecharBuscaProdutos()">
+    <div class="cl-painel bp-painel">
+      <div class="cl-cabecalho">
+        <div>
+          <h3 style="margin: 0; font-size: 18px;">🔍 Procurar produto</h3>
+          <div id="bpSubtitulo" class="cl-subtitulo"></div>
+        </div>
+        <button type="button" class="cfg-btn-fechar" onclick="fecharBuscaProdutos()" title="Fechar (Esc)">✕</button>
+      </div>
+      <input type="search" id="bpBusca" class="bp-busca" placeholder="Digite parte do nome, grife ou código. Ex.: ray ban 3741" oninput="renderizarBuscaProdutos()" autocomplete="off">
+      <div id="bpLista" class="bp-lista"></div>
+      <div class="bp-rodape">
+        <span id="bpSelecionados" class="cl-subtitulo"></span>
+        <span style="flex: 1"></span>
+        <button type="button" class="tv-link" onclick="limparSelecaoBusca()">Limpar seleção</button>
+        <button type="button" class="pesq-btn" onclick="usarProdutosSelecionados()">Adicionar e pesquisar</button>
+      </div>
     </div>
   </div>
 

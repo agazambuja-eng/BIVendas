@@ -500,3 +500,24 @@ th.filtrada { color: #5ee7ff !important; }
 .pesq-busca input { flex: 1; min-width: 260px; padding: 10px 12px; font-size: 14px; }
 .pesq-btn { padding: 10px 18px !important; font-size: 14px !important; white-space: nowrap; }
 .pesq-cor { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+
+/* Pesquisa especial: lupa e janela de produtos */
+.pesq-lupa { width: 46px; height: 44px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px !important;
+  background: rgba(94,231,255,.1) !important; border: 1px solid rgba(94,231,255,.45) !important; color: #5ee7ff !important; box-shadow: none !important; }
+.pesq-lupa:hover { background: rgba(94,231,255,.22) !important; color: #fff !important; box-shadow: 0 0 14px rgba(94,231,255,.4) !important; }
+.bp-painel { max-width: 860px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 48px); }
+.bp-busca { width: 100%; box-sizing: border-box; padding: 12px 14px; font-size: 15px; }
+.bp-lista { flex: 1; min-height: 200px; max-height: 58vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+.bp-item { display: grid; grid-template-columns: 26px 110px 1fr auto; gap: 10px; align-items: center; text-align: left; width: 100%;
+  padding: 10px 12px !important; border-radius: 10px !important; background: rgba(10,14,38,.6) !important; border: 1px solid rgba(120,140,255,.18) !important;
+  color: #e8ecff !important; font-size: 13px !important; font-weight: normal !important; box-shadow: none !important; cursor: pointer; }
+.bp-item:hover { border-color: rgba(94,231,255,.5) !important; background: rgba(94,231,255,.07) !important; }
+.bp-item.marcado { border-color: #5ee7ff !important; background: rgba(94,231,255,.14) !important; }
+.bp-check { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid #5ee7ff; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #0b0f2a; }
+.bp-item.marcado .bp-check { background: #5ee7ff; }
+.bp-cod { color: #5ee7ff; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bp-desc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bp-desc small { color: #8a93c9; margin-left: 8px; font-size: 11px; }
+.bp-qtd { color: #8a93c9; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bp-aviso { color: #8a93c9; font-size: 12px; text-align: center; margin: 6px 0; }
+.bp-rodape { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid rgba(120,140,255,.18); padding-top: 12px; }
