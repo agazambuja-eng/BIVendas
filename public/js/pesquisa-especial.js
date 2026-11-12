@@ -39,7 +39,7 @@ function resumirCodigosDoPeriodo(itens) {
     if (!codigo) return;
     const q = parseNumeroBR(item.QUANTIDADE) || 0;
     const v = parseNumeroBR(item.LIQUIDOPRODUTO);
-    const c = r[codigo] || (r[codigo] = { descricao, qtd: 0, liquido: 0, lojas: {} });
+    const c = r[codigo] || (r[codigo] = { descricao, grife: String(item.GRIFE || item.MARCA || '').trim(), qtd: 0, liquido: 0, lojas: {} });
     if (!c.descricao && descricao) c.descricao = descricao;
     c.qtd += q; c.liquido += v;
     const loja = typeof idLojaDoItem === 'function' ? idLojaDoItem(item) : '?';
@@ -172,4 +172,118 @@ document.addEventListener('DOMContentLoaded', () => {
   try { campo.value = localStorage.getItem(CHAVE_PESQUISA) || ''; } catch { /* sem armazenamento */ }
   campo.addEventListener('keydown', e => { if (e.key === 'Enter') executarPesquisaEspecial(); });
   if (campo.value.trim()) pesqCodigos = [...new Set(campo.value.split(/[,;\s]+/).map(normalizarCodigoProduto).filter(Boolean))];
+});
+
+/* ---------- Lupa: procurar produto pelo nome ---------- */
+let bpCatalogo = [];          // [{ codigo, descricao, grife, qtd, liquido, chave }]
+const bpSelecao = new Set();
+const BP_LIMITE = 300;
+
+function semAcentoBusca(t) {
+  return String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+}
+
+/** Produtos únicos (por código) de todos os períodos já carregados; sem comparativo, da consulta atual. */
+function montarCatalogoBusca() {
+  const mapa = {};
+  const somar = r => Object.entries(r || {}).forEach(([cod, c]) => {
+    const p = mapa[cod] || (mapa[cod] = { codigo: cod, descricao: c.descricao || '', grife: c.grife || '', qtd: 0, liquido: 0 });
+    if (!p.descricao && c.descricao) p.descricao = c.descricao;
+    if (!p.grife && c.grife) p.grife = c.grife;
+    p.qtd += c.qtd; p.liquido += c.liquido;
+  });
+  let origem;
+  if (ultimoComparativoPesq) {
+    ultimoComparativoPesq.porPeriodo.forEach(r => somar(r && r.codigos));
+    origem = `${ultimoComparativoPesq.periodos.length} período(s) do comparativo`;
+  } else {
+    const dados = typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : [];
+    somar(resumirCodigosDoPeriodo(dados));
+    origem = 'consulta atual';
+  }
+  bpCatalogo = Object.values(mapa)
+    .map(p => ({ ...p, chave: semAcentoBusca(`${p.codigo} ${p.descricao} ${p.grife}`) }))
+    .sort((a, b) => b.qtd - a.qtd || a.descricao.localeCompare(b.descricao));
+  return origem;
+}
+
+function abrirBuscaProdutos() {
+  const origem = montarCatalogoBusca();
+  bpSelecao.clear();
+  const modal = document.getElementById('modalBuscaProdutos');
+  document.getElementById('bpSubtitulo').textContent = bpCatalogo.length
+    ? `${bpCatalogo.length.toLocaleString('pt-BR')} produtos vendidos · ${origem} · clique para marcar um ou mais`
+    : 'Nenhum produto carregado: faça uma consulta primeiro.';
+  const busca = document.getElementById('bpBusca');
+  busca.value = '';
+  renderizarBuscaProdutos();
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('aberto'));
+  setTimeout(() => busca.focus(), 50);
+}
+
+function fecharBuscaProdutos() {
+  const modal = document.getElementById('modalBuscaProdutos');
+  if (!modal) return;
+  modal.classList.remove('aberto');
+  setTimeout(() => { modal.style.display = 'none'; }, 250);
+}
+
+function renderizarBuscaProdutos() {
+  const lista = document.getElementById('bpLista');
+  if (!lista) return;
+  const termos = semAcentoBusca(document.getElementById('bpBusca').value).split(/\s+/).filter(Boolean);
+  const achados = termos.length ? bpCatalogo.filter(p => termos.every(t => p.chave.includes(t))) : bpCatalogo;
+  const mostrar = achados.slice(0, BP_LIMITE);
+  lista.innerHTML = mostrar.map(p => `
+    <button type="button" class="bp-item ${bpSelecao.has(p.codigo) ? 'marcado' : ''}" data-cod="${escHTML(p.codigo)}" onclick="alternarProdutoBusca(this.dataset.cod)">
+      <span class="bp-check" aria-hidden="true">${bpSelecao.has(p.codigo) ? '✓' : ''}</span>
+      <span class="bp-cod">${escHTML(p.codigo)}</span>
+      <span class="bp-desc">${escHTML(p.descricao || '—')}${p.grife ? `<small>${escHTML(p.grife)}</small>` : ''}</span>
+      <span class="bp-qtd">${p.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</span>
+    </button>`).join('') +
+    (achados.length > BP_LIMITE ? `<p class="bp-aviso">Mostrando ${BP_LIMITE} de ${achados.length.toLocaleString('pt-BR')} · digite mais para filtrar</p>` : '') +
+    (!achados.length && bpCatalogo.length ? '<p class="bp-aviso">Nenhum produto encontrado com esse texto.</p>' : '');
+  atualizarSelecaoBusca();
+}
+
+function alternarProdutoBusca(cod) {
+  if (bpSelecao.has(cod)) bpSelecao.delete(cod); else bpSelecao.add(cod);
+  const el = document.querySelector(`#bpLista .bp-item[data-cod="${CSS.escape(cod)}"]`);
+  if (el) {
+    el.classList.toggle('marcado', bpSelecao.has(cod));
+    el.querySelector('.bp-check').textContent = bpSelecao.has(cod) ? '✓' : '';
+  }
+  atualizarSelecaoBusca();
+}
+
+function limparSelecaoBusca() {
+  bpSelecao.clear();
+  renderizarBuscaProdutos();
+}
+
+function atualizarSelecaoBusca() {
+  const el = document.getElementById('bpSelecionados');
+  if (el) el.textContent = bpSelecao.size ? `${bpSelecao.size} selecionado(s): ${[...bpSelecao].slice(0, 6).join(', ')}${bpSelecao.size > 6 ? '…' : ''}` : 'Nenhum selecionado';
+}
+
+/** Junta os códigos marcados ao que já está no campo (sem repetir) e pesquisa. */
+function usarProdutosSelecionados() {
+  if (!bpSelecao.size) return fecharBuscaProdutos();
+  const campo = document.getElementById('pesqCodigos');
+  const atuais = String(campo.value).split(/[,;\s]+/).map(normalizarCodigoProduto).filter(Boolean);
+  campo.value = [...new Set(atuais.concat([...bpSelecao]))].join(', ');
+  fecharBuscaProdutos();
+  executarPesquisaEspecial();
+}
+
+document.addEventListener('keydown', e => {
+  const modal = document.getElementById('modalBuscaProdutos');
+  if (!modal || !modal.classList.contains('aberto')) return;
+  if (e.key === 'Escape') fecharBuscaProdutos();
+  if (e.key === 'Enter' && e.target && e.target.id === 'bpBusca') {
+    // Enter com um só resultado: marca ele
+    const itens = document.querySelectorAll('#bpLista .bp-item');
+    if (itens.length === 1) alternarProdutoBusca(itens[0].dataset.cod);
+  }
 });
