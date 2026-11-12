@@ -177,6 +177,7 @@ function nomeLojaComparativo(id) {
 }
 
 function renderizarComparativo({ periodos, porPeriodo }) {
+  ultimoRenderComparativo = { periodos, porPeriodo };
   const d = new Date();
   const hoje = isoData(d.getFullYear(), d.getMonth() + 1, d.getDate());
   const ult = periodos.length - 1;
@@ -241,6 +242,13 @@ function renderizarComparativo({ periodos, porPeriodo }) {
 }
 
 const graficosComparativo = { vendas: null, ticket: null };
+const tabelasComparativoAbertas = {};   // corpoId -> true quando as lojas estão abertas
+let ultimoRenderComparativo = null;
+
+function alternarTabelaComparativo(corpoId) {
+  tabelasComparativoAbertas[corpoId] = !tabelasComparativoAbertas[corpoId];
+  if (ultimoRenderComparativo) renderizarComparativo(ultimoRenderComparativo);
+}
 
 /** Gráfico de linhas (loja a loja + rede) e tabela com variações. Devolve o gráfico. */
 function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, valorRede, rotuloRede, eixoRedeSeparado, anterior }) {
@@ -303,7 +311,13 @@ function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, 
       <td style="padding: 7px 8px; text-align: right;">${variacaoHTML(valores[valores.length - 1], valores[valores.length - 2])}</td>
       <td style="padding: 7px 8px; text-align: right;">${variacaoHTML(valores[valores.length - 1], valores[0])}</td>
     </tr>`;
-    corpo.innerHTML = ids.map(id => linha(escHTML(nomeLojaComparativo(id)), valorLoja(id), false)).join('')
+    // Lojas recolhidas por padrão: triângulo abre/fecha (estado lembrado por tabela)
+    const aberta = !!tabelasComparativoAbertas[corpoId];
+    const cols = periodos.length + 3;
+    const alternar = `<tr class="cmp-alternar" onclick="alternarTabelaComparativo('${corpoId}')" title="Clique para ${aberta ? 'recolher' : 'ver'} as lojas">
+      <td colspan="${cols}" style="padding: 8px;"><span class="la-seta ${aberta ? 'aberta' : ''}">▸</span> ${aberta ? 'Recolher lojas' : `Ver lojas (${ids.length})`}</td></tr>`;
+    corpo.innerHTML = alternar
+      + (aberta ? ids.map(id => linha(escHTML(nomeLojaComparativo(id)), valorLoja(id), false)).join('') : '')
       + linha(rotuloRede.toUpperCase(), valorRede, true);
   }
   return grafico;

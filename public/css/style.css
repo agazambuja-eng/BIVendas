@@ -521,3 +521,7 @@ th.filtrada { color: #5ee7ff !important; }
 .bp-qtd { color: #8a93c9; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bp-aviso { color: #8a93c9; font-size: 12px; text-align: center; margin: 6px 0; }
 .bp-rodape { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid rgba(120,140,255,.18); padding-top: 12px; }
+
+/* Comparativo: tabelas com lojas recolhidas */
+.cmp-alternar { cursor: pointer; color: #5ee7ff; font-weight: 600; user-select: none; }
+.cmp-alternar:hover td { background: rgba(94,231,255,.07); }
