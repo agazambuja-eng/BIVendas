@@ -273,9 +273,8 @@ function renderizarGraficosExpandidosCompArm(periodos, resumos, linhas) {
   const blocos = [
     { tipo: 'grifes', ligado: compArmExpandirGrifes, caixa: 'compArmGraficosGrifes', titulo: 'grifes', campo: 'grifes',
       nome: k => k },
-    { tipo: 'lojas', ligado: compArmExpandirLojas, caixa: 'compArmGraficosLojas', titulo: 'lojas', campo: 'lojas',
-      nome: k => (typeof nomeLojaComparativo === 'function' ? nomeLojaComparativo(k) : `Loja ${k}`) }
   ];
+  renderizarLinhasPorLojaCompArm(periodos, resumos, linhas);
   blocos.forEach(b => {
     const caixa = document.getElementById(b.caixa);
     if (!caixa) return;
@@ -324,6 +323,47 @@ function renderizarGraficosExpandidosCompArm(periodos, resumos, linhas) {
   });
 }
 
+/** "Por loja": um gráfico por loja com a evolução de Armação RX, Sun e Clip-on. */
+function renderizarLinhasPorLojaCompArm(periodos, resumos, linhas) {
+  const caixa = document.getElementById('compArmGraficosLojas');
+  if (!caixa) return;
+  caixa.style.display = compArmExpandirLojas ? '' : 'none';
+  if (!compArmExpandirLojas) { caixa.innerHTML = ''; return; }
+  const total = {};
+  resumos.forEach(r => linhas.forEach(l => Object.entries(r[l.chave]?.lojas || {}).forEach(([id, v]) => { total[id] = (total[id] || 0) + valorArm(v); })));
+  const ids = Object.keys(total).filter(id => id !== '?').sort((a, b) => total[b] - total[a]);
+  const nomeLoja = id => (typeof nomeLojaComparativo === 'function' ? nomeLojaComparativo(id) : `Loja ${id}`);
+  caixa.innerHTML = `<div class="ca-graf-cabecalho">🏬 Evolução de Armação RX, Sun e Clip-on em cada loja</div>
+    ${ids.length ? `<div class="ca-graf-grade">${ids.map((id, i) => `
+      <div class="ca-graf-card" style="--cor-linha:${CORES_PALETA[i % CORES_PALETA.length]}">
+        <div class="ca-graf-titulo">${escHTML(nomeLoja(id))} <small>${fmtArm(total[id])} nos períodos</small></div>
+        <div class="ca-graf-area"><canvas id="caGrafLoja_${i}"></canvas></div>
+      </div>`).join('')}</div>` : '<p class="arm-vazio">Sem vendas nos períodos.</p>'}`;
+  ids.forEach((id, i) => {
+    const canvas = document.getElementById(`caGrafLoja_${i}`);
+    if (!canvas) return;
+    graficosExpandidosCompArm.push(new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: periodos.map(p => p.rotulo),
+        datasets: linhas.map(l => ({
+          label: `${l.icone} ${l.titulo}`, data: resumos.map(r => valorArm(r[l.chave]?.lojas?.[id])),
+          borderColor: l.cor, backgroundColor: l.cor, tension: 0.3, borderWidth: 2.5, pointRadius: 4, fill: false
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } },
+          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtArm(c.raw)}` } }
+        },
+        scales: { y: { beginAtZero: true, ticks: { precision: compArmMetrica === 'qtd' ? 0 : undefined, callback: v => compArmMetrica === 'qtd' ? Number(v).toLocaleString('pt-BR') : 'R$ ' + Number(v).toLocaleString('pt-BR') } } }
+      }
+    }));
+  });
+}
+
 function redesenharComparativoArmacoes() {
   if (ultimoComparativoArm) renderizarComparativoArmacoes(ultimoComparativoArm);
 }
@@ -333,10 +373,13 @@ function escolherMetricaCompArm(m) {
   redesenharComparativoArmacoes();
 }
 
+/** Um modo de cada vez: clicar em outro troca; clicar no ativo fecha. */
 function alternarExpandirCompArm(tipo) {
-  if (tipo === 'grifes') compArmExpandirGrifes = !compArmExpandirGrifes;
-  else if (tipo === 'grifesLoja') compArmGrifesPorLoja = !compArmGrifesPorLoja;
-  else compArmExpandirLojas = !compArmExpandirLojas;
+  const atual = compArmExpandirGrifes ? 'grifes' : compArmExpandirLojas ? 'lojas' : compArmGrifesPorLoja ? 'grifesLoja' : null;
+  const novo = atual === tipo ? null : tipo;
+  compArmExpandirGrifes = novo === 'grifes';
+  compArmExpandirLojas = novo === 'lojas';
+  compArmGrifesPorLoja = novo === 'grifesLoja';
   redesenharComparativoArmacoes();
   const alvo = document.getElementById({ grifes: 'compArmGraficosGrifes', grifesLoja: 'compArmGraficosGrifesLoja' }[tipo] || 'compArmGraficosLojas');
   if (alvo && alvo.style.display !== 'none') alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
