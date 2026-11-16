@@ -24,6 +24,11 @@
         <h2>BI</h2>
         <p>Dashboard, metas, pagamentos e auditoria de vendas.</p>
       </a>
+      <a class="inicio-opcao compras" id="opcaoCompras" href="/compras.html" style="display: none;">
+        <div class="icone">🛒</div>
+        <h2>Controle de Solicitações de Compras</h2>
+        <p>Catálogo de compras, pedidos das lojas, aprovação e acompanhamento até a entrega.</p>
+      </a>
       <a class="inicio-opcao config" id="opcaoConfig" href="/configuracoes.html" style="display: none;">
         <div class="icone">⚙️</div>
         <h2>Configurações</h2>
@@ -45,6 +50,7 @@
 
       const podeBI = temPermissao('acessar_bi');
       const podeConfig = podeAlgumaConfig();
+      document.getElementById('opcaoCompras').style.display = podeCompras() ? '' : 'none';
       document.getElementById('opcaoBI').style.display = podeBI ? '' : 'none';
       document.getElementById('opcaoConfig').style.display = podeConfig ? '' : 'none';
       document.getElementById('descConfig').textContent = [
@@ -56,7 +62,7 @@
       if (semAcesso) {
         aviso.textContent = `Você não tem permissão para "${NOMES_PERMISSOES[semAcesso] || semAcesso}". Fale com o administrador.`;
         aviso.style.display = '';
-      } else if (!podeBI && !podeConfig) {
+      } else if (!podeBI && !podeConfig && !podeCompras()) {
         aviso.textContent = 'Seu usuário ainda não tem nenhum acesso liberado. Fale com o administrador.';
         aviso.style.display = '';
       }

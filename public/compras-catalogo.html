@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catálogo de compras · Controle de Solicitações de Compras</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Controle de Solicitações de Compras<span>catálogo de compras</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+  <nav class="submenu-config cp-largo so-logado" id="submenuCompras"></nav>
+
+  <main class="acesso-conteudo cp-largo so-logado">
+    <div class="usuarios-cabecalho">
+      <h2>Catálogo de compras</h2>
+      <div class="usuarios-filtros">
+        <select id="filtroCategoria" onchange="renderizarCatalogo()"><option value="">Todas as categorias</option></select>
+        <input type="search" id="buscaCatalogo" placeholder="Buscar código ou nome..." oninput="renderizarCatalogo()">
+        <label><input type="checkbox" id="mostrarInativosCat" onchange="renderizarCatalogo()"> Mostrar inativos</label>
+        <button type="button" class="acesso-btn-sec so-gestor" onclick="abrirImportarCatalogo()">⬆ Importar CSV</button>
+        <button type="button" class="acesso-btn so-gestor" onclick="abrirFormProduto()">+ Novo produto</button>
+      </div>
+    </div>
+    <p class="acesso-ajuda" style="margin: 0 0 12px;">O gerente só escolhe produtos daqui, então o mesmo item tem sempre o mesmo nome em todas as lojas. Inativo some da busca do pedido, mas continua nos pedidos antigos.</p>
+    <div id="msgCatalogo" class="acesso-msg"></div>
+    <div class="tabela-card">
+      <table class="tabela-usuarios">
+        <thead><tr><th>Código</th><th>Nome padronizado</th><th>Categoria</th><th>Unidade</th><th>Situação</th><th class="so-gestor">Ações</th></tr></thead>
+        <tbody id="corpoCatalogo"><tr><td colspan="6">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Novo / editar produto -->
+  <div id="modalProduto" class="acesso-modal-fundo">
+    <form class="acesso-modal" id="formProduto" autocomplete="off">
+      <h3 id="tituloFormProduto">Novo produto</h3>
+      <div class="acesso-grade">
+        <label>Código <input type="text" id="prodCodigo" maxlength="30" required placeholder="ex.: EMB-001"></label>
+        <label>Unidade <input type="text" id="prodUnidade" maxlength="40" list="listaUnidades" placeholder="ex.: pacote c/ 50"></label>
+        <label class="inteiro">Nome padronizado <input type="text" id="prodNome" maxlength="100" required placeholder="ex.: SACOLA PAPEL MÉDIA"></label>
+        <label class="inteiro">Categoria <input type="text" id="prodCategoria" maxlength="40" list="listaCategorias" placeholder="ex.: Embalagens"></label>
+      </div>
+      <datalist id="listaCategorias"></datalist>
+      <datalist id="listaUnidades"><option value="unidade"></option><option value="pacote"></option><option value="caixa"></option><option value="rolo"></option></datalist>
+      <label class="check"><input type="checkbox" id="prodAtivo" checked> Produto ativo (aparece na busca do pedido)</label>
+      <div id="msgFormProduto" class="acesso-msg"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" onclick="$('modalProduto').style.display='none'">Cancelar</button>
+        <button type="submit" class="acesso-btn" id="btnSalvarProduto">Salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Importar CSV -->
+  <div id="modalImportarCat" class="acesso-modal-fundo">
+    <div class="acesso-modal largo">
+      <h3>Importar catálogo (CSV)</h3>
+      <p class="acesso-ajuda">Colunas: <b>codigo; nome; categoria; unidade</b> (separadas por ponto e vírgula ou vírgula, com ou sem cabeçalho).
+        Código novo é incluído; código que já existe é atualizado. Nada que já está cadastrado é apagado.
+        <a href="#" onclick="baixarModeloCatalogo(); return false;">Baixar modelo</a></p>
+      <input type="file" id="arquivoCatalogo" accept=".csv,text/csv,text/plain" onchange="lerArquivoCatalogo(this.files[0])">
+      <div id="previaImportacao" class="cp-previa"></div>
+      <div id="msgImportarCat" class="acesso-msg"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" onclick="$('modalImportarCat').style.display='none'">Fechar</button>
+        <button type="button" class="acesso-btn" id="btnConfirmarImportarCat" onclick="confirmarImportacaoCatalogo()" disabled>Importar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/compras-comum.js"></script>
+  <script src="/js/compras-catalogo.js"></script>
+</body>
+</html>

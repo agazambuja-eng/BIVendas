@@ -15,7 +15,7 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || 'https://uumttubexjtgzeualqnz.
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_o177jMO-LmlRF6sY-cx4tA_fv5KIEKa';
 const DOMINIO_LOGIN = 'bivendas.local';
 
-const PERMISSOES = ['acessar_bi', 'gerenciar_usuarios', 'criar_metas', 'alterar_metas', 'excluir_metas'];
+const PERMISSOES = ['acessar_bi', 'gerenciar_usuarios', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras'];
 
 function chaveSecreta() {
   return String(process.env.SUPABASE_SECRET_KEY || '').trim();
