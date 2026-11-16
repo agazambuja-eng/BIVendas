@@ -329,3 +329,105 @@ button.chip:hover { border-color: currentColor; }
 .submenu-config.cp-largo { max-width: 1240px; }
 .cp-filtros-linha select { flex: 1 1 160px; min-width: 0; }
 .cp-filtros-linha input { flex: 1 1 100%; }
+
+/* ===== Compras · tema escuro (igual ao esboço e ao BI) ===== */
+.compras-escuro {
+  --azul: #5ee7ff; --azul-escuro: #3fc8e0; --fundo: #0b0f2a; --texto: #e8ecff; --texto-suave: #a3abd9;
+  --borda: #2a3170; --verde: #3dffa8; --vermelho: #ff8fb0;
+  --painel: #121842; --painel2: #0f1438; --campo: #0b0f2a; --borda-campo: #39407a; --roxo: #8a3dff;
+  background: radial-gradient(120% 80% at 0% 0%, #141b4d 0%, #0b0f2a 55%, #080b1f 100%) fixed; color: var(--texto);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+.compras-escuro .acesso-topo { background: rgba(8,11,31,.85); border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, #5ee7ff, #8a3dff) 1; }
+.compras-escuro .acesso-topo h1 { font-family: 'Space Grotesk', Inter, sans-serif; color: #e8ecff; }
+.compras-escuro .acesso-topo h1 span { color: var(--texto-suave); }
+.compras-escuro .usuario-nome { color: #e8ecff; }
+.compras-escuro .usuario-link { color: #5ee7ff; background: transparent; }
+.compras-escuro .usuario-link:hover { background: rgba(94,231,255,.1); }
+.compras-escuro h2, .compras-escuro h3, .compras-escuro .cp-h2 { color: #e8ecff; font-family: 'Space Grotesk', Inter, sans-serif; }
+.compras-escuro .inicio-sub, .compras-escuro .acesso-ajuda { color: var(--texto-suave); }
+.compras-escuro a { color: #5ee7ff; }
+
+/* cartões e menus */
+.compras-escuro .inicio-opcao { background: var(--painel); border: 1px solid var(--borda); border-left-width: 4px; color: #e8ecff; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.compras-escuro .inicio-opcao:hover { border-color: #5ee7ff; box-shadow: 0 0 22px rgba(94,231,255,.18); }
+.compras-escuro .inicio-opcao h2 { color: #e8ecff; }
+.compras-escuro .inicio-opcao p { color: var(--texto-suave); }
+.compras-escuro .inicio-opcao.catalogo { border-left-color: #5ee7ff; }
+.compras-escuro .inicio-opcao.solicitar { border-left-color: #ffd35e; }
+.compras-escuro .inicio-opcao.aprovacao { border-left-color: #3dffa8; }
+.compras-escuro .submenu-raiz { color: var(--texto-suave); }
+.compras-escuro .submenu-sep { color: #4a5180; }
+.compras-escuro .submenu-item { background: transparent; border-color: var(--borda-campo); color: #c9cff5; }
+.compras-escuro .submenu-item:hover { border-color: #5ee7ff; color: #fff; }
+.compras-escuro .submenu-item.ativo { background: #5ee7ff; border-color: #5ee7ff; color: #0b0f2a; font-weight: 600; }
+.compras-escuro .cp-card, .compras-escuro .cp-num, .compras-escuro .cp-contador, .compras-escuro .cp-pedido,
+.compras-escuro .cp-item-aprov, .compras-escuro .tabela-card { background: var(--painel); border-color: var(--borda); color: #e8ecff; }
+.compras-escuro .cp-contador:hover, .compras-escuro .cp-contador.ativo, .compras-escuro .cp-item-aprov.ativo { border-color: #8a3dff; box-shadow: 0 0 0 2px rgba(138,61,255,.25); }
+.compras-escuro .cp-item-aprov:hover { border-color: #5ee7ff; }
+.compras-escuro .cp-num b, .compras-escuro .cp-contador b { font-family: 'Space Grotesk', Inter, sans-serif; font-size: 28px; }
+
+/* campos */
+.compras-escuro .cp-card label, .compras-escuro .cp-filtros-linha label, .compras-escuro .cp-busca, .compras-escuro .acesso-modal label { color: #c9cff5; }
+.compras-escuro input, .compras-escuro select, .compras-escuro textarea,
+.compras-escuro .cp-card input, .compras-escuro .cp-card select, .compras-escuro .cp-card textarea,
+.compras-escuro .cp-filtros-linha input, .compras-escuro .cp-filtros-linha select, .compras-escuro .usuarios-filtros input[type="search"],
+.compras-escuro .acesso-modal input[type="text"], .compras-escuro .acesso-modal select, .compras-escuro .usuarios-filtros select {
+  background: var(--campo); border: 1px solid var(--borda-campo); color: #e8ecff; }
+.compras-escuro input::placeholder, .compras-escuro textarea::placeholder { color: #6f78ad; }
+.compras-escuro input:focus, .compras-escuro select:focus, .compras-escuro textarea:focus { outline: 2px solid rgba(94,231,255,.35); border-color: #5ee7ff; }
+.compras-escuro .cp-card input[readonly] { background: #151b45; color: #a3abd9; }
+.compras-escuro .cp-qtd-inline { background: var(--campo); border-color: var(--borda-campo); color: #e8ecff; }
+.compras-escuro .cp-qtd-inline.ajustado { border-color: #ffd35e; background: #2a2510; color: #ffd35e; }
+
+/* botões */
+.compras-escuro .acesso-btn { background: linear-gradient(90deg, #2f6bff, #8a3dff); color: #fff; }
+.compras-escuro .acesso-btn:hover { filter: brightness(1.12); background: linear-gradient(90deg, #2f6bff, #8a3dff); }
+.compras-escuro .acesso-btn-sec { background: transparent; border: 1px solid var(--borda-campo); color: #c9cff5; }
+.compras-escuro .acesso-btn-sec:hover { border-color: #5ee7ff; color: #fff; background: rgba(94,231,255,.06); }
+.compras-escuro .cp-btn-aprovar { background: #3dffa8; color: #0b0f2a; }
+.compras-escuro .cp-btn-aprovar:hover { background: #2fe796; }
+.compras-escuro .cp-btn-reprovar { background: transparent; color: #ff8fb0; border: 1px solid #ff8fb0; }
+.compras-escuro .acoes button { background: transparent; border-color: var(--borda-campo); color: #c9cff5; }
+.compras-escuro .acoes button:hover { border-color: #5ee7ff; color: #fff; background: rgba(94,231,255,.06); }
+.compras-escuro .cp-aba, .compras-escuro .cp-chip { background: transparent; border-color: var(--borda-campo); color: #c9cff5; }
+.compras-escuro .cp-aba.ativa { background: #5ee7ff; border-color: #5ee7ff; color: #0b0f2a; }
+.compras-escuro .cp-chip.ativo { background: #1c2360; border-color: #5ee7ff; color: #fff; }
+.compras-escuro .cp-chip small { color: var(--texto-suave); }
+
+/* tabelas e detalhe */
+.compras-escuro .tabela-usuarios th, .compras-escuro .cp-tabela th { background: #161d4c; color: #a3abd9; border-bottom-color: var(--borda); }
+.compras-escuro .tabela-usuarios td, .compras-escuro .cp-tabela td { border-bottom-color: #1d2358; color: #e8ecff; }
+.compras-escuro .tabela-usuarios tr.inativo td { color: #6f78ad; }
+.compras-escuro .cp-pedido-topo { color: #e8ecff; }
+.compras-escuro .cp-pedido-topo:hover { background: rgba(94,231,255,.05); }
+.compras-escuro .cp-pedido.aberto { border-color: #5ee7ff; }
+.compras-escuro .cp-num-pedido { color: #5ee7ff; }
+.compras-escuro .cp-detalhe { background: var(--painel2); }
+.compras-escuro .cp-obs { background: var(--painel); border-color: var(--borda); color: #c9cff5; }
+.compras-escuro .cp-parecer { border-color: #5ee7ff; background: rgba(94,231,255,.07); }
+.compras-escuro .cp-tabela td.ajustado { color: #ffd35e; }
+.compras-escuro .cp-sugestoes { background: #0f1438; border-color: var(--borda-campo); box-shadow: 0 14px 40px rgba(0,0,0,.5); }
+.compras-escuro .cp-sug { background: transparent; color: #e8ecff; border-bottom-color: #1d2358; }
+.compras-escuro .cp-sug:hover, .compras-escuro .cp-sug:focus { background: #1c2360; }
+.compras-escuro .chip { background: #1c2360; color: #9fe9ff; }
+.compras-escuro .situacao.ativo { color: #3dffa8; }
+.compras-escuro .situacao.inativo { color: #ff8fb0; }
+.compras-escuro .acesso-msg.ok { color: #3dffa8; }
+.compras-escuro .acesso-msg.erro { color: #ff8fb0; }
+
+/* situações (versão escura) */
+.compras-escuro .st-aguardando { color: #ffd35e; } .compras-escuro span.st-aguardando { background: #3a3214; }
+.compras-escuro .st-aprovado { color: #5ee7ff; } .compras-escuro span.st-aprovado { background: #123445; }
+.compras-escuro .st-comprado { color: #3dffa8; } .compras-escuro span.st-comprado { background: #123a2c; }
+.compras-escuro .st-entregue { color: #9fb4ff; } .compras-escuro span.st-entregue { background: #1d2a5c; }
+.compras-escuro .st-reprovado { color: #ff8fb0; } .compras-escuro span.st-reprovado { background: #3d1626; }
+.compras-escuro .st-cancelado { color: #8a93c9; } .compras-escuro span.st-cancelado { background: #22284f; }
+
+/* janelas */
+.compras-escuro .acesso-modal-fundo { background: rgba(3,5,15,.75); }
+.compras-escuro .acesso-modal { background: linear-gradient(160deg, #161d48, #0e1333); border: 1px solid rgba(120,140,255,.35); color: #e8ecff; }
+.compras-escuro .acesso-modal h3 { color: #5ee7ff; }
+.compras-escuro .acesso-modal .check { color: #c9cff5; }
+html:has(body.compras-escuro) { background: #080b1f; }
+.compras-escuro { background-color: #080b1f; background-attachment: scroll; }
