@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Controle de Solicitações de Compras</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Controle de Solicitações de Compras</h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+
+  <main class="acesso-conteudo so-logado">
+    <p class="inicio-sub">Escolha para onde ir:</p>
+    <div class="inicio-opcoes">
+      <a class="inicio-opcao catalogo" id="opcaoCatalogo" href="/compras-catalogo.html" style="display: none;">
+        <div class="icone">📦</div>
+        <h2>Catálogo de compras</h2>
+        <p id="descCatalogo">Produtos padronizados que as lojas podem pedir: código, nome, categoria e unidade.</p>
+      </a>
+      <a class="inicio-opcao solicitar" id="opcaoSolicitar" href="/compras-solicitar.html" style="display: none;">
+        <div class="icone">📝</div>
+        <h2>Solicitação</h2>
+        <p>Novo pedido da loja e acompanhamento das suas solicitações até a entrega.</p>
+      </a>
+      <a class="inicio-opcao aprovacao" id="opcaoAprovacao" href="/compras-aprovacao.html" style="display: none;">
+        <div class="icone">✅</div>
+        <h2>Aprovação e acompanhamento</h2>
+        <p>Pedidos de todas as lojas: aprovar, ajustar quantidades, reprovar, compra solicitada e entrega.</p>
+      </a>
+    </div>
+    <div id="resumoCompras" class="cp-resumo-hub" style="display: none;"></div>
+  </main>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/compras-comum.js"></script>
+  <script>
+    (async () => {
+      await exigirLogin();
+      montarBarraUsuario($('barraUsuario'));
+      if (!podeCompras()) { location.replace('/inicio.html?semAcesso=solicitar_compras'); return; }
+      const aprova = temPermissao('aprovar_compras');
+      $('opcaoCatalogo').style.display = '';
+      $('opcaoSolicitar').style.display = temPermissao('solicitar_compras') ? '' : 'none';
+      $('opcaoAprovacao').style.display = aprova ? '' : 'none';
+      if (!aprova) $('descCatalogo').textContent = 'Consultar os produtos que podem ser pedidos (só o gestor cadastra).';
+
+      // resumo rápido das situações (o que o usuário enxerga)
+      const { data, error } = await supabaseBI.from('pedidos_compra').select('status');
+      if (error || !data) return;
+      const conta = s => data.filter(p => p.status === s).length;
+      const caixa = $('resumoCompras');
+      caixa.innerHTML = ['aguardando', 'aprovado', 'comprado', 'entregue']
+        .map(s => `<div class="cp-num"><span>${STATUS_COMPRA[s].texto}</span><b class="${STATUS_COMPRA[s].classe}">${conta(s)}</b></div>`).join('');
+      caixa.style.display = '';
+    })();
+  </script>
+</body>
+</html>

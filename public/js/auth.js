@@ -15,7 +15,9 @@ const NOMES_PERMISSOES = {
   gerenciar_usuarios: 'Gerenciar usuários',
   criar_metas: 'Incluir metas',
   alterar_metas: 'Alterar metas',
-  excluir_metas: 'Excluir metas'
+  excluir_metas: 'Excluir metas',
+  solicitar_compras: 'Solicitar compras',
+  aprovar_compras: 'Aprovar compras'
 };
 
 function emailDoLogin(login) {
@@ -211,6 +213,7 @@ function podeConfigUsuarios() { return temPermissao('gerenciar_usuarios'); }
 function podeConfigVendedores() {
   return temPermissao('acessar_bi') && ['criar_metas', 'alterar_metas', 'excluir_metas'].some(p => temPermissao(p));
 }
+function podeCompras() { return temPermissao('solicitar_compras') || temPermissao('aprovar_compras'); }
 function podeAlgumaConfig() { return podeConfigUsuarios() || podeConfigVendedores(); }
 
 /** Abas "⚙ Configurações › Usuários | Vendedores" no topo das páginas de configuração. */

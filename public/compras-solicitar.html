@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solicitação · Controle de Solicitações de Compras</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Controle de Solicitações de Compras<span>solicitação</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+  <nav class="submenu-config cp-largo so-logado" id="submenuCompras"></nav>
+
+  <main class="acesso-conteudo cp-largo so-logado">
+    <div class="cp-abas" role="tablist">
+      <button type="button" id="abaNovo" class="cp-aba ativa" onclick="mostrarAba('novo')">Novo pedido</button>
+      <button type="button" id="abaMeus" class="cp-aba" onclick="mostrarAba('meus')">Minhas solicitações</button>
+    </div>
+    <div id="msgSolicitar" class="acesso-msg"></div>
+
+    <!-- NOVO PEDIDO -->
+    <section id="painelNovo">
+      <div class="cp-card cp-cabecalho">
+        <label>Loja <select id="pedLoja"></select></label>
+        <label>Data <input type="text" id="pedData" readonly></label>
+        <label class="cp-col2">Solicitante <input type="text" id="pedSolicitante" readonly></label>
+      </div>
+
+      <div class="cp-card">
+        <h3 class="cp-titulo">Adicionar produto</h3>
+        <div class="cp-add">
+          <div class="cp-busca">
+            <label for="pedBusca">Produto (catálogo padronizado)</label>
+            <input type="search" id="pedBusca" placeholder="Digite parte do nome ou código. Ex.: sacola" autocomplete="off">
+            <div id="pedSugestoes" class="cp-sugestoes" style="display: none;"></div>
+          </div>
+          <label class="cp-qtd">Quantidade <input type="text" id="pedQtd" inputmode="decimal" placeholder="0"></label>
+          <label class="cp-unid">Unidade <input type="text" id="pedUnidade" readonly></label>
+          <label class="cp-obsitem">Observação do item <input type="text" id="pedObsItem" maxlength="120" placeholder="opcional (ex.: cor)"></label>
+          <button type="button" class="acesso-btn" onclick="adicionarItem()">Adicionar</button>
+        </div>
+        <div id="msgAdicionar" class="acesso-msg"></div>
+      </div>
+
+      <div class="cp-card">
+        <div class="cp-linha-titulo"><h3 class="cp-titulo">Itens do pedido</h3><span id="pedResumo" class="acesso-ajuda" style="margin:0"></span></div>
+        <div class="tabela-card">
+          <table class="tabela-usuarios">
+            <thead><tr><th>Código</th><th>Produto</th><th style="text-align:right">Quantidade</th><th>Unidade</th><th>Observação</th><th></th></tr></thead>
+            <tbody id="pedItens"></tbody>
+          </table>
+        </div>
+        <label style="margin-top: 12px; display: block;">Observação do pedido
+          <textarea id="pedObs" rows="2" maxlength="500" placeholder="opcional (ex.: urgente para a campanha de dezembro)"></textarea></label>
+        <div class="acesso-botoes">
+          <button type="button" class="acesso-btn-sec" onclick="descartarRascunho()">Descartar</button>
+          <button type="button" class="acesso-btn" id="btnEnviarPedido" onclick="enviarPedido()">Enviar pedido para aprovação</button>
+        </div>
+        <div id="msgEnviar" class="acesso-msg"></div>
+      </div>
+    </section>
+
+    <!-- MINHAS SOLICITAÇÕES -->
+    <section id="painelMeus" style="display: none;">
+      <div class="cp-filtros" id="filtrosMeus"></div>
+      <div id="listaMeus" class="cp-lista"></div>
+    </section>
+  </main>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/compras-comum.js"></script>
+  <script src="/js/compras-solicitar.js"></script>
+</body>
+</html>

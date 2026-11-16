@@ -6,12 +6,14 @@
  *    chave secreta do Supabase.
  */
 
-const PERMS = ['acessar_bi', 'criar_metas', 'alterar_metas', 'excluir_metas', 'gerenciar_usuarios'];
+const PERMS = ['acessar_bi', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras', 'gerenciar_usuarios'];
 const CHIPS = {
   acessar_bi: '📊 BI',
   criar_metas: '➕ Metas',
   alterar_metas: '✏️ Metas',
   excluir_metas: '🗑️ Metas',
+  solicitar_compras: '🛒 Solicita',
+  aprovar_compras: '✅ Aprova compras',
   gerenciar_usuarios: '⚙️ Administrador'
 };
 
