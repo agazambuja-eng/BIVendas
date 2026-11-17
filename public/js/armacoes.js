@@ -37,6 +37,14 @@ function linhaDeArmacao(nomeLinha) {
   return resto;   // outra linha de armação: aparece com o próprio nome
 }
 
+// Métrica dos gráficos de armações: 'qtd' (unidades) ou 'liquido' (R$)
+let armMetrica = 'qtd';
+let camposArmacoes = {};
+let janelaArmLinha = null;   // null = janela por linha; número = por loja daquela linha
+const vA = o => (o ? (o[armMetrica] || 0) : 0);
+const fmtA = v => armMetrica === 'qtd' ? `${Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.` : formatarMoedaBR(v);
+const ordenarA = lista => lista.slice().sort((a, b) => vA(b) - vA(a) || (b.liquido - a.liquido));
+
 function pctTxt(v, total) {
   const p = total > 0 ? (v / total) * 100 : 0;
   return p.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
@@ -93,13 +101,10 @@ function resumirArmacoes(dados, campos) {
     .forEach((g, i) => { coresGrife[g] = CORES_PALETA[i % CORES_PALETA.length]; });
   coresGrife.OUTRAS = '#6b7299';
 
-  const ordenar = obj => Object.values(obj).sort((a, b) => b.liquido - a.liquido);
+  // ordem e top 3 são feitos na hora de desenhar, pela métrica escolhida
   const linhas = Object.values(mapa).map(l => ({
-    ...l, grifes: ordenar(l.grifes),
-    lojas: ordenar(l.lojas).map(lj => ({ ...lj, grifes: ordenar(lj.grifes) })),
-    // mais vendidas = mais unidades; empate decide pelo valor líquido
-    top: Object.values(l.produtos).filter(p => p.qtd > 0)
-      .sort((a, b) => b.qtd - a.qtd || b.liquido - a.liquido).slice(0, 3)
+    ...l, grifes: Object.values(l.grifes),
+    lojas: Object.values(l.lojas).map(lj => ({ ...lj, grifes: Object.values(lj.grifes) }))
   }));
   return { linhas, total, qtd, coresGrife };
 }
@@ -107,14 +112,35 @@ function resumirArmacoes(dados, campos) {
 /** Chamado por renderizarProdutos() a cada consulta / mudança de filtro. */
 function renderizarArmacoes(dados, campos) {
   resumoArmacoes = resumirArmacoes(dados, campos);
-  const { linhas, total, qtd } = resumoArmacoes;
+  camposArmacoes = campos;
+  desenharArmacoes();
+  if (typeof renderizarListaArmacoes === 'function') renderizarListaArmacoes();
+}
+
+/** Botão Unidades / Valor (R$) do quadro e da janela. */
+function escolherMetricaArm(m) {
+  armMetrica = m;
+  desenharArmacoes();
+  const modal = document.getElementById('modalArmacoes');
+  if (modal && modal.classList.contains('aberto')) {
+    if (janelaArmLinha === null) abrirJanelaArmacoes(); else abrirArmacoesPorLoja(janelaArmLinha);
+  }
+}
+
+function desenharArmacoes() {
+  if (!resumoArmacoes) return;
+  const campos = camposArmacoes;
+  const { linhas, qtd } = resumoArmacoes;
+  const totalValor = resumoArmacoes.total;
+  const total = linhas.reduce((s, l) => s + vA(l), 0);
+  document.querySelectorAll('.arm-metrica button').forEach(b => b.classList.toggle('ativo', b.dataset.m === armMetrica));
 
   const legenda = document.getElementById('legendaArmacoes');
   const canvas = document.getElementById('graficoArmacoes');
   const vazio = document.getElementById('armacoesVazio');
   if (graficoArmacoes) { graficoArmacoes.destroy(); graficoArmacoes = null; }
 
-  const temDados = total !== 0;
+  const temDados = totalValor !== 0 || qtd !== 0;
   if (vazio) {
     vazio.style.display = temDados ? 'none' : 'block';
     vazio.textContent = campos.linha
@@ -122,26 +148,27 @@ function renderizarArmacoes(dados, campos) {
       : 'A API não trouxe o campo de linha nesta consulta.';
   }
   const sub = document.getElementById('subArmacoes');
-  if (sub) sub.textContent = temDados ? `${qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · ${formatarMoedaBR(total)}` : '';
+  if (sub) sub.textContent = temDados ? `${qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · ${formatarMoedaBR(totalValor)}` : '';
 
   if (legenda) {
     legenda.innerHTML = temDados ? linhas.map(l => `
       <li title="${escHTML(l.titulo)}: ${formatarMoedaBR(l.liquido)} · ${l.qtd.toLocaleString('pt-BR')} un.">
         <i style="background:${l.cor}; box-shadow: 0 0 8px ${l.cor};"></i>
         <span>${l.icone} ${escHTML(l.titulo)}</span>
-        <b>${pctTxt(l.liquido, total)}</b>
-        <small>${formatarMoedaBR(l.liquido)} · ${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</small>
+        <b>${pctTxt(vA(l), total)}</b>
+        <small>${armMetrica === 'qtd'
+          ? `${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · ${formatarMoedaBR(l.liquido)}`
+          : `${formatarMoedaBR(l.liquido)} · ${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.`}</small>
       </li>`).join('') : '';
   }
   renderizarPodioArmacoes(temDados ? linhas : []);
-  if (typeof renderizarListaArmacoes === 'function') renderizarListaArmacoes();
   if (!canvas || !temDados) return;
 
   graficoArmacoes = new Chart(canvas, {
     type: 'doughnut',
     data: {
       labels: linhas.map(l => l.titulo),
-      datasets: [{ data: linhas.map(l => l.liquido), backgroundColor: linhas.map(l => l.cor) }]
+      datasets: [{ data: linhas.map(vA), backgroundColor: linhas.map(l => l.cor) }]
     },
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '58%',
@@ -150,7 +177,7 @@ function renderizarArmacoes(dados, campos) {
       onHover: (e, els) => { e.native.target.style.cursor = 'pointer'; },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: c => ` ${c.label}: ${pctTxt(c.raw, total)} · ${formatarMoedaBR(c.raw)}`, footer: () => 'Clique para ver as grifes' } }
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${pctTxt(c.raw, total)} · ${fmtA(c.raw)}`, footer: () => 'Clique para ver as grifes' } }
       }
     }
   });
@@ -170,8 +197,9 @@ const MEDALHAS = [
   { icone: '🥉', classe: 'bronze', nome: 'Bronze' }
 ];
 
-/** As 3 armações mais vendidas (unidades) de cada linha, com troféu ouro/prata/bronze. */
+/** As 3 armações mais vendidas de cada linha (pela métrica escolhida), com troféu ouro/prata/bronze. */
 function renderizarPodioArmacoes(linhas) {
+  linhas = linhas.map(l => ({ ...l, top: ordenarA(Object.values(l.produtos).filter(p => p.qtd > 0 || p.liquido > 0)).slice(0, 3) }));
   const caixa = document.getElementById('podioArmacoes');
   if (!caixa) return;
   caixa.style.display = linhas.length ? '' : 'none';
@@ -184,7 +212,9 @@ function renderizarPodioArmacoes(linhas) {
           <div class="arm-podio-txt">
             <b>${escHTML(p.descricao)}</b>
             <small>${escHTML(p.grife)}${p.codigo ? ' · cód. ' + escHTML(p.codigo) : ''}</small>
-            <span class="arm-podio-num"><b>${p.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</b> · ${formatarMoedaBR(p.liquido)}</span>
+            <span class="arm-podio-num">${armMetrica === 'qtd'
+              ? `<b>${p.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</b> · ${formatarMoedaBR(p.liquido)}`
+              : `<b>${formatarMoedaBR(p.liquido)}</b> · ${p.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.`}</span>
           </div>
           <a class="arm-lupa" href="${linkImagemProduto(p)}" target="_blank" rel="noopener noreferrer"
              title="Ver imagens deste modelo na internet (abre o Google Imagens em outra aba)">🔍</a>
@@ -226,13 +256,13 @@ function desenharCartoesGrifes(cards) {
         <li class="${k === 0 ? 'cl-destaque' : ''}" title="${escHTML(g.nome)}: ${formatarMoedaBR(g.liquido)} · ${g.qtd.toLocaleString('pt-BR')} un.">
           <i style="background:${coresGrife[g.nome]}; box-shadow: 0 0 8px ${coresGrife[g.nome]};"></i>
           <span>${escHTML(g.nome)}</span>
-          <b>${pctTxt(g.liquido, c.total)}</b>
+          <b>${pctTxt(vA(g), c.total)}</b>
         </li>`).join('') : '<li class="arm-sem">Sem vendas.</li>';
     return `<div class="cl-card ${c.onClick ? 'arm-clicavel' : ''}" data-i="${i}" style="animation-delay:${i * 70}ms; border-top: 3px solid ${c.cor};"
         ${c.onClick ? 'title="Clique para ver por loja"' : ''}>
       <div class="cl-card-topo">
         <div><strong>${c.titulo}</strong><small>${c.subtitulo}</small></div>
-        <span class="cl-total">${formatarMoedaBR(c.total)}</span>
+        <span class="cl-total">${fmtA(c.total)}</span>
       </div>
       <div class="cl-corpo">
         <div class="cl-grafico"><canvas id="armGrafico${i}"></canvas>
@@ -266,7 +296,7 @@ function desenharCartoesGrifes(cards) {
         type: 'doughnut',
         data: {
           labels: fatias.map(g => g.nome),
-          datasets: [{ data: fatias.map(g => g.liquido), backgroundColor: fatias.map(g => coresGrife[g.nome]) }]
+          datasets: [{ data: fatias.map(vA), backgroundColor: fatias.map(g => coresGrife[g.nome]) }]
         },
         options: {
           responsive: true, maintainAspectRatio: false, cutout: '60%',
@@ -276,7 +306,7 @@ function desenharCartoesGrifes(cards) {
           onHover: c.onClick ? (e => { e.native.target.style.cursor = 'pointer'; }) : undefined,
           plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { label: t => ` ${t.label}: ${pctTxt(t.raw, c.total)} · ${formatarMoedaBR(t.raw)} · ${fatias[t.dataIndex].qtd.toLocaleString('pt-BR')} un.` } }
+            tooltip: { callbacks: { label: t => ` ${t.label}: ${pctTxt(t.raw, c.total)} · ${formatarMoedaBR(fatias[t.dataIndex].liquido)} · ${fatias[t.dataIndex].qtd.toLocaleString('pt-BR')} un.` } }
           }
         }
       }));
@@ -297,21 +327,24 @@ function mostrarJanela() {
 function abrirJanelaArmacoes() {
   const modal = document.getElementById('modalArmacoes');
   if (!modal || !resumoArmacoes) return;
-  const { linhas, total } = resumoArmacoes;
+  const { linhas } = resumoArmacoes;
+  const total = linhas.reduce((s, l) => s + vA(l), 0);
+  janelaArmLinha = null;
+  document.querySelectorAll('.arm-metrica button').forEach(b => b.classList.toggle('ativo', b.dataset.m === armMetrica));
 
   document.getElementById('tituloArmacoes').textContent = '🕶️ Armações · grifes por linha';
   document.getElementById('btnVoltarArmacoes').style.display = 'none';
   document.getElementById('subtituloArmacoes').textContent =
-    `${periodoTexto()} · total em armações ${formatarMoedaBR(total)} · % das grifes dentro de cada linha (valor líquido) · clique numa linha para ver por loja`;
+    `${periodoTexto()} · total em armações ${fmtA(total)} · % das grifes dentro de cada linha (${armMetrica === 'qtd' ? 'unidades' : 'valor líquido'}) · clique numa linha para ver por loja`;
 
   mostrarJanela();
   // espera o modal ter a classe "aberto" antes de desenhar
   requestAnimationFrame(() => requestAnimationFrame(() => desenharCartoesGrifes(linhas.map((l, i) => ({
     titulo: `${l.icone} ${escHTML(l.titulo)}`,
     subtitulo: `${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · ${l.grifes.length} grife(s) · ${l.lojas.length} loja(s)`,
-    total: l.liquido, grifes: l.grifes, cor: l.cor,
-    centro: pctTxt(l.liquido, total), rotuloCentro: 'das armações',
-    onClick: l.liquido ? () => abrirArmacoesPorLoja(i) : null
+    total: vA(l), grifes: ordenarA(l.grifes), cor: l.cor,
+    centro: pctTxt(vA(l), total), rotuloCentro: 'das armações',
+    onClick: (l.liquido || l.qtd) ? () => abrirArmacoesPorLoja(i) : null
   })))));
 }
 
@@ -319,18 +352,20 @@ function abrirJanelaArmacoes() {
 function abrirArmacoesPorLoja(indiceLinha) {
   const l = resumoArmacoes.linhas[indiceLinha];
   if (!l) return;
+  janelaArmLinha = indiceLinha;
+  document.querySelectorAll('.arm-metrica button').forEach(b => b.classList.toggle('ativo', b.dataset.m === armMetrica));
   document.getElementById('tituloArmacoes').textContent = `${l.icone} ${l.titulo} · grifes por loja`;
   document.getElementById('btnVoltarArmacoes').style.display = '';
   document.getElementById('subtituloArmacoes').textContent =
     `${periodoTexto()} · ${l.lojas.length} loja(s) · total ${formatarMoedaBR(l.liquido)} · ${l.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · % das grifes dentro de cada loja`;
   mostrarJanela();
-  desenharCartoesGrifes(l.lojas.map(lj => {
+  desenharCartoesGrifes(ordenarA(l.lojas).map(lj => {
     const nome = typeof nomeLojaComparar === 'function' ? nomeLojaComparar(lj.id) : { titulo: `Loja ${lj.id}`, nome: '' };
     return {
       titulo: `${escHTML(nome.titulo)}${nome.nome ? ` <em class="arm-nome-loja">${escHTML(nome.nome)}</em>` : ''}`,
       subtitulo: `${lj.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un. · ${lj.grifes.length} grife(s)`,
-      total: lj.liquido, grifes: lj.grifes, cor: l.cor,
-      centro: pctTxt(lj.liquido, l.liquido), rotuloCentro: `da ${l.titulo.replace('Armação ', '')}`
+      total: vA(lj), grifes: ordenarA(lj.grifes), cor: l.cor,
+      centro: pctTxt(vA(lj), vA(l)), rotuloCentro: `da ${l.titulo.replace('Armação ', '')}`
     };
   }));
 }

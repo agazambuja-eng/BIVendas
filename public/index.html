@@ -342,7 +342,13 @@
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
       <div class="titulo-com-acao">
         <h4 style="margin: 0; font-size: 15px;">🕶️ Armações · participação por linha <small id="subArmacoes" class="arm-sub"></small></h4>
-        <button type="button" class="btn-comparar-lojas" onclick="abrirJanelaArmacoes()" title="Uma rosca por linha, com as grifes ao lado">🔎 Ver grifes por linha</button>
+        <div class="ca-controles">
+          <div class="ca-alternar arm-metrica">
+            <button type="button" data-m="qtd" class="ativo" onclick="escolherMetricaArm('qtd')">Unidades</button>
+            <button type="button" data-m="liquido" onclick="escolherMetricaArm('liquido')">Valor (R$)</button>
+          </div>
+          <button type="button" class="btn-comparar-lojas" onclick="abrirJanelaArmacoes()" title="Uma rosca por linha, com as grifes ao lado">🔎 Ver grifes por linha</button>
+        </div>
       </div>
       <p id="armacoesVazio" class="arm-vazio" style="display: none;"></p>
       <div class="arm-corpo">
@@ -637,7 +643,13 @@
           <h3 id="tituloArmacoes" style="margin: 0; font-size: 18px;">🕶️ Armações · grifes por linha</h3>
           <div id="subtituloArmacoes" class="cl-subtitulo"></div>
         </div>
-        <button type="button" class="cfg-btn-fechar" onclick="fecharJanelaArmacoes()" title="Fechar (Esc)">✕</button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div class="ca-alternar arm-metrica">
+            <button type="button" data-m="qtd" class="ativo" onclick="escolherMetricaArm('qtd')">Unidades</button>
+            <button type="button" data-m="liquido" onclick="escolherMetricaArm('liquido')">Valor (R$)</button>
+          </div>
+          <button type="button" class="cfg-btn-fechar" onclick="fecharJanelaArmacoes()" title="Fechar (Esc)">✕</button>
+        </div>
       </div>
       <div id="gradeArmacoes" class="cl-grade" style="margin-top: 12px;"></div>
     </div>
