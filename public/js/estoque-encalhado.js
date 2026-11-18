@@ -134,7 +134,12 @@ async function carregarEstoqueEncalhado(atualizar = false) {
         await new Promise(r => setTimeout(r, 4000));
         continue;
       }
-      if (!resp.ok) throw new Error(corpo.error || `Erro ${resp.status} ao buscar o estoque`);
+      if (!resp.ok) {
+        if (!corpo.error && [502, 503, 504].includes(resp.status)) {
+          throw new Error(`O servidor reiniciou durante a busca (erro ${resp.status}). Clique em "Carregar estoque" para tentar de novo.`);
+        }
+        throw new Error(corpo.error || `Erro ${resp.status} ao buscar o estoque`);
+      }
       break;
     }
     etapaBarraEE(65, 70, 'Organizando o estoque...', 0);
