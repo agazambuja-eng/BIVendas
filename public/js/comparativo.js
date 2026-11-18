@@ -220,7 +220,7 @@ function renderizarComparativo({ periodos, porPeriodo }) {
     periodos, ids,
     valorLoja: id => porPeriodo.map(r => r.porLoja[id] || 0),
     valorRede: porPeriodo.map(r => r.total),
-    rotuloRede: 'Total da rede', eixoRedeSeparado: true,
+    rotuloRede: 'Total da rede', eixoRedeSeparado: false, redeNoGrafico: false,   // total fica nos cartões e na tabela
     anterior: graficosComparativo.vendas
   });
 
@@ -251,7 +251,7 @@ function alternarTabelaComparativo(corpoId) {
 }
 
 /** Gráfico de linhas (loja a loja + rede) e tabela com variações. Devolve o gráfico. */
-function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, valorRede, rotuloRede, eixoRedeSeparado, anterior }) {
+function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, valorRede, rotuloRede, eixoRedeSeparado, redeNoGrafico = true, anterior }) {
   let grafico = null;
   const canvas = document.getElementById(canvasId);
   if (canvas) {
@@ -263,7 +263,7 @@ function desenharEvolucao({ canvasId, cabId, corpoId, periodos, ids, valorLoja, 
       backgroundColor: CORES_PALETA[i % CORES_PALETA.length],
       tension: 0.3, borderWidth: 2, pointRadius: 4, yAxisID: 'y'
     }));
-    datasets.push({
+    if (redeNoGrafico) datasets.push({
       label: rotuloRede,
       data: valorRede,
       borderColor: '#ffffff', backgroundColor: '#ffffff',
