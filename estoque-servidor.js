@@ -76,25 +76,12 @@ function listaDaResposta(dados) {
   return [];
 }
 
-/** Converte a lista da SavWin no formato compacto. */
-function compactar(lista) {
-  const amostra = lista.find(x => x && typeof x === 'object') || {};
-  const campo = pegador(amostra);
-  const k = {
-    loja: campo('LOJA', 'CODIGOLOJA', 'LOJANOME'),
-    matid: campo('MATID'),
-    seq: campo('SEQUENCIAL'),
-    produto: campo('PRODUTO', 'DESCRICAO'),
-    fornecedor: campo('FORNECEDORFABRICANTE', 'FORNECEDOR', 'FABRICANTE'),
-    tipo: campo('TIPODEPRODUTO', 'TIPOPRODUTO', 'TIPO'),
-    grife: campo('GRIFE', 'MARCA'),
-    estoque: campo('ESTOQUE', 'QUANTIDADE', 'SALDO'),
-    custo: campo('PRECO_CUSTO', 'PRECOCUSTO', 'CUSTO'),
-    valorizacao: campo('VALORIZACAOCUSTO'),
-    ultVenda: campo('DATAULTIMAVENDA'),
-    ultCompra: campo('DATAULTIMACOMPRA')
-  };
-
+/**
+ * Compactador incremental: recebe item a item (sem guardar a lista inteira)
+ * e mantém só os campos usados, com textos repetidos em dicionário.
+ */
+function criarCompactador() {
+  let k = null, campos = [], recebidos = 0;
   const dic = { produto: [], fornecedor: [], tipo: [], grife: [] };
   const idx = { produto: new Map(), fornecedor: new Map(), tipo: new Map(), grife: new Map() };
   const indice = (nome, valor) => {
@@ -103,12 +90,30 @@ function compactar(lista) {
     if (i === undefined) { i = dic[nome].length; dic[nome].push(s); idx[nome].set(s, i); }
     return i;
   };
-
   const linhas = [];
-  for (const it of lista) {
-    if (!it || typeof it !== 'object') continue;
+  function adicionar(it) {
+    if (!it || typeof it !== 'object' || Array.isArray(it)) return;
+    recebidos++;
+    if (!k) {
+      campos = Object.keys(it);
+      const campo = pegador(it);
+      k = {
+        loja: campo('LOJA', 'CODIGOLOJA', 'LOJANOME'),
+        matid: campo('MATID'),
+        seq: campo('SEQUENCIAL'),
+        produto: campo('PRODUTO', 'DESCRICAO'),
+        fornecedor: campo('FORNECEDORFABRICANTE', 'FORNECEDOR', 'FABRICANTE'),
+        tipo: campo('TIPODEPRODUTO', 'TIPOPRODUTO', 'TIPO'),
+        grife: campo('GRIFE', 'MARCA'),
+        estoque: campo('ESTOQUE', 'QUANTIDADE', 'SALDO'),
+        custo: campo('PRECO_CUSTO', 'PRECOCUSTO', 'CUSTO'),
+        valorizacao: campo('VALORIZACAOCUSTO'),
+        ultVenda: campo('DATAULTIMAVENDA'),
+        ultCompra: campo('DATAULTIMACOMPRA')
+      };
+    }
     const estoque = numero(k.estoque && it[k.estoque]);
-    if (!estoque) continue;
+    if (!estoque) return;
     const custoUnit = numero(k.custo && it[k.custo]);
     const valor = k.valorizacao ? numero(it[k.valorizacao]) : estoque * custoUnit;
     linhas.push([
@@ -127,7 +132,55 @@ function compactar(lista) {
       indice('grife', k.grife && it[k.grife])
     ]);
   }
-  return { linhas, dic, campos: Object.keys(amostra), camposUsados: k };
+  return { adicionar, resultado: () => ({ linhas, dic, campos, camposUsados: k || {}, recebidos }) };
+}
+
+/** Converte uma lista já carregada (usado nos testes). */
+function compactar(lista) {
+  const c = criarCompactador();
+  lista.forEach(c.adicionar);
+  return c.resultado();
+}
+
+/**
+ * Leitor de JSON em pedaços: entrega cada objeto que está dentro de uma lista
+ * (ex.: [ {...}, {...} ] ou {"Dados": [ {...} ]}) assim que ele termina de chegar,
+ * sem montar o texto inteiro na memória.
+ */
+function criarLeitorObjetos(aoObjeto) {
+  const pilha = [];          // '[' ou '{' abertos fora do objeto sendo capturado
+  let dentroTexto = false, escape = false;
+  let capturando = false, prof = 0, buf = '';
+  return function ler(pedaco) {
+    let ini = capturando ? 0 : -1;
+    for (let i = 0; i < pedaco.length; i++) {
+      const ch = pedaco[i];
+      if (dentroTexto) {
+        if (escape) escape = false;
+        else if (ch === '\\') escape = true;
+        else if (ch === '"') dentroTexto = false;
+        continue;
+      }
+      if (ch === '"') { dentroTexto = true; continue; }
+      if (capturando) {
+        if (ch === '{' || ch === '[') prof++;
+        else if (ch === '}' || ch === ']') {
+          prof--;
+          if (prof === 0) {
+            buf += pedaco.slice(ini, i + 1);
+            capturando = false; ini = -1;
+            const texto = buf; buf = '';
+            aoObjeto(JSON.parse(texto));
+          }
+        }
+        continue;
+      }
+      if (ch === '{' && pilha[pilha.length - 1] === '[') { capturando = true; prof = 1; ini = i; buf = ''; continue; }
+      if (ch === '{' || ch === '[') pilha.push(ch);
+      else if (ch === '}' || ch === ']') pilha.pop();
+    }
+    if (capturando && ini >= 0) buf += pedaco.slice(ini);
+  };
 }
 
 /** Explica em português o erro de rede da SavWin. */
@@ -142,12 +195,13 @@ function explicarErroRede(err, segundos) {
 }
 
 /**
- * POST com o módulo https do Node: sem o limite de 5 min do fetch,
- * pedindo a resposta compactada (gzip), que é bem menor.
+ * POST com o módulo https do Node: sem o limite de 5 min do fetch, pedindo a
+ * resposta compactada (gzip) e lendo item a item (pouca memória).
  */
-function postarJSON(url, corpo, headers, limiteMs) {
+function postarELerObjetos(url, corpo, headers, limiteMs, aoObjeto) {
   return new Promise((ok, falha) => {
     const dados = Buffer.from(JSON.stringify(corpo));
+    let bytes = 0;
     const req = https.request(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip, deflate', 'Content-Length': dados.length, ...headers }
@@ -157,15 +211,20 @@ function postarJSON(url, corpo, headers, limiteMs) {
       if (enc.includes('gzip')) fluxo = resp.pipe(zlib.createGunzip());
       else if (enc.includes('deflate')) fluxo = resp.pipe(zlib.createInflate());
       else if (enc.includes('br')) fluxo = resp.pipe(zlib.createBrotliDecompress());
-      const partes = [];
-      fluxo.on('data', c => partes.push(c));
+      fluxo.setEncoding('utf8');
+      const erroHttp = resp.statusCode < 200 || resp.statusCode >= 300;
+      let inicioTexto = '';
+      const ler = criarLeitorObjetos(aoObjeto);
+      fluxo.on('data', pedaco => {
+        bytes += pedaco.length;
+        if (inicioTexto.length < 300) inicioTexto += pedaco.slice(0, 300);
+        if (erroHttp) return;
+        try { ler(pedaco); } catch (e) { req.destroy(new Error(`Resposta da SavWin com JSON inválido: ${e.message}`)); }
+      });
       fluxo.on('error', falha);
       fluxo.on('end', () => {
-        const texto = Buffer.concat(partes).toString('utf8');
-        if (resp.statusCode < 200 || resp.statusCode >= 300) {
-          return falha(Object.assign(new Error(`SavWin respondeu ${resp.statusCode}: ${texto.slice(0, 200)}`), { http: true }));
-        }
-        try { ok(JSON.parse(texto)); } catch (e) { falha(new Error(`Resposta da SavWin não é JSON válido (${texto.length} bytes): ${texto.slice(0, 120)}`)); }
+        if (erroHttp) return falha(Object.assign(new Error(`SavWin respondeu ${resp.statusCode}: ${inicioTexto.slice(0, 200)}`), { http: true }));
+        ok({ bytes, inicioTexto });
       });
     });
     req.setTimeout(limiteMs, () => req.destroy(Object.assign(new Error('tempo esgotado'), { code: 'TEMPO' })));
@@ -176,19 +235,19 @@ function postarJSON(url, corpo, headers, limiteMs) {
 
 async function buscarNaSavwin(headers) {
   const inicio = Date.now();
-  let resposta;
+  const comp = criarCompactador();
+  let info;
   try {
-    resposta = await postarJSON(URL_ESTOQUE, { MOSTRAESTOQUEZERO: 'N' }, headers, LIMITE_SAVWIN_MS);
+    info = await postarELerObjetos(URL_ESTOQUE, { MOSTRAESTOQUEZERO: 'N' }, headers, LIMITE_SAVWIN_MS, comp.adicionar);
   } catch (err) {
     const seg = Math.round((Date.now() - inicio) / 1000);
     throw new Error(err.http ? `${err.message} (após ${seg} s)` : explicarErroRede(err, seg));
   }
-  const lista = listaDaResposta(resposta);
-  resposta = null;
-  const base = { quando: Date.now(), ...compactar(lista) };
-  console.log(`Estoque SavWin: ${lista.length} itens recebidos, ${base.linhas.length} com estoque, ` +
+  const r = comp.resultado();
+  console.log(`Estoque SavWin: ${r.recebidos} itens recebidos (${Math.round(info.bytes / 1048576)} MB), ${r.linhas.length} com estoque, ` +
     `${Math.round((Date.now() - inicio) / 1000)} s, memória ${Math.round(process.memoryUsage().rss / 1048576)} MB`);
-  return base;
+  if (!r.recebidos) throw new Error(`A SavWin respondeu, mas sem lista de itens. Início da resposta: ${info.inicioTexto.slice(0, 150)}`);
+  return { quando: Date.now(), ...r };
 }
 
 /**
@@ -220,6 +279,16 @@ function situacaoEstoque(headers, forcar) {
   return { carregando: 0 };
 }
 
+/** Envia o JSON em gzip quando o navegador aceita (o estoque pode ter vários MB). */
+function enviarCompactado(req, res, obj) {
+  const texto = JSON.stringify(obj);
+  if (/\bgzip\b/.test(String(req.headers && req.headers['accept-encoding'] || ''))) {
+    res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' });
+    return res.end(zlib.gzipSync(texto));
+  }
+  res.type('application/json').send(texto);
+}
+
 function registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavwin }) {
   app.post('/consultaestoque', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
     try {
@@ -236,7 +305,7 @@ function registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavw
       const base = sit.pronto;
       const filtro = pedidas.length ? new Set(pedidas) : null;
       const linhas = filtro ? base.linhas.filter(l => filtro.has(l[0])) : base.linhas;
-      res.json({
+      enviarCompactado(req, res, {
         quando: new Date(base.quando).toISOString(),
         colunas: ['loja', 'matid', 'seq', 'produto', 'fornecedor', 'tipo', 'estoque', 'custoUnit', 'custoTotal', 'ultVenda', 'ultCompra', 'grife'],
         dic: base.dic,
@@ -250,4 +319,4 @@ function registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavw
   });
 }
 
-module.exports = { registrarRotaEstoque, compactar, dataISO, numero, codigoLoja, listaDaResposta };
+module.exports = { registrarRotaEstoque, compactar, criarLeitorObjetos, criarCompactador, dataISO, numero, codigoLoja, listaDaResposta };
