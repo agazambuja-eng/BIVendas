@@ -411,67 +411,59 @@
 
     <section id="secaoEstoqueEnc" class="secao-prod">
       <div class="secao-prod-cab" onclick="alternarSecaoProdutos('secaoEstoqueEnc')" title="Clique para abrir ou fechar">
-        <h3><span class="secao-prod-seta">▸</span> 📦 Estoque encalhado <small class="arm-sub">por produto e loja · estoque SavWin</small></h3>
+        <h3><span class="secao-prod-seta">▸</span> 📦 Estoque encalhado <small class="arm-sub">painel de estoque do SavWin · suas lojas</small></h3>
         <div class="ee-acoes-cab" onclick="event.stopPropagation()">
-          <button type="button" id="eeBtnCarregar" class="btn-comparar-lojas" onclick="carregarEstoqueEncalhado(!!ee.linhas)">📦 Carregar estoque</button>
+          <button type="button" id="epBtnCarregar" class="btn-comparar-lojas" onclick="epCarregar(!!ep.dados)" style="display: none;">📦 Carregar estoque</button>
         </div>
       </div>
       <div class="secao-prod-corpo">
         <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-          <p class="lf-ajuda" style="margin-bottom: 8px;">Estoque atual de todas as suas lojas (independe do período da consulta). <b>Dias sem vender</b> = hoje − última venda na loja.
-            <b>Giro</b> = peças vendidas nos últimos meses ÷ meses. <b>Cobertura</b> = estoque ÷ giro (em meses). Valores a <b>custo</b>.</p>
-          <div id="eeStatus" class="ee-status" style="display: none;"></div>
+          <div id="epConexao" class="ep-conexao">Verificando conexão com o SavWin...</div>
+          <form id="epFormConectar" class="ep-form" style="display: none;" autocomplete="off" onsubmit="return epConectar(event)">
+            <label>Identificador <input type="text" id="epIdentificador" autocomplete="off" placeholder="ex.: 09983-ONE" required></label>
+            <label>Login <input type="text" id="epLogin" autocomplete="off" required></label>
+            <label>Senha <input type="password" id="epSenha" autocomplete="new-password" required></label>
+            <button type="submit" id="epBtnConectar" class="btn-comparar-lojas">Conectar SavWin</button>
+            <span id="epMsgConectar" class="ep-msg"></span>
+          </form>
+          <div id="epStatus" class="ee-status" style="display: none;"></div>
 
-          <div id="eeConteudo" style="display: none;">
+          <div id="epConteudo" style="display: none;">
             <div class="ee-filtros">
-              <label>Encalhado a partir de
-                <select id="eeLimite" onchange="mudarFiltroEE('limite', Number(this.value))">
-                  <option value="90">90 dias</option><option value="180" selected>180 dias</option><option value="365">365 dias</option>
-                </select></label>
               <label>Giro dos últimos
-                <select id="eeMeses" onchange="mudarMesesGiroEE(this.value)">
-                  <option value="3" selected>3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option>
+                <select id="epMeses" onchange="epMudar('meses', Number(this.value))">
+                  <option value="3">3 meses</option><option value="6">6 meses</option><option value="12" selected>12 meses</option>
                 </select></label>
-              <label>Loja <select id="eeLoja" onchange="mudarFiltroEE('loja', this.value)"></select></label>
-              <label>Tipo <select id="eeTipo" onchange="mudarFiltroEE('tipo', this.value)"></select></label>
-              <label class="ee-busca">Buscar <input type="search" id="eeBusca" placeholder="produto, fornecedor, grife ou código" oninput="clearTimeout(window._eeT); window._eeT = setTimeout(() => mudarFiltroEE('busca', this.value), 300)"></label>
+              <label>Loja <select id="epLoja" onchange="epMudar('loja', this.value)"></select></label>
+              <label>Tipo (lista de grifes)
+                <select id="epTipo" onchange="epMudar('tipo', this.value)">
+                  <option value="A" selected>Armações</option><option value="L">Lentes</option><option value="O">Outros</option><option value="">Todos os tipos</option>
+                </select></label>
+              <label class="ee-busca">Buscar <input type="search" id="epBusca" placeholder="grife, loja ou fornecedor" oninput="clearTimeout(window._epT); window._epT = setTimeout(() => epMudar('busca', this.value), 250)"></label>
             </div>
 
             <div class="ee-cards">
-              <div class="bi-card" style="border-left-color: #5ee7ff;"><div class="bi-card-title">PEÇAS EM ESTOQUE</div><div class="bi-card-value" id="eeCardPecas">0</div></div>
-              <div class="bi-card" style="border-left-color: #3dffa8;"><div class="bi-card-title">ESTOQUE A CUSTO</div><div class="bi-card-value" id="eeCardCusto">R$ 0,00</div></div>
-              <div class="bi-card" style="border-left-color: #ff5cf0;"><div class="bi-card-title">PRODUTOS</div><div class="bi-card-value" id="eeCardProdutos">0</div></div>
-              <div class="bi-card" style="border-left-color: #a78bfa;"><div class="bi-card-title">LOJAS</div><div class="bi-card-value" id="eeCardLojas">0</div></div>
-              <div class="bi-card ee-card-largo" style="border-left-color: #ff5c8a;"><div class="bi-card-title" id="eeCardEncTitulo">ENCALHADO</div><div class="bi-card-value" id="eeCardEnc">R$ 0,00</div></div>
-              <div class="bi-card" style="border-left-color: #ffd35e;"><div class="bi-card-title">COBERTURA GERAL</div><div class="bi-card-value" id="eeCardCob">—</div></div>
-              <div class="bi-card" style="border-left-color: #8a93c9;"><div class="bi-card-title">NUNCA VENDIDOS</div><div class="bi-card-value" id="eeCardNunca">0</div></div>
+              <div class="bi-card" style="border-left-color: #5ee7ff;"><div class="bi-card-title">PEÇAS EM ESTOQUE</div><div class="bi-card-value" id="epCardPecas">0</div></div>
+              <div class="bi-card" style="border-left-color: #3dffa8;"><div class="bi-card-title">ESTOQUE A CUSTO</div><div class="bi-card-value" id="epCardCusto">R$ 0,00</div></div>
+              <div class="bi-card" style="border-left-color: #ff5cf0;"><div class="bi-card-title">PRODUTOS</div><div class="bi-card-value" id="epCardProdutos">0</div></div>
+              <div class="bi-card" style="border-left-color: #a78bfa;"><div class="bi-card-title">LOJAS</div><div class="bi-card-value" id="epCardLojas">0</div></div>
+              <div class="bi-card" style="border-left-color: #ffd35e;"><div class="bi-card-title">GIRO MENSAL</div><div class="bi-card-value" id="epCardGiro">0</div></div>
+              <div class="bi-card" style="border-left-color: #ff9f43;"><div class="bi-card-title">COBERTURA</div><div class="bi-card-value" id="epCardCob">—</div></div>
+              <div class="bi-card" style="border-left-color: #ff5c8a;"><div class="bi-card-title">IDADE DO ESTOQUE</div><div class="bi-card-value" id="epCardDias">—</div></div>
             </div>
-            <p id="eeInfo" class="lf-ajuda ee-info"></p>
+            <div id="epTipos" class="ep-tipos"></div>
+            <p id="epInfo" class="lf-ajuda ee-info"></p>
 
             <div class="titulo-com-acao">
-              <h4 style="margin: 0; font-size: 15px;">⏳ Dias sem vender · clique numa faixa para filtrar</h4>
-              <div id="eeMetrica" class="ca-alternar">
-                <button type="button" data-m="pecas" onclick="escolherMetricaEE('pecas')">Peças</button>
-                <button type="button" data-m="custo" class="ativo" onclick="escolherMetricaEE('custo')">Custo (R$)</button>
+              <div id="epVisoes" class="ca-alternar ee-visoes">
+                <button type="button" data-v="grife" class="ativo" onclick="epVisao('grife')">⏳ O que está encalhado</button>
+                <button type="button" data-v="loja" onclick="epVisao('loja')">Por loja</button>
+                <button type="button" data-v="fornecedor" onclick="epVisao('fornecedor')">Fornecedor</button>
+                <button type="button" data-v="tipo" onclick="epVisao('tipo')">Tipo</button>
               </div>
+              <button type="button" class="tv-link" onclick="epExportar()">⬇ Exportar CSV</button>
             </div>
-            <div class="ee-faixas">
-              <div class="ee-faixas-grafico"><canvas id="graficoFaixasEE"></canvas></div>
-              <ul id="eeFaixasLegenda" class="ee-faixas-legenda"></ul>
-            </div>
-
-            <div class="titulo-com-acao" style="margin-top: 18px;">
-              <div id="eeVisoes" class="ca-alternar ee-visoes">
-                <button type="button" data-v="loja" class="ativo" onclick="escolherVisaoEE('loja')">Por loja</button>
-                <button type="button" data-v="fornecedor" onclick="escolherVisaoEE('fornecedor')">Fornecedor</button>
-                <button type="button" data-v="tipo" onclick="escolherVisaoEE('tipo')">Tipo</button>
-                <button type="button" data-v="grife" onclick="escolherVisaoEE('grife')">Grife</button>
-                <button type="button" data-v="produto" onclick="escolherVisaoEE('produto')">Produto</button>
-                <button type="button" data-v="remanejar" onclick="escolherVisaoEE('remanejar')">🔁 Remanejamento</button>
-              </div>
-              <button type="button" class="tv-link" onclick="exportarEstoqueEE()">⬇ Exportar CSV</button>
-            </div>
-            <div id="eeTabela"></div>
+            <div id="epTabela"></div>
           </div>
         </div>
       </div>
@@ -873,6 +865,6 @@
   <script src="/js/lentes-fotossensiveis.js"></script>
   <script src="/js/comparativo-armacoes.js"></script>
   <script src="/js/pesquisa-especial.js"></script>
-  <script src="/js/estoque-encalhado.js"></script>
+  <script src="/js/estoque-painel.js"></script>
 </body>
 </html>

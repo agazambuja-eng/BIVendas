@@ -261,7 +261,6 @@ function alternarSecaoProdutos(id) {
   // gráficos que estavam escondidos precisam se redesenhar no tamanho certo
   if (!fechar) {
     if (id === 'secaoLentesFoto') desenharLentesFoto();
-    if (id === 'secaoEstoqueEnc' && typeof ee !== 'undefined' && ee.grafico) ee.grafico.resize();
     if (id === 'secaoArmacoesSolares' && typeof graficoArmacoes !== 'undefined' && graficoArmacoes) graficoArmacoes.resize();
   }
 }
