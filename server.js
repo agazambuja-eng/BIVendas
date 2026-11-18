@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const { exigirUsuario, restringirLojas, registrarRotasUsuarios } = require("./acesso-servidor");
+const { registrarRotaEstoque } = require("./estoque-servidor");
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -117,6 +118,16 @@ app.post("/consultapagamentos", exigirUsuario("acessar_bi"), restringirLojas, as
     res.status(500).json({ error: error.message });
   }
 });
+
+// Autenticação SavWin usada pela rota de estoque (mesma das rotas acima)
+const HEADERS_SAVWIN = {
+  "Authorization": "Bearer 4AE83C98E8315579579F297C8F8BDE2C6ACF269E57D85DD37EF2647DCA77733",
+  "Identificador": "09983-0000"
+};
+
+// 4. Estoque (EstoqueAnaliticoGrid) · módulo Estoque encalhado
+registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavwin: HEADERS_SAVWIN });
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
