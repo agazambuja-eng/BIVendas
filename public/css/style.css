@@ -525,3 +525,50 @@ th.filtrada { color: #5ee7ff !important; }
 /* Comparativo: tabelas com lojas recolhidas */
 .cmp-alternar { cursor: pointer; color: #5ee7ff; font-weight: 600; user-select: none; }
 .cmp-alternar:hover td { background: rgba(94,231,255,.07); }
+
+/* ===== Estoque encalhado ===== */
+.ee-status { padding: 10px 12px; border-radius: 8px; background: rgba(47,107,255,.12); border: 1px solid rgba(120,140,255,.3); color: #cfd6ff; font-size: 13px; margin-bottom: 10px; }
+.ee-filtros { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin-bottom: 12px; }
+.ee-filtros label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #8a93c9; }
+.ee-filtros select, .ee-filtros input { min-width: 130px; max-width: 260px; }
+.ee-filtros .ee-busca { flex: 1 1 220px; }
+.ee-filtros .ee-busca input { max-width: none; width: 100%; }
+.ee-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.ee-cards .bi-card { padding: 10px; }
+.ee-cards .bi-card-title { font-size: 11px; }
+.ee-cards .bi-card-value small { display: block; font-size: 11px; font-weight: normal; color: #8a93c9; margin-top: 3px; }
+.ee-card-largo { grid-column: span 1; }
+@media (max-width: 700px) { .ee-card-largo { grid-column: auto; } }
+.ee-info { margin: 10px 0 14px; }
+.ee-alerta { color: #ffd35e; }
+.ee-faixas { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr); gap: 16px; align-items: center; margin-top: 8px; }
+@media (max-width: 900px) { .ee-faixas { grid-template-columns: minmax(0, 1fr); } }
+.ee-faixas-grafico { position: relative; height: 240px; }
+.ee-faixas-legenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ee-faixas-legenda li { display: grid; grid-template-columns: 12px 1fr auto; grid-template-rows: auto auto; column-gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; font-size: 13px; }
+.ee-faixas-legenda li:hover, .ee-faixas-legenda li.ativo { border-color: rgba(94,231,255,.45); background: rgba(94,231,255,.06); }
+.ee-faixas-legenda li i { width: 12px; height: 12px; border-radius: 3px; margin-top: 3px; }
+.ee-faixas-legenda li small { grid-column: 2 / 4; color: #8a93c9; font-size: 11px; }
+.ee-visoes { flex-wrap: wrap; }
+.ee-visoes button { padding: 6px 10px; }
+.ee-tabela-rolagem { max-height: 560px; overflow: auto; margin-top: 10px; border-radius: 8px; }
+.ee-tabela th.num, .ee-tabela td.num { text-align: right; white-space: nowrap; }
+.ee-tabela th.ee-nome, .ee-tabela td.ee-nome { text-align: left; min-width: 240px; }
+.ee-tabela td.ee-nome small { display: block; margin: 2px 0 0; }
+.ee-ordenavel { cursor: pointer; user-select: none; }
+.ee-ordenavel:hover { color: #5ee7ff; }
+.ee-tabela td.ee-enc { color: #ff8fb0; }
+.ee-tabela tr.ee-total td { font-weight: 700; border-top: 1px solid rgba(94,231,255,.4); background: rgba(47,107,255,.10); }
+.ee-tabela tr.ee-prod { cursor: pointer; }
+.ee-tabela tr.ee-prod:hover td { background: rgba(94,231,255,.05); }
+.ee-tabela tr.ee-sub td { font-size: 11.5px; background: rgba(10,14,40,.55); }
+.ee-tabela tr.ee-sub td.ee-nome { padding-left: 28px; }
+.ee-tabela tr.ee-sub-enc td.ee-nome { box-shadow: inset 3px 0 0 #ff5c8a; }
+.ee-col-barra { min-width: 140px; }
+.ee-barra { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: rgba(120,140,255,.12); }
+.ee-barra i { display: block; height: 100%; }
+.ee-sem-giro { color: #8a93c9; font-style: italic; }
+.ee-tabela td.ee-lojas { min-width: 200px; max-width: 360px; white-space: normal; }
+.ee-chip { display: inline-block; margin: 2px 4px 2px 0; padding: 2px 7px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.ee-chip-parado { background: rgba(255,92,138,.14); color: #ffb3c8; border: 1px solid rgba(255,92,138,.35); }
+.ee-chip-vende { background: rgba(61,255,168,.10); color: #9dffd2; border: 1px solid rgba(61,255,168,.35); }
