@@ -102,7 +102,7 @@ function desenharBarraEE() {
   const pct = Math.min(99, barraEE.de + (barraEE.ate - barraEE.de) * frac * 0.97);
   const total = Math.round((Date.now() - barraEE.inicio) / 1000);
   const demora = barraEE.de === 0 && t > 60
-    ? '<small class="ee-barra-aviso">A SavWin está demorando mais que o normal. Continue aguardando.</small>' : '';
+    ? '<small class="ee-barra-aviso">A SavWin ainda está processando. Pode deixar a tela aberta: a busca continua no servidor.</small>' : '';
   el.innerHTML = `
     <div class="ee-progresso-topo"><span>⏳ ${barraEE.texto}</span><span>${Math.floor(pct)}% · ${total} s</span></div>
     <div class="ee-progresso"><i style="width:${pct.toFixed(1)}%"></i></div>${demora}`;
@@ -117,14 +117,26 @@ async function carregarEstoqueEncalhado(atualizar = false) {
   if (btn) btn.disabled = true;
   try {
     iniciarBarraEE();
-    etapaBarraEE(0, 65, 'Etapa 1 de 2 · buscando o estoque na SavWin (a primeira consulta pode levar até 1 minuto)', 20);
-    const resp = await fetchAutenticado('/consultaestoque', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ LOJAS: lojasDoUsuarioEE(), ATUALIZAR: atualizar === true })
-    });
-    const corpo = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(corpo.error || `Erro ${resp.status} ao buscar o estoque`);
+    etapaBarraEE(0, 65, 'Etapa 1 de 2 · buscando o estoque na SavWin (pode levar alguns minutos)', 45);
+    // O servidor busca na SavWin em segundo plano e responde 202 enquanto não termina.
+    const limite = Date.now() + 20 * 60 * 1000;
+    let corpo, forcar = atualizar === true;
+    while (true) {
+      const resp = await fetchAutenticado('/consultaestoque', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ LOJAS: lojasDoUsuarioEE(), ATUALIZAR: forcar })
+      });
+      forcar = false;
+      corpo = await resp.json().catch(() => ({}));
+      if (resp.status === 202) {
+        if (Date.now() > limite) throw new Error('A SavWin passou de 20 minutos sem responder. Tente de novo mais tarde.');
+        await new Promise(r => setTimeout(r, 4000));
+        continue;
+      }
+      if (!resp.ok) throw new Error(corpo.error || `Erro ${resp.status} ao buscar o estoque`);
+      break;
+    }
     etapaBarraEE(65, 70, 'Organizando o estoque...', 0);
     await new Promise(r => setTimeout(r, 30));   // deixa a barra aparecer antes do processamento
     decodificarEstoque(corpo);
