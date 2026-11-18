@@ -76,6 +76,39 @@ function statusEE(html) {
   el.style.display = html ? '' : 'none';
 }
 
+// ---------------------------------------------------------------- barra de carregamento
+/* A SavWin não informa o progresso: na etapa do estoque a barra avança por
+   estimativa (aproxima-se do fim da etapa sem chegar); nas vendas, mês a mês. */
+const barraEE = { inicio: 0, timer: null, de: 0, ate: 0, t0: 0, estim: 0, texto: '' };
+
+function iniciarBarraEE() {
+  pararBarraEE();
+  barraEE.inicio = Date.now();
+  barraEE.timer = setInterval(desenharBarraEE, 250);
+}
+function etapaBarraEE(de, ate, texto, estimSeg) {
+  Object.assign(barraEE, { de, ate, texto, estim: estimSeg || 0, t0: Date.now() });
+  desenharBarraEE();
+}
+function pararBarraEE() {
+  if (barraEE.timer) clearInterval(barraEE.timer);
+  barraEE.timer = null;
+}
+function desenharBarraEE() {
+  const el = document.getElementById('eeStatus');
+  if (!el) return;
+  const t = (Date.now() - barraEE.t0) / 1000;
+  const frac = barraEE.estim ? 1 - Math.exp(-t / barraEE.estim) : 0;
+  const pct = Math.min(99, barraEE.de + (barraEE.ate - barraEE.de) * frac * 0.97);
+  const total = Math.round((Date.now() - barraEE.inicio) / 1000);
+  const demora = barraEE.de === 0 && t > 60
+    ? '<small class="ee-barra-aviso">A SavWin está demorando mais que o normal. Continue aguardando.</small>' : '';
+  el.innerHTML = `
+    <div class="ee-progresso-topo"><span>⏳ ${barraEE.texto}</span><span>${Math.floor(pct)}% · ${total} s</span></div>
+    <div class="ee-progresso"><i style="width:${pct.toFixed(1)}%"></i></div>${demora}`;
+  el.style.display = '';
+}
+
 // ---------------------------------------------------------------- carregar
 async function carregarEstoqueEncalhado(atualizar = false) {
   if (ee.carregando) return;
@@ -83,7 +116,8 @@ async function carregarEstoqueEncalhado(atualizar = false) {
   const btn = document.getElementById('eeBtnCarregar');
   if (btn) btn.disabled = true;
   try {
-    statusEE('⏳ Buscando o estoque na SavWin. A primeira consulta pode levar até 1 minuto...');
+    iniciarBarraEE();
+    etapaBarraEE(0, 65, 'Etapa 1 de 2 · buscando o estoque na SavWin (a primeira consulta pode levar até 1 minuto)', 20);
     const resp = await fetchAutenticado('/consultaestoque', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -91,12 +125,16 @@ async function carregarEstoqueEncalhado(atualizar = false) {
     });
     const corpo = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(corpo.error || `Erro ${resp.status} ao buscar o estoque`);
+    etapaBarraEE(65, 70, 'Organizando o estoque...', 0);
+    await new Promise(r => setTimeout(r, 30));   // deixa a barra aparecer antes do processamento
     decodificarEstoque(corpo);
-    await prepararGiro();
+    await prepararGiro(70, 100);
+    pararBarraEE();
     statusEE('');
     document.getElementById('eeConteudo').style.display = '';
     renderizarEstoqueEncalhado();
   } catch (e) {
+    pararBarraEE();
     statusEE(`⚠️ ${escHTML(e.message)}`);
   } finally {
     ee.carregando = false;
@@ -162,7 +200,7 @@ function tuplasDeVendas(dados) {
   });
 }
 
-async function prepararGiro() {
+async function prepararGiro(de = 0, ate = 100) {
   const lojas = lojasDoUsuarioEE();
   const janelas = janelasGiro(ee.meses);
   const tuplas = [];
@@ -170,7 +208,8 @@ async function prepararGiro() {
     const j = janelas[i];
     const chave = `${brData(j.ini)}_${brData(j.fim)}_${lojas}`;
     if (!ee.vendas[chave]) {
-      statusEE(`⏳ Buscando vendas para o giro: mês ${i + 1} de ${janelas.length}...`);
+      const passo = (ate - de) / janelas.length;
+      etapaBarraEE(de + passo * i, de + passo * (i + 1), `Etapa 2 de 2 · vendas para o giro: mês ${i + 1} de ${janelas.length}`, 4);
       const resp = await fetchAutenticado('/consulta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -264,7 +303,11 @@ function mudarFiltroEE(campo, valor) {
 async function mudarMesesGiroEE(v) {
   ee.meses = Number(v) || 3;
   if (!ee.linhas) return;
-  try { await prepararGiro(); statusEE(''); } catch (e) { statusEE(`⚠️ ${escHTML(e.message)}`); }
+  if (ee.carregando) return;
+  ee.carregando = true;
+  iniciarBarraEE();
+  try { await prepararGiro(0, 100); statusEE(''); } catch (e) { statusEE(`⚠️ ${escHTML(e.message)}`); }
+  finally { pararBarraEE(); ee.carregando = false; }
   renderizarEstoqueEncalhado();
 }
 function escolherVisaoEE(v) {
