@@ -81,7 +81,7 @@ function renderizarListaArmacoes() {
         html += `<tr class="la-n3">
           <td class="la-nome" title="${escHTML(p.codigo)} · ${escHTML(p.descricao)}">
             <span class="la-desc">${escHTML(p.descricao)}</span>${p.codigo ? `<small>cód. ${escHTML(p.codigo)}</small>` : ''}
-            ${typeof linkImagemProduto === 'function' ? `<a class="la-lupa" href="${linkImagemProduto(p)}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste modelo na internet" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto(p)}` : ''}
+            ${typeof linkImagemProduto === 'function' ? `<a class="la-lupa" href="${linkImagemProduto(p)}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste modelo na internet" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto(p, p.qtd ? { valor: p.liquido / p.qtd, rotulo: 'Nosso preço médio' } : null)}` : ''}
           </td>
           <td class="la-num"><b>${qtdTxt(p.qtd)}</b></td><td class="la-num">${formatarMoedaBR(p.liquido)}</td>
           ${celulasLojas(p.porLoja || {}, lojas, 'la-prod')}</tr>`;

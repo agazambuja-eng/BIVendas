@@ -350,14 +350,14 @@ function epHtmlDetalhe(chave) {
   const vis = lista.slice(0, det.mostrar);
   const grife = ((ep.dados.Cobertura || []).find(g => String(g.Chave) === String(chave)) || {}).Descricao || '';
   const lupa = p => typeof linkImagemProduto === 'function'
-    ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: p.produto, grife })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto({ descricao: p.produto, grife })}` : '';
+    ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: p.produto, grife })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto({ descricao: p.produto, grife }, p.pecas ? { valor: p.custo / p.pecas, rotulo: 'Nosso custo' } : null)}` : '';
   const entrada = p => {
     if (!p.entrada) return '<span class="ee-sem-giro">sem data de entrada</span>';
     const dias = epDiasDesde(p.entrada);
     return `últ. entrada ${p.entrada.toLocaleDateString('pt-BR')} <b class="${dias > 365 ? 'ee-enc' : ''}">(${dias.toLocaleString('pt-BR')} d)</b>`;
   };
   return `<div class="ep-det-corpo">
-    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · data da última entrada (compra ou transferência) · 🔍 imagens · 💲 Google Shopping · ML Mercado Livre (preço da mesma peça)</div>
+    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · data da última entrada (compra ou transferência) · 🔍 imagens · 💲 Google Shopping · ML Mercado Livre · 🛒 preços aqui mesmo</div>
     ${vis.map(p => `<div class="ep-det-prod">
       <div class="ep-det-nome">${escHTML(p.produto)}${lupa(p)}<small>${escHTML([p.codigo && 'cód. ' + p.codigo, p.tipo].filter(Boolean).join(' · '))}</small></div>
       <div class="ep-det-num">${epPc(p.pecas)} pç${custoOk ? ' · ' + epR(p.custo) : ''}<small>${entrada(p)}</small></div>

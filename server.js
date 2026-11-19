@@ -4,6 +4,7 @@ const path = require("path");
 const { exigirUsuario, restringirLojas, registrarRotasUsuarios } = require("./acesso-servidor");
 const { registrarRotaEstoque } = require("./estoque-servidor");
 const { registrarRotasPainelSavwin } = require("./savwin-painel");
+const { registrarRotaPrecos } = require("./precos-web");
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -131,6 +132,9 @@ registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavwin: HEADE
 
 // 5. Estoque pelo painel do SavWin (login informado no card; só a chave fica em memória)
 registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas });
+
+// 6. Preço da mesma peça na web (Google Shopping Brasil via Serper; variável SERPER_API_KEY)
+registrarRotaPrecos(app, { exigirUsuario });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
