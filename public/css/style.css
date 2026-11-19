@@ -719,3 +719,5 @@ th.filtrada { color: #5ee7ff !important; }
 .ai-tabela th { font-size: 10.5px; }
 .ai-tabela td.ee-nome, .ai-tabela th.ee-nome { min-width: 170px; max-width: 240px; }
 .ai-tabela .ee-lojas { min-width: 130px; max-width: 170px; }
+.ep-exportar { font-size: 12px; color: #5ee7ff; white-space: nowrap; }
+.ep-exportar .tv-link { padding: 4px 2px; }

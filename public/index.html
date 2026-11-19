@@ -462,7 +462,7 @@
                 <button type="button" data-v="tipo" onclick="epVisao('tipo')">Tipo</button>
               </div>
               <div class="ai-acoes"><button type="button" class="btn-comparar-lojas" onclick="abrirAnaliseIA()" title="Pesquisa com IA os modelos de maior custo parado e monta uma tela única exportável para Excel">🤖 Analisar com IA</button>
-              <button type="button" class="tv-link" onclick="epExportar()">⬇ Exportar CSV</button></div>
+              <span class="ep-exportar" title="Na visão &quot;O que está encalhado&quot;: um produto por linha, peças em cada loja, custo e preço de venda">⬇ Exportar <button type="button" class="tv-link" onclick="epExportar('xlsx')">Excel</button> · <button type="button" class="tv-link" onclick="epExportar('csv')">CSV</button></span></div>
             </div>
             <div id="epTabela"></div>
           </div>

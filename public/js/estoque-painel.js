@@ -414,16 +414,134 @@ function epHtmlDetalhe(chave) {
 }
 
 // ---------------------------------------------------------------- exportar
-function epExportar() {
+/**
+ * Exportar. Na visão "O que está encalhado" sai POR PRODUTO: uma coluna de peças por loja,
+ * custo, preço de venda e promoção (lê as grifes da lista atual e os preços no SavWin).
+ * Nas outras visões sai a tabela da tela.
+ */
+async function epExportar(formato = 'csv') {
+  if (ep.visao === 'grife') return epExportarProdutos(formato);
   const t = ep.ultimaTabela;
   if (!t) return;
+  if (formato === 'xlsx') return epBaixarPlanilha(t.cab, t.linhas, t.nome, 'xlsx');
+  epBaixarPlanilha(t.cab, t.linhas, t.nome, 'csv');
+}
+
+/** Baixa uma tabela em CSV (abre no Excel) ou .xlsx (SheetJS, carregado sob demanda). */
+async function epBaixarPlanilha(cab, linhas, nome, formato, colunasMoeda = []) {
+  const arquivo = `${nome}_${new Date().toISOString().slice(0, 10)}`;
+  if (formato === 'xlsx' && typeof aiCarregarXLSX === 'function') {
+    try {
+      const XLSX = await aiCarregarXLSX();
+      const ws = XLSX.utils.aoa_to_sheet([cab, ...linhas]);
+      ws['!cols'] = cab.map((c, i) => ({ wch: i === 1 ? 40 : Math.max(10, Math.min(22, String(c).length + 2)) }));
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: linhas.length, c: cab.length - 1 } }) };
+      const moeda = new Set(colunasMoeda);
+      cab.forEach((c, ci) => {
+        if (!moeda.has(c)) return;
+        for (let r = 1; r <= linhas.length; r++) {
+          const cel = ws[XLSX.utils.encode_cell({ r, c: ci })];
+          if (cel && typeof cel.v === 'number') cel.z = '"R$" #,##0.00';
+        }
+      });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Estoque');
+      XLSX.writeFile(wb, arquivo + '.xlsx');
+      return;
+    } catch (e) { alert(e.message + ' Vou baixar em CSV (abre no Excel).'); }
+  }
+  const t = { cab, linhas, nome };
   const cel = v => typeof v === 'number' ? String(Math.round(v * 100) / 100).replace('.', ',') : `"${String(v ?? '').replace(/"/g, '""')}"`;
   const csv = '﻿' + [t.cab.map(cel).join(';'), ...t.linhas.map(l => l.map(cel).join(';'))].join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `${t.nome}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = arquivo + '.csv';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+const epLojaCurta = l => String(l).replace(/\s*-\s*OTIC\w*\s*(VIA\s+VISAO\s*-\s*)?/i, ' ').replace(/\s+/g, ' ').trim();
+let epExportando = false;
+
+async function epExportarProdutos(formato) {
+  if (epExportando || !ep.dados) return;
+  epExportando = true;
+  const barra = (txt, feito, total) => {
+    const pct = total ? Math.round(feito / total * 100) : 0;
+    epStatus(`<div class="ee-progresso-topo"><span>⏳ ${txt}${total ? ` · ${feito} de ${total}` : ''}</span><span>${pct}%</span></div><div class="ee-progresso"><i style="width:${pct}%"></i></div>`);
+  };
+  try {
+    // grifes da lista atual (tipo e busca), na ordem da tela
+    const doTipo = epGrifesDoTipo();
+    const busca = ep.busca.trim().toUpperCase();
+    const grifes = (ep.dados.Cobertura || []).filter(g => (!doTipo || doTipo.has(String(g.Chave))) && (!busca || String(g.Descricao || '').toUpperCase().includes(busca)));
+    if (!grifes.length) throw new Error('Nenhuma grife na lista para exportar.');
+
+    // 1) produtos × lojas de cada grife (3 por vez; reaproveita as já abertas)
+    let feitas = 0, i = 0;
+    barra('Lendo produtos e lojas das grifes', 0, grifes.length);
+    await Promise.all(Array.from({ length: Math.min(3, grifes.length) }, async () => {
+      while (i < grifes.length) {
+        const g = grifes[i++];
+        const chave = String(g.Chave);
+        if (!(ep.detalhes[chave] && ep.detalhes[chave].linhas)) {
+          const r = await epPost('/savwin/estoque/detalhe', { CHAVE: chave, LOJAS: epLojasPedido(), MESES: ep.meses });
+          if (r.status === 409) { ep.situacao = { conectado: false }; epDesenharConexao(); throw new Error(r.j.error || 'Conecte o SavWin de novo.'); }
+          if (r.ok) ep.detalhes[chave] = Object.assign(ep.detalhes[chave] || { aberto: false, mostrar: 60 }, { linhas: r.j.linhas || [], limitado: r.j.limitado });
+        }
+        barra('Lendo produtos e lojas das grifes', ++feitas, grifes.length);
+      }
+    }));
+    const produtos = [];
+    grifes.forEach(g => {
+      const det = ep.detalhes[String(g.Chave)];
+      if (det && det.linhas) epProdutosDaGrife(det).forEach(p => produtos.push({ ...p, g }));
+    });
+
+    // 2) preço de venda e promoção (cadastro do SavWin), 80 códigos por pedido, 2 pedidos por vez
+    const codigos = [...new Set(produtos.map(p => epCodigo(p.codigo)).filter(c => c && !(c in ep.precos) || ep.precos[c] === undefined))].filter(Boolean);
+    const lotes = [];
+    for (let k = 0; k < codigos.length; k += 80) lotes.push(codigos.slice(k, k + 80));
+    let lidos = 0, j = 0;
+    barra('Buscando preço de venda no SavWin', 0, codigos.length);
+    await Promise.all(Array.from({ length: Math.min(2, lotes.length) }, async () => {
+      while (j < lotes.length) {
+        const lote = lotes[j++];
+        const r = await epPost('/savwin/precos', { CODIGOS: lote });
+        if (r.ok) lote.forEach(c => { ep.precos[c] = r.j.precos[c] || null; });
+        lidos += lote.length;
+        barra('Buscando preço de venda no SavWin', lidos, codigos.length);
+      }
+    }));
+
+    // 3) planilha: um produto por linha, uma coluna de peças por loja
+    const lojas = [...new Set(produtos.flatMap(p => p.lojas.map(l => String(l.loja))))].sort();
+    const custoOk = ep.dados.CustoLiberado !== false;
+    const cab = ['Grife', 'Produto', 'Código', 'Tipo', 'Peças', ...lojas.map(epLojaCurta),
+      ...(custoOk ? ['Custo unitário', 'Custo total'] : []), 'Preço de venda', 'Promoção', 'Preço efetivo', ...(custoOk ? ['Markup'] : []),
+      'Valor de venda do estoque', 'Última entrada', 'Dias desde a entrada', 'Grife: última venda', 'Grife: dias sem vender', 'Grife: cobertura (meses)'];
+    const n = v => (v === null || v === undefined || v === '' || !isFinite(v)) ? '' : Math.round(v * 100) / 100;
+    const linhas = produtos.sort((a, b) => b.custo - a.custo).map(p => {
+      const pr = ep.precos[epCodigo(p.codigo)] || null;
+      const custoUn = p.pecas ? p.custo / p.pecas : 0;
+      const efetivo = pr ? (pr.promocao > 0 ? pr.promocao : pr.venda) : 0;
+      const porLoja = {};
+      p.lojas.forEach(l => { porLoja[l.loja] = (porLoja[l.loja] || 0) + l.pecas; });
+      return [p.g.Descricao, p.produto, p.codigo, p.tipo, n(p.pecas), ...lojas.map(l => porLoja[l] ? n(porLoja[l]) : ''),
+        ...(custoOk ? [n(custoUn), n(p.custo)] : []), pr ? n(pr.venda) : '', pr && pr.promocao > 0 ? n(pr.promocao) : '', n(efetivo),
+        ...(custoOk ? [efetivo && custoUn ? n(efetivo / custoUn) : ''] : []), efetivo ? n(efetivo * p.pecas) : '',
+        p.entrada ? p.entrada.toLocaleDateString('pt-BR') : '', p.entrada ? epDiasDesde(p.entrada) : '',
+        p.g.UltimaVenda || 'nunca vendeu', p.g.UltimaVenda ? p.g.DiasSemVender : '', p.g.GiroMensal > 0 ? n(p.g.MesesCobertura) : 'sem giro'];
+    });
+    epStatus('');
+    await epBaixarPlanilha(cab, linhas, 'estoque_produtos_por_loja', formato,
+      ['Custo unitário', 'Custo total', 'Preço de venda', 'Promoção', 'Preço efetivo', 'Valor de venda do estoque']);
+    epRenderizarTabela();
+  } catch (e) {
+    epStatus(`⚠️ ${escHTML(e.message)}`);
+  } finally {
+    epExportando = false;
+  }
 }
 
 // situação da conexão quando o BI abre (depois do login do BI)
