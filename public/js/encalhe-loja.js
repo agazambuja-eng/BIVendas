@@ -59,6 +59,57 @@ async function plVendasJanela(j, lojas) {
   return resumo;
 }
 
+/**
+ * Índice das vendas do BI por produto e loja nos últimos N meses:
+ * Map(código -> Map(loja -> { q, ult })). Guardado por período e lojas; pedidos
+ * simultâneos esperam a mesma busca. Usado aqui, no detalhe da grife e na exportação.
+ */
+const plIndices = {};   // chave -> { mapa } | { promessa }
+function plIndicePronto(meses = ep.meses || 12) {
+  const x = plIndices[`${meses}|${epLojasPedido()}`];
+  return x && x.mapa ? x.mapa : null;
+}
+async function plVendasIndice(meses = ep.meses || 12, aoProgresso = null, cancelado = null) {
+  const lojas = epLojasPedido();
+  const chave = `${meses}|${lojas}`;
+  const x = plIndices[chave];
+  if (x && x.mapa) return x.mapa;
+  if (x && x.promessa) return x.promessa;
+  const promessa = (async () => {
+    const janelas = plJanelas(meses);
+    const vendas = new Map();
+    let m = 0;
+    if (aoProgresso) aoProgresso(0, janelas.length, vendas.size);
+    for (const j of janelas) {
+      if (cancelado) cancelado();
+      (await plVendasJanela(j, lojas)).forEach(([cod, loja, q, t]) => {
+        let porLoja = vendas.get(cod);
+        if (!porLoja) { porLoja = new Map(); vendas.set(cod, porLoja); }
+        const v = porLoja.get(loja) || { q: 0, ult: 0 };
+        v.q += q; if (t > v.ult) v.ult = t;
+        porLoja.set(loja, v);
+      });
+      if (aoProgresso) aoProgresso(++m, janelas.length, vendas.size);
+    }
+    plIndices[chave] = { mapa: vendas };
+    return vendas;
+  })();
+  plIndices[chave] = { promessa };
+  try { return await promessa; } catch (e) { delete plIndices[chave]; throw e; }
+}
+
+/** Última venda e quantidade de um produto: na loja (código) ou na rede (sem loja). */
+function plVendaDe(codigo, lojaCod) {
+  const mapa = plIndicePronto();
+  if (!mapa) return undefined;                       // ainda não carregado
+  const porLoja = mapa.get(epCodigo(codigo));
+  if (!porLoja) return null;
+  if (lojaCod) return porLoja.get(String(lojaCod)) || null;
+  let q = 0, ult = 0;
+  porLoja.forEach(v => { q += v.q; if (v.ult > ult) ult = v.ult; });
+  return q || ult ? { q, ult } : null;
+}
+
 async function plMontar() {
   if (pl.carregando || !ep.dados) return;
   pl.carregando = true;
@@ -94,22 +145,10 @@ async function plMontar() {
 
     // 2) vendas do BI, mês a mês
     const lojas = epLojasPedido();
-    const janelas = plJanelas(meses);
-    const vendas = new Map();          // codigo -> Map(loja -> { q, ult })
-    let m = 0;
-    epExpFase(`Lendo as vendas do BI (${meses} meses)`, 0, janelas.length);
-    for (const j of janelas) {
-      cancelado();
-      (await plVendasJanela(j, lojas)).forEach(([cod, loja, q, t]) => {
-        let porLoja = vendas.get(cod);
-        if (!porLoja) { porLoja = new Map(); vendas.set(cod, porLoja); }
-        const v = porLoja.get(loja) || { q: 0, ult: 0 };
-        v.q += q; if (t > v.ult) v.ult = t;
-        porLoja.set(loja, v);
-      });
-      epExp.precos = `${vendas.size.toLocaleString('pt-BR')} produtos com venda`;
-      epExpFase(`Lendo as vendas do BI (${meses} meses)`, ++m, janelas.length);
-    }
+    const vendas = await plVendasIndice(meses, (feito, total, n) => {
+      epExp.precos = `${n.toLocaleString('pt-BR')} produtos com venda`;
+      epExpFase(`Lendo as vendas do BI (${meses} meses)`, feito, total);
+    }, cancelado);
 
     // 3) cruzamento produto × loja
     const linhas = [];

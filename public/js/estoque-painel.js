@@ -315,6 +315,16 @@ async function epAbrirGrife(chave) {
   det.carregando = false;
   epAtualizarDetalhe(chave);
   epCarregarPrecos(chave);
+  epCarregarVendasDetalhe(chave);
+}
+
+/** Vendas do BI (última venda por loja) para o detalhe da grife; carrega uma vez e redesenha. */
+async function epCarregarVendasDetalhe(chave) {
+  if (typeof plVendasIndice !== 'function' || plIndicePronto()) return;
+  ep.vendasCarregando = true;
+  try { await plVendasIndice(ep.meses || 12); } catch (e) { ep.vendasErro = e.message; }
+  ep.vendasCarregando = false;
+  Object.keys(ep.detalhes).forEach(k => { if (ep.detalhes[k].aberto) epAtualizarDetalhe(k); });
 }
 
 const epCodigo = c => String(c || '').replace(/\D/g, '').replace(/^0+/, '');
@@ -389,6 +399,25 @@ function epHtmlDetalhe(chave) {
       diasEntrada: p.entrada ? epDiasDesde(p.entrada) : null, parado: gInfo ? (gInfo.UltimaVenda ? gInfo.DiasSemVender : -1) : null }, [
       epPrecoDe(p) && epPrecoDe(p).venda ? { valor: epPrecoDe(p).promocao || epPrecoDe(p).venda, rotulo: epPrecoDe(p).promocao ? 'Nossa promoção' : 'Nosso preço de venda' } : null,
       p.pecas ? { valor: p.custo / p.pecas, rotulo: 'Nosso custo' } : null].filter(Boolean))}` : '';
+  const meses = ep.meses || 12;
+  const curta = t => epDataCurta(new Date(t));
+  const vendaRede = p => {
+    if (typeof plVendaDe !== 'function') return '';
+    const v = plVendaDe(p.codigo);
+    if (v === undefined) return `<small class="ep-ultvenda">${ep.vendasErro ? 'vendas do BI indisponíveis' : 'últ. venda: buscando no BI…'}</small>`;
+    if (!v || !v.ult) return `<small class="ep-ultvenda ee-enc">sem venda em ${meses} meses (todas as lojas)</small>`;
+    const d = epDiasDesde(new Date(v.ult));
+    return `<small class="ep-ultvenda">últ. venda ${new Date(v.ult).toLocaleDateString('pt-BR')} <b>(${d} d)</b> · ${epPc(v.q)} vendidas em ${meses} m</small>`;
+  };
+  const chipLoja = (p, l) => {
+    const ent = epData(l.data);
+    const v = typeof plVendaDe === 'function' ? plVendaDe(p.codigo, plLojaCod(l.loja)) : undefined;
+    const vendaTxt = v === undefined ? '' : v && v.ult ? `🛒 venda ${curta(v.ult)} (${epPc(v.q)})` : `🛒 sem venda ${meses}m`;
+    const parado = v !== undefined && !(v && v.ult);
+    return `<span class="ee-chip ep-chip-loja ${parado ? 'ee-chip-parado' : 'ee-chip-vende'}" title="${escHTML(l.loja)}">
+      <b>${escHTML(String(l.loja).replace(/\s*-\s*OTIC\w*\s*/i, ' '))} · ${epPc(l.pecas)} pç</b>
+      <small>📥 entrada ${ent ? epDataCurta(ent) : '—'}${vendaTxt ? ' · ' + vendaTxt : ''}</small></span>`;
+  };
   const venda = p => {
     const pr = epPrecoDe(p);
     if (pr === undefined) return '<small class="ep-venda">venda: buscando…</small>';
@@ -404,11 +433,11 @@ function epHtmlDetalhe(chave) {
     return `últ. entrada ${p.entrada.toLocaleDateString('pt-BR')} <b class="${dias > 365 ? 'ee-enc' : ''}">(${dias.toLocaleString('pt-BR')} d)</b>`;
   };
   return `<div class="ep-det-corpo">
-    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · data da última entrada (compra ou transferência) · 🔍 imagens · 💲 Google Shopping · ML Mercado Livre · 🤖 pesquisa de preço com IA · venda/promo do cadastro do SavWin${det.erroPrecos ? ` <span class="ee-enc">(preços: ${escHTML(det.erroPrecos)})</span>` : ''}</div>
+    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · 📥 última entrada (compra ou transferência) · 🛒 última venda no BI (${ep.meses || 12} meses) · 🔍 imagens · 💲 Google Shopping · ML Mercado Livre · 🤖 pesquisa de preço com IA · venda/promo do cadastro do SavWin${det.erroPrecos ? ` <span class="ee-enc">(preços: ${escHTML(det.erroPrecos)})</span>` : ''}</div>
     ${vis.map(p => `<div class="ep-det-prod">
       <div class="ep-det-nome">${escHTML(p.produto)}${lupa(p)}<small>${escHTML([p.codigo && 'cód. ' + p.codigo, p.tipo].filter(Boolean).join(' · '))}</small></div>
-      <div class="ep-det-num">${epPc(p.pecas)} pç${custoOk ? ` · custo ${epR(p.custo)}${p.pecas > 1 ? ` <small class="ep-un">(${epR(p.custo / p.pecas)} un.)</small>` : ''}` : ''}${venda(p)}<small>${entrada(p)}</small></div>
-      <div class="ep-det-lojas">${p.lojas.sort((a, b) => b.pecas - a.pecas).map(l => `<span class="ee-chip ee-chip-parado" title="${escHTML(l.loja)}${l.data ? ' · última entrada ' + escHTML(l.data) : ''}">${escHTML(String(l.loja).replace(/\s*-\s*OTIC\w*\s*/i, ' '))} · ${epPc(l.pecas)}${epData(l.data) ? ' · ' + epDataCurta(epData(l.data)) : ''}</span>`).join('')}</div>
+      <div class="ep-det-num">${epPc(p.pecas)} pç${custoOk ? ` · custo ${epR(p.custo)}${p.pecas > 1 ? ` <small class="ep-un">(${epR(p.custo / p.pecas)} un.)</small>` : ''}` : ''}${venda(p)}<small>${entrada(p)}</small>${vendaRede(p)}</div>
+      <div class="ep-det-lojas">${p.lojas.sort((a, b) => b.pecas - a.pecas).map(l => chipLoja(p, l)).join('')}</div>
     </div>`).join('')}
     ${lista.length > vis.length ? `<button type="button" class="tv-link" onclick="event.stopPropagation(); epMaisDetalhe('${escHTML(String(chave))}')">Mostrar mais (${lista.length - vis.length})</button>` : ''}
   </div>`;
@@ -569,14 +598,26 @@ async function epExportarProdutos(formato) {
       }
     }));
     cancelado();
+    // vendas do BI (para a última venda por produto e por loja)
+    let vendasOk = false;
+    if (typeof plVendasIndice === 'function') {
+      try {
+        await plVendasIndice(ep.meses || 12, (feito, total) => barra(`Lendo as vendas do BI (${ep.meses || 12} meses)`, feito, total), cancelado);
+        vendasOk = true;
+      } catch (e) { if (e.cancelado) throw e; epExp.precos = '⚠️ vendas do BI indisponíveis: ' + e.message; }
+    }
+    cancelado();
     barra('Montando a planilha', 0, 0);
     await new Promise(r => setTimeout(r, 30));
 
     // 3) planilha: um produto por linha, uma coluna de peças por loja
     const lojas = [...new Set(produtos.flatMap(p => p.lojas.map(l => String(l.loja))))].sort();
     const custoOk = ep.dados.CustoLiberado !== false;
-    // por loja: peças e a data da última entrada daquele item naquela loja
-    const cab = ['Grife', 'Produto', 'Código', 'Tipo', 'Peças', ...lojas.flatMap(l => [`${epLojaCurta(l)} · peças`, `${epLojaCurta(l)} · últ. entrada`]),
+    // por loja: peças, última entrada (compra/transferência) e última venda daquele item naquela loja
+    const meses = ep.meses || 12;
+    const cab = ['Grife', 'Produto', 'Código', 'Tipo', 'Peças',
+      ...lojas.flatMap(l => [`${epLojaCurta(l)} · peças`, `${epLojaCurta(l)} · últ. entrada`, ...(vendasOk ? [`${epLojaCurta(l)} · últ. venda`] : [])]),
+      ...(vendasOk ? [`Vendidas (${meses} meses, todas as lojas)`, 'Última venda (todas as lojas)', 'Dias sem vender'] : []),
       ...(custoOk ? ['Custo unitário', 'Custo total'] : []), 'Preço de venda', 'Promoção', 'Preço efetivo', ...(custoOk ? ['Markup'] : []),
       'Valor de venda do estoque', 'Última entrada (mais recente entre as lojas)', 'Dias desde a entrada', 'Grife: última venda', 'Grife: dias sem vender', 'Grife: cobertura (meses)'];
     const n = v => (v === null || v === undefined || v === '' || !isFinite(v)) ? '' : Math.round(v * 100) / 100;
@@ -590,8 +631,15 @@ async function epExportarProdutos(formato) {
         const d = epData(l.data);
         if (d && (!entradaLoja[l.loja] || d > entradaLoja[l.loja])) entradaLoja[l.loja] = d;
       });
+      const dataBR = t => t ? new Date(t).toLocaleDateString('pt-BR') : '';
+      const vRede = vendasOk ? plVendaDe(p.codigo) : null;
       return [p.g.Descricao, p.produto, p.codigo, p.tipo, n(p.pecas),
-        ...lojas.flatMap(l => [porLoja[l] ? n(porLoja[l]) : '', entradaLoja[l] ? entradaLoja[l].toLocaleDateString('pt-BR') : '']),
+        ...lojas.flatMap(l => {
+          const col = [porLoja[l] ? n(porLoja[l]) : '', entradaLoja[l] ? entradaLoja[l].toLocaleDateString('pt-BR') : ''];
+          if (vendasOk) { const v = plVendaDe(p.codigo, plLojaCod(l)); col.push(v && v.ult ? dataBR(v.ult) : (porLoja[l] ? `sem venda ${meses}m` : '')); }
+          return col;
+        }),
+        ...(vendasOk ? [vRede ? n(vRede.q) : 0, vRede && vRede.ult ? dataBR(vRede.ult) : `sem venda em ${meses} meses`, vRede && vRede.ult ? epDiasDesde(new Date(vRede.ult)) : ''] : []),
         ...(custoOk ? [n(custoUn), n(p.custo)] : []), pr ? n(pr.venda) : '', pr && pr.promocao > 0 ? n(pr.promocao) : '', n(efetivo),
         ...(custoOk ? [efetivo && custoUn ? n(efetivo / custoUn) : ''] : []), efetivo ? n(efetivo * p.pecas) : '',
         p.entrada ? p.entrada.toLocaleDateString('pt-BR') : '', p.entrada ? epDiasDesde(p.entrada) : '',
