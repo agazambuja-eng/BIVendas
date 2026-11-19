@@ -381,9 +381,11 @@ function epHtmlDetalhe(chave) {
   const custoOk = ep.dados.CustoLiberado !== false;
   const lista = epProdutosDaGrife(det);
   const vis = lista.slice(0, det.mostrar);
-  const grife = ((ep.dados.Cobertura || []).find(g => String(g.Chave) === String(chave)) || {}).Descricao || '';
+  const gInfo = (ep.dados.Cobertura || []).find(g => String(g.Chave) === String(chave)) || null;
+  const grife = (gInfo || {}).Descricao || '';
   const lupa = p => typeof linkImagemProduto === 'function'
-    ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: p.produto, grife })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto({ descricao: p.produto, grife, corNome: (epPrecoDe(p) || {}).cor, modeloSavwin: (epPrecoDe(p) || {}).modelo }, [
+    ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: p.produto, grife })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto({ descricao: p.produto, grife, corNome: (epPrecoDe(p) || {}).cor, modeloSavwin: (epPrecoDe(p) || {}).modelo,
+      diasEntrada: p.entrada ? epDiasDesde(p.entrada) : null, parado: gInfo ? (gInfo.UltimaVenda ? gInfo.DiasSemVender : -1) : null }, [
       epPrecoDe(p) && epPrecoDe(p).venda ? { valor: epPrecoDe(p).promocao || epPrecoDe(p).venda, rotulo: epPrecoDe(p).promocao ? 'Nossa promoção' : 'Nosso preço de venda' } : null,
       p.pecas ? { valor: p.custo / p.pecas, rotulo: 'Nosso custo' } : null].filter(Boolean))}` : '';
   const venda = p => {
