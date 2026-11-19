@@ -105,6 +105,10 @@ async function abrirPesquisaPreco(el) {
   pw.ref = ds.ref ? { valor: Number(ds.ref), rotulo: ds.refRotulo || 'Nosso valor' } : null;
   pw.ref2 = ds.ref2 ? { valor: Number(ds.ref2), rotulo: ds.ref2Rotulo || 'Nosso custo' } : null;
   pw.extra = { corNome: ds.corNome || '', modeloSavwin: ds.modeloSavwin || '' };
+  pw.contexto = {
+    diasEntrada: ds.diasEntrada != null && ds.diasEntrada !== '' ? Number(ds.diasEntrada) : null,
+    parado: ds.parado != null && ds.parado !== '' ? Number(ds.parado) : null      // dias sem vender da grife; -1 = nunca vendeu
+  };
   pw.chaves = pwChavesDoProduto(nome);
   pw.filtro = pw.chaves.modelo ? 'modelo' : 'todos';
   pw.itens = [];
@@ -176,6 +180,113 @@ function pwRegiaoDoNavegador() {
   });
 }
 
+// ---------------------------------------------------------------- nível de preço e sugestão de promoção
+const CHAVE_MARKUP_MIN = 'bi_markup_minimo';
+function pwMarkupMinimo() {
+  let v = 2;
+  try { v = Number(localStorage.getItem(CHAVE_MARKUP_MIN)) || 2; } catch { /* sem armazenamento */ }
+  return Math.min(10, Math.max(1, v));
+}
+function pwMudarMarkupMinimo(v) {
+  const n = Number(String(v).replace(',', '.'));
+  if (!(n >= 1 && n <= 10)) return;
+  try { localStorage.setItem(CHAVE_MARKUP_MIN, String(n)); } catch { /* sem armazenamento */ }
+  pwRenderizar();
+}
+/** Preço "de vitrine": 1.305 -> 1.299,90 · 950 -> 949,90 · 87 -> 86,90 */
+function pwPrecoVitrine(p) {
+  if (!(p > 0)) return 0;
+  if (p >= 100) return Math.floor(p / 10) * 10 - 0.10;
+  return Math.max(1, Math.floor(p) - 0.10);
+}
+function pwQuantil(ordenados, q) {
+  if (!ordenados.length) return 0;
+  const pos = (ordenados.length - 1) * q, b = Math.floor(pos), r = pos - b;
+  return ordenados[b + 1] !== undefined ? ordenados[b] + r * (ordenados[b + 1] - ordenados[b]) : ordenados[b];
+}
+
+/** Painel ao lado das ofertas: onde estamos no mercado e 3 preços sugeridos. */
+function pwSugestao(precos, mediana) {
+  const venda = pw.ref && pw.ref.valor > 0 ? pw.ref.valor : 0;
+  const ehCusto = pw.ref && /custo/i.test(pw.ref.rotulo);
+  const custo = pw.ref2 && pw.ref2.valor > 0 ? pw.ref2.valor : (ehCusto ? venda : 0);
+  const nosso = ehCusto ? 0 : venda;
+  if (!precos.length) return '<aside class="pw-sugestao"><h4>💡 Sugestão de preço</h4><p class="pw-sug-txt">Sem ofertas para comparar.</p></aside>';
+
+  const mkMin = pwMarkupMinimo();
+  const piso = custo ? custo * mkMin : 0;
+  const p25 = precos.length >= 4 ? pwQuantil(precos, 0.25) : precos[0] * 1.02;
+  const maior = precos[precos.length - 1];
+  const c = pw.contexto || {};
+  const nunca = c.parado === -1;
+  const urg = nunca || (c.diasEntrada || 0) > 365 ? 'alta' : (c.diasEntrada || 0) > 180 || (c.parado || 0) > 180 ? 'media' : 'baixa';
+
+  // nível do nosso preço
+  let nivel = null;
+  if (nosso) {
+    const maisBaratas = precos.filter(p => p < nosso).length;
+    const pos = Math.round(maisBaratas / precos.length * 100);
+    nivel = nosso > maior ? { cls: 'n-alto', txt: '🔴 Acima de todas as ofertas' }
+      : nosso > mediana * 1.05 ? { cls: 'n-acima', txt: '🟠 Acima da mediana do mercado' }
+      : nosso >= mediana * 0.95 ? { cls: 'n-ok', txt: '🟢 Na média do mercado' }
+      : { cls: 'n-baixo', txt: '🔵 Abaixo da mediana do mercado' };
+    nivel.det = `${pos}% das ofertas estão mais baratas que o nosso preço`;
+  }
+
+  const ajustar = p => {
+    let v = pwPrecoVitrine(p);
+    if (piso && v < piso) v = Math.ceil((piso + 0.1) / 10) * 10 - 0.10;     // não passa do piso de margem
+    return v;
+  };
+  const opcoes = [
+    { id: 'mediana', rot: 'Alinhar ao mercado', ajuda: 'preço da mediana das ofertas', preco: ajustar(mediana) },
+    { id: 'girar', rot: 'Girar rápido', ajuda: 'entre as 25% mais baratas', preco: ajustar(p25) },
+    ...(piso ? [{ id: 'piso', rot: 'Piso de margem', ajuda: `custo × ${mkMin.toLocaleString('pt-BR')} (markup mínimo)`, preco: Math.ceil((piso + 0.1) / 10) * 10 - 0.10 }] : [])
+  ];
+
+  // recomendação
+  let rec, texto;
+  if (nosso && nosso <= mediana * 1.05) {
+    rec = null;
+    texto = 'Nosso preço já está competitivo. Se a peça está parada, o motivo provável não é preço: veja exposição, remanejar para lojas que vendem este modelo ou uma ação com os vendedores.';
+  } else {
+    rec = urg === 'alta' ? 'girar' : 'mediana';
+    texto = urg === 'alta'
+      ? `Peça ${nunca ? 'de grife sem venda no período' : 'parada há mais de 1 ano'}: vale uma promoção para girar rápido.`
+      : urg === 'media' ? 'Parada há mais de 6 meses: alinhe ao preço do mercado.'
+      : 'Alinhe ao preço do mercado para não perder venda.';
+    const escolhido = opcoes.find(o => o.id === rec);
+    if (piso && escolhido && pwPrecoVitrine(rec === 'girar' ? p25 : mediana) < piso) {
+      texto += ` O mercado está abaixo do nosso piso de margem (${pwR(piso)}): a promoção vai até o piso; abaixo disso, considere trocar com o fornecedor ou remanejar.`;
+    }
+  }
+
+  const linha = o => {
+    const desc = nosso ? (1 - o.preco / nosso) * 100 : null;
+    const mk = custo ? o.preco / custo : null;
+    const margem = custo ? (1 - custo / o.preco) * 100 : null;
+    return `<div class="pw-opcao ${o.id === rec ? 'rec' : ''}">
+      <div class="pw-op-cab"><span>${o.id === rec ? '⭐ ' : ''}${o.rot}</span><b>${pwR(o.preco)}</b></div>
+      <div class="pw-op-det">${o.ajuda}${desc !== null ? ` · ${desc > 0 ? '−' : '+'}${Math.abs(desc).toFixed(0)}% no nosso preço` : ''}${mk ? ` · markup ${mk.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}×` : ''}${margem !== null ? ` · margem ${margem.toFixed(0)}%` : ''}</div>
+    </div>`;
+  };
+
+  return `<aside class="pw-sugestao">
+    <h4>💡 Nível de preço e sugestão</h4>
+    ${nivel ? `<div class="pw-nivel ${nivel.cls}"><b>${nivel.txt}</b><small>${escHTML(nivel.det)}</small></div>` : '<p class="pw-sug-txt">Sem o nosso preço de venda: sugestões calculadas pelo mercado e pelo custo.</p>'}
+    <div class="pw-sug-ctx">${[
+      nosso ? `Nosso preço: <b>${pwR(nosso)}</b>` : '',
+      custo ? `Custo: <b>${pwR(custo)}</b>` : '',
+      c.diasEntrada != null ? `Última entrada há <b>${c.diasEntrada} d</b>` : '',
+      c.parado != null ? (nunca ? 'Grife <b>sem venda</b> no período' : `Grife vendeu há <b>${c.parado} d</b>`) : ''
+    ].filter(Boolean).join('<br>')}</div>
+    <p class="pw-sug-txt">${escHTML(texto)}</p>
+    ${opcoes.map(linha).join('')}
+    ${custo ? `<label class="pw-mkmin">Markup mínimo <input type="number" min="1" max="10" step="0.1" value="${mkMin}" onchange="pwMudarMarkupMinimo(this.value)"> ×</label>` : ''}
+    <p class="pw-sug-nota">Cálculo do BI com as ofertas do filtro atual (${precos.length}). Preços arredondados para vitrine (,90).</p>
+  </aside>`;
+}
+
 function pwRenderizar() {
   const corpo = document.getElementById('pwCorpo');
   const conta = { todos: pw.itens.length, modelo: pw.itens.filter(x => x.confere.modelo).length, cor: pw.itens.filter(x => x.confere.modelo && x.confere.cor).length };
@@ -206,6 +317,8 @@ function pwRenderizar() {
       <div class="ca-alternar">${pw.chaves.modelo ? botao('modelo', 'Mesmo modelo') + (pw.chaves.cor ? botao('cor', 'Modelo e cor') : '') : ''}${botao('todos', 'Todos')}</div>
       <a class="tv-link" href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(pw.termo)}" target="_blank" rel="noopener noreferrer">abrir no Google Shopping ↗</a>
     </div>
+    <div class="pw-dupla">
+    <div class="pw-col-lista">
     ${lista.length ? `<div class="pw-lista">${lista.map(x => {
       const link = x.url || `https://www.google.com/search?q=${encodeURIComponent((x.loja || '') + ' ' + pw.termo)}`;
       const origem = { conferido: '<span class="pw-tag ok">preço conferido na página ✓</span>', pagina: '<span class="pw-tag">preço da página</span>', ia: '<span class="pw-tag aviso">preço informado pela IA · confira</span>' }[x.precoOrigem] || '';
@@ -221,6 +334,9 @@ function pwRenderizar() {
         <div class="pw-preco">${pwR(x.preco)}${ref ? `<small>${x.preco >= ref.valor ? '+' : ''}${((x.preco / ref.valor - 1) * 100).toFixed(0)}% vs ${escHTML(ref.rotulo.toLowerCase())}</small>` : ''}</div>
       </a>`; }).join('')}</div>`
       : `<div class="pw-aguarde">Nenhuma oferta ${pw.filtro === 'todos' ? '' : 'com o mesmo modelo '}encontrada.${pw.filtro !== 'todos' && conta.todos ? ' Veja "Todos" para resultados parecidos.' : ''}</div>`}
+    </div>
+    ${pwSugestao(precos, mediana)}
+    </div>
     ${pw.fontes && pw.fontes.length ? `<details class="pw-fontes"><summary>Fontes consultadas pela IA (${pw.fontes.length})</summary>${pw.fontes.map(f => `<a href="${escHTML(f.url)}" target="_blank" rel="noopener noreferrer">${escHTML(f.titulo || f.url)}</a>`).join('')}</details>` : ''}
     <p class="pw-rodape">Pesquisa feita por IA (Gemini com pesquisa no Google${pw.ia ? ' · ' + escHTML(pw.ia) : ''})${pw.regiao ? ` · região ${escHTML(pwRotuloRegiao(pw.regiao))}` : ''}${pw.quando ? ' · ' + new Date(pw.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''}${pw.doCache ? ' (guardada; repete a mesma pesquisa sem custo por 24 h)' : ''}${pw.uso ? ` · ${pw.uso.usadas} de ${pw.uso.limite} pesquisas neste mês` : ''}.
       A IA pode errar: confira a oferta antes de usar o preço.</p>`;
@@ -232,7 +348,8 @@ function botaoPrecoWeb(p, ref) {
   if (!termo) return '';
   const refs = [].concat(ref || []).filter(r => r && r.valor > 0);
   const attrRef = refs.map((r, i) => ` data-ref${i ? i + 1 : ''}="${Number(r.valor).toFixed(2)}" data-ref${i ? i + 1 : ''}-rotulo="${escHTML(r.rotulo)}"`).join('') +
-    (p.corNome ? ` data-cor-nome="${escHTML(p.corNome)}"` : '') + (p.modeloSavwin ? ` data-modelo-savwin="${escHTML(p.modeloSavwin)}"` : '');
+    (p.corNome ? ` data-cor-nome="${escHTML(p.corNome)}"` : '') + (p.modeloSavwin ? ` data-modelo-savwin="${escHTML(p.modeloSavwin)}"` : '') +
+    (p.diasEntrada != null ? ` data-dias-entrada="${Number(p.diasEntrada)}"` : '') + (p.parado != null ? ` data-parado="${Number(p.parado)}"` : '');
   return `<button type="button" class="link-preco link-preco-web" data-termo="${escHTML(termo)}"${attrRef}
     onclick="event.stopPropagation(); abrirPesquisaPreco(this)" title="Pesquisar o preço desta peça com IA (lojas da região e online, com foto e preço)">🤖</button>`;
 }
