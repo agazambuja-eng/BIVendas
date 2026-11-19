@@ -461,7 +461,8 @@
                 <button type="button" data-v="fornecedor" onclick="epVisao('fornecedor')">Fornecedor</button>
                 <button type="button" data-v="tipo" onclick="epVisao('tipo')">Tipo</button>
               </div>
-              <button type="button" class="tv-link" onclick="epExportar()">⬇ Exportar CSV</button>
+              <div class="ai-acoes"><button type="button" class="btn-comparar-lojas" onclick="abrirAnaliseIA()" title="Pesquisa com IA os modelos de maior custo parado e monta uma tela única exportável para Excel">🤖 Analisar com IA</button>
+              <button type="button" class="tv-link" onclick="epExportar()">⬇ Exportar CSV</button></div>
             </div>
             <div id="epTabela"></div>
           </div>
@@ -867,5 +868,6 @@
   <script src="/js/comparativo-armacoes.js"></script>
   <script src="/js/pesquisa-especial.js"></script>
   <script src="/js/estoque-painel.js"></script>
+  <script src="/js/analise-ia.js"></script>
 </body>
 </html>
