@@ -319,6 +319,18 @@ function epAtualizarDetalhe(chave) {
 }
 function epMaisDetalhe(chave) { ep.detalhes[chave].mostrar += 60; epAtualizarDetalhe(chave); }
 
+/** "dd/mm/aaaa" -> Date (ou null). */
+function epData(t) {
+  const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null;
+}
+function epDiasDesde(d) {
+  if (!d) return null;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.round((hoje - d) / 86400000));
+}
+const epDataCurta = d => d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}` : '';
+
 function epHtmlDetalhe(chave) {
   const det = ep.detalhes[chave] || {};
   if (det.carregando) return '<div class="ep-det-corpo">⏳ Buscando produtos e lojas no SavWin...</div>';
@@ -329,17 +341,27 @@ function epHtmlDetalhe(chave) {
   det.linhas.forEach(l => {
     const k = l.codigo || l.produto;
     let p = porProd.get(k);
-    if (!p) { p = { produto: l.produto, codigo: l.codigo, tipo: l.tipo, pecas: 0, custo: 0, lojas: [] }; porProd.set(k, p); }
+    if (!p) { p = { produto: l.produto, codigo: l.codigo, tipo: l.tipo, pecas: 0, custo: 0, lojas: [], entrada: null }; porProd.set(k, p); }
     p.pecas += l.pecas; p.custo += l.custo; p.lojas.push(l);
+    const d = epData(l.data);
+    if (d && (!p.entrada || d > p.entrada)) p.entrada = d;   // entrada mais recente entre as lojas
   });
   const lista = [...porProd.values()].sort((a, b) => b.custo - a.custo || b.pecas - a.pecas);
   const vis = lista.slice(0, det.mostrar);
+  const grife = ((ep.dados.Cobertura || []).find(g => String(g.Chave) === String(chave)) || {}).Descricao || '';
+  const lupa = p => typeof linkImagemProduto === 'function'
+    ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: p.produto, grife })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>` : '';
+  const entrada = p => {
+    if (!p.entrada) return '<span class="ee-sem-giro">sem data de entrada</span>';
+    const dias = epDiasDesde(p.entrada);
+    return `últ. entrada ${p.entrada.toLocaleDateString('pt-BR')} <b class="${dias > 365 ? 'ee-enc' : ''}">(${dias.toLocaleString('pt-BR')} d)</b>`;
+  };
   return `<div class="ep-det-corpo">
-    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''}</div>
+    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · data da última entrada (compra ou transferência) · 🔍 abre imagens do produto</div>
     ${vis.map(p => `<div class="ep-det-prod">
-      <div class="ep-det-nome">${escHTML(p.produto)}<small>${escHTML([p.codigo && 'cód. ' + p.codigo, p.tipo].filter(Boolean).join(' · '))}</small></div>
-      <div class="ep-det-num">${epPc(p.pecas)} pç${custoOk ? ' · ' + epR(p.custo) : ''}</div>
-      <div class="ep-det-lojas">${p.lojas.sort((a, b) => b.pecas - a.pecas).map(l => `<span class="ee-chip ee-chip-parado" title="${escHTML(l.loja)}${l.data ? ' · ' + escHTML(l.data) : ''}">${escHTML(String(l.loja).replace(/\s*-\s*OTIC\w*\s*/i, ' '))} · ${epPc(l.pecas)}</span>`).join('')}</div>
+      <div class="ep-det-nome">${escHTML(p.produto)}${lupa(p)}<small>${escHTML([p.codigo && 'cód. ' + p.codigo, p.tipo].filter(Boolean).join(' · '))}</small></div>
+      <div class="ep-det-num">${epPc(p.pecas)} pç${custoOk ? ' · ' + epR(p.custo) : ''}<small>${entrada(p)}</small></div>
+      <div class="ep-det-lojas">${p.lojas.sort((a, b) => b.pecas - a.pecas).map(l => `<span class="ee-chip ee-chip-parado" title="${escHTML(l.loja)}${l.data ? ' · última entrada ' + escHTML(l.data) : ''}">${escHTML(String(l.loja).replace(/\s*-\s*OTIC\w*\s*/i, ' '))} · ${epPc(l.pecas)}${epData(l.data) ? ' · ' + epDataCurta(epData(l.data)) : ''}</span>`).join('')}</div>
     </div>`).join('')}
     ${lista.length > vis.length ? `<button type="button" class="tv-link" onclick="event.stopPropagation(); epMaisDetalhe('${escHTML(String(chave))}')">Mostrar mais (${lista.length - vis.length})</button>` : ''}
   </div>`;
