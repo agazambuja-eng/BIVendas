@@ -190,6 +190,48 @@ async function plMontar() {
   }
 }
 
+/** 🔍 imagens · 💲 Google Shopping · ML Mercado Livre · 🤖 pesquisa com IA (com nosso preço e custo). */
+function plIcones(x) {
+  if (typeof linkImagemProduto !== 'function') return '';
+  const pr = ep.precos[epCodigo(x.codigo)] || null;
+  const efetivo = pr ? (pr.promocao > 0 ? pr.promocao : pr.venda) : 0;
+  const custoUn = x.custoUn || (x.pecas ? x.custo / x.pecas : 0);
+  const refs = [
+    efetivo ? { valor: efetivo, rotulo: pr.promocao > 0 ? 'Nossa promoção' : 'Nosso preço de venda' } : null,
+    custoUn ? { valor: custoUn, rotulo: 'Nosso custo' } : null
+  ].filter(Boolean);
+  // contexto da sugestão: vendeu na loja -> dias desde a venda; sem venda em nenhuma loja -> "sem venda" (-1)
+  const parado = x.vendidas ? x.diasVenda : (x.outras.length ? x.diasParado : -1);
+  const p = { descricao: x.produto, grife: x.grife, corNome: pr ? pr.cor : '', modeloSavwin: pr ? pr.modelo : '', diasEntrada: x.diasEntrada, parado };
+  return ` <a class="la-lupa" href="${linkImagemProduto(p)}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto(p, refs)}`;
+}
+function plVendaTxt(x) {
+  const c = epCodigo(x.codigo);
+  if (!c) return '';
+  const pr = ep.precos[c];
+  if (pr === undefined) return '<small>venda: …</small>';
+  if (!pr || !pr.venda) return '<small>sem preço de venda</small>';
+  return `<small>venda ${epR(pr.venda)}${pr.promocao > 0 ? ` · promo ${epR(pr.promocao)}` : ''}</small>`;
+}
+let plBuscandoPrecos = false;
+async function plCarregarPrecos(linhas) {
+  if (plBuscandoPrecos) return;
+  const codigos = [...new Set(linhas.map(x => epCodigo(x.codigo)).filter(c => c && !(c in ep.precos)))];
+  if (!codigos.length) return;
+  plBuscandoPrecos = true;
+  codigos.forEach(c => { ep.precos[c] = undefined; });
+  try {
+    for (let i = 0; i < codigos.length; i += 80) {
+      const lote = codigos.slice(i, i + 80);
+      const r = await epPost('/savwin/precos', { CODIGOS: lote });
+      lote.forEach(c => { if (r.ok) ep.precos[c] = r.j.precos[c] || null; else delete ep.precos[c]; });
+    }
+  } finally {
+    plBuscandoPrecos = false;
+  }
+  if (ep.visao === 'prodloja') epRenderizarTabela();
+}
+
 function plFiltro(campo, valor) { pl[campo] = valor; ep.mostrar = 100; epRenderizarTabela(); }
 
 function plRenderizar(alvo) {
@@ -226,6 +268,7 @@ function plRenderizar(alvo) {
   const remanejar = enc.filter(x => x.outras.length);
   const pecasTot = soma(base, x => x.pecas), custoTot = soma(base, x => x.custo);
   const vis = lista.slice(0, ep.mostrar);
+  setTimeout(() => plCarregarPrecos(vis), 0);   // preço de venda das linhas visíveis (cadastro do SavWin)
   const th = (c, r, cls = 'num') => `<th class="${cls} ee-ordenavel" onclick="epOrdenar('${c}')">${r}${ep.ordem.campo === c ? (ep.ordem.desc ? ' ▼' : ' ▲') : ''}</th>`;
   const quando = new Date(pl.dados.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -246,9 +289,9 @@ function plRenderizar(alvo) {
       <thead><tr>${th('produto', 'Produto', 'ee-nome')}${th('loja', 'Loja', '')}${th('pecas', 'Peças')}${custoOk ? th('custo', 'Custo') : ''}
         ${th('diasEntrada', 'Última entrada')}${th('vendidas', `Vendidas (${pl.dados.meses} m)`)}${th('diasParado', 'Parado há')}${th('outras', 'Vende em outra loja', '')}</tr></thead>
       <tbody>${vis.map(x => `<tr class="${x.encalhado ? 'pl-enc' : ''}">
-        <td class="ee-nome">${escHTML(x.produto)}<small>${escHTML(x.grife)}${x.codigo ? ' · cód. ' + escHTML(x.codigo) : ''}</small></td>
+        <td class="ee-nome">${escHTML(x.produto)}${plIcones(x)}<small>${escHTML(x.grife)}${x.codigo ? ' · cód. ' + escHTML(x.codigo) : ''}</small></td>
         <td>${escHTML(epLojaCurta(x.loja))}</td>
-        <td class="num">${epPc(x.pecas)}</td>${custoOk ? `<td class="num">${epR(x.custo)}</td>` : ''}
+        <td class="num">${epPc(x.pecas)}</td>${custoOk ? `<td class="num">${epR(x.custo)}${plVendaTxt(x)}</td>` : ''}
         <td class="num">${x.entrada ? x.entrada.toLocaleDateString('pt-BR') + `<small>${x.diasEntrada} d</small>` : '—'}</td>
         <td class="num">${x.vendidas ? `${epPc(x.vendidas)}<small>últ. ${x.ultVenda.toLocaleDateString('pt-BR')}</small>` : '<span class="ee-enc">nenhuma</span>'}</td>
         <td class="num">${x.diasParado !== null ? `<b class="${x.diasParado > 365 ? 'ee-enc' : ''}">${x.diasParado} d</b><small>${x.vendidas ? 'desde a venda' : 'desde a entrada'}</small>` : '—'}</td>
