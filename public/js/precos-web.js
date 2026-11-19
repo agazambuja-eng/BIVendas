@@ -101,7 +101,10 @@ async function abrirPesquisaPreco(el) {
   const termo = termoPrecoProduto(nome);
   pw.termo = termo;
   pw.nome = nome;
-  pw.ref = el && el.dataset && el.dataset.ref ? { valor: Number(el.dataset.ref), rotulo: el.dataset.refRotulo || 'Nosso valor' } : null;
+  const ds = (el && el.dataset) || {};
+  pw.ref = ds.ref ? { valor: Number(ds.ref), rotulo: ds.refRotulo || 'Nosso valor' } : null;
+  pw.ref2 = ds.ref2 ? { valor: Number(ds.ref2), rotulo: ds.ref2Rotulo || 'Nosso custo' } : null;
+  pw.extra = { corNome: ds.corNome || '', modeloSavwin: ds.modeloSavwin || '' };
   pw.chaves = pwChavesDoProduto(nome);
   pw.filtro = pw.chaves.modelo ? 'modelo' : 'todos';
   pw.itens = [];
@@ -115,7 +118,7 @@ async function abrirPesquisaPreco(el) {
   document.getElementById('pwCorpo').innerHTML = `<div class="pw-aguarde">🤖 A IA está pesquisando na web${pw.regiao ? ' · ' + escHTML(pwRotuloRegiao(pw.regiao)) : ' (Brasil)'}…<br><small>leva de 15 a 40 segundos: ela pesquisa no Google e o BI confere foto e preço em cada página</small></div>`;
   try {
     const resp = await fetchAutenticado('/precos/pesquisar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, termo, modelo: pw.chaves.modelo, cor: pw.chaves.cor, tamanho: pw.chaves.tamanho, regiao: pw.regiao })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, termo, modelo: pw.chaves.modelo, cor: pw.chaves.cor, tamanho: pw.chaves.tamanho, regiao: pw.regiao, corNome: pw.extra.corNome, modeloSavwin: pw.extra.modeloSavwin })
     });
     const j = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(j.error || `Erro ${resp.status}`);
@@ -194,6 +197,7 @@ function pwRenderizar() {
       <div class="pw-num"><span>Mediana</span><b>${precos.length ? pwR(mediana) : '—'}</b></div>
       <div class="pw-num"><span>Maior</span><b>${precos.length ? pwR(precos[precos.length - 1]) : '—'}</b></div>
       ${ref ? `<div class="pw-num"><span>${escHTML(ref.rotulo)}</span><b>${pwR(ref.valor)}</b></div>` : ''}${comparar}
+      ${pw.ref2 && pw.ref2.valor > 0 ? `<div class="pw-num"><span>${escHTML(pw.ref2.rotulo)}</span><b>${pwR(pw.ref2.valor)}</b>${mediana ? `<small>mediana ${(mediana / pw.ref2.valor).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}×</small>` : ''}</div>` : ''}
     </div>
     ${pw.resumoIA ? `<div class="pw-ia">🤖 ${escHTML(pw.resumoIA)}</div>` : ''}
     <div class="pw-filtros">
@@ -225,7 +229,9 @@ function pwRenderizar() {
 function botaoPrecoWeb(p, ref) {
   const termo = typeof termoBuscaProduto === 'function' ? termoBuscaProduto(p) : String(p.descricao || '');
   if (!termo) return '';
-  const attrRef = ref && ref.valor > 0 ? ` data-ref="${Number(ref.valor).toFixed(2)}" data-ref-rotulo="${escHTML(ref.rotulo)}"` : '';
+  const refs = [].concat(ref || []).filter(r => r && r.valor > 0);
+  const attrRef = refs.map((r, i) => ` data-ref${i ? i + 1 : ''}="${Number(r.valor).toFixed(2)}" data-ref${i ? i + 1 : ''}-rotulo="${escHTML(r.rotulo)}"`).join('') +
+    (p.corNome ? ` data-cor-nome="${escHTML(p.corNome)}"` : '') + (p.modeloSavwin ? ` data-modelo-savwin="${escHTML(p.modeloSavwin)}"` : '');
   return `<button type="button" class="link-preco link-preco-web" data-termo="${escHTML(termo)}"${attrRef}
     onclick="event.stopPropagation(); abrirPesquisaPreco(this)" title="Pesquisar o preço desta peça com IA (lojas da região e online, com foto e preço)">🤖</button>`;
 }

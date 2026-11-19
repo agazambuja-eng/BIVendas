@@ -18,6 +18,7 @@ const ep = {
   ordem: { campo: 'ordem', desc: false },
   mostrar: 100,
   detalhes: {},          // chave da grife -> { carregando, erro, linhas, mostrar }
+  precos: {},            // código do produto -> { venda, promocao, modelo, cor, tamanho, linha } | null (sem cadastro)
   ultimaTabela: null,
   barra: { inicio: 0, t0: 0, timer: null }
 };
@@ -312,12 +313,51 @@ async function epAbrirGrife(chave) {
   } catch (e) { det.erro = e.message; }
   det.carregando = false;
   epAtualizarDetalhe(chave);
+  epCarregarPrecos(chave);
+}
+
+const epCodigo = c => String(c || '').replace(/\D/g, '').replace(/^0+/, '');
+
+/** Produtos da grife aberta (somados entre as lojas), do maior custo para o menor. */
+function epProdutosDaGrife(det) {
+  const porProd = new Map();
+  (det.linhas || []).forEach(l => {
+    const k = l.codigo || l.produto;
+    let p = porProd.get(k);
+    if (!p) { p = { produto: l.produto, codigo: l.codigo, tipo: l.tipo, pecas: 0, custo: 0, lojas: [], entrada: null }; porProd.set(k, p); }
+    p.pecas += l.pecas; p.custo += l.custo; p.lojas.push(l);
+    const d = epData(l.data);
+    if (d && (!p.entrada || d > p.entrada)) p.entrada = d;   // entrada mais recente entre as lojas
+  });
+  return [...porProd.values()].sort((a, b) => b.custo - a.custo || b.pecas - a.pecas);
+}
+
+/** Preço de venda/promoção (Consulta Preço Estoque do SavWin) dos produtos visíveis da grife. */
+async function epCarregarPrecos(chave) {
+  const det = ep.detalhes[chave];
+  if (!det || !det.linhas) return;
+  const codigos = epProdutosDaGrife(det).slice(0, det.mostrar).map(p => epCodigo(p.codigo))
+    .filter(c => c && !(c in ep.precos));
+  if (!codigos.length) return;
+  codigos.forEach(c => { ep.precos[c] = undefined; });   // marca "buscando"
+  for (let i = 0; i < codigos.length; i += 80) {
+    const lote = codigos.slice(i, i + 80);
+    try {
+      const r = await epPost('/savwin/precos', { CODIGOS: lote });
+      if (!r.ok) throw new Error(r.j.error || `Erro ${r.status}`);
+      lote.forEach(c => { ep.precos[c] = r.j.precos[c] || null; });
+    } catch (e) {
+      lote.forEach(c => { delete ep.precos[c]; });
+      det.erroPrecos = e.message;
+    }
+  }
+  epAtualizarDetalhe(chave);
 }
 function epAtualizarDetalhe(chave) {
   const el = document.getElementById('epDet_' + epId(chave));
   if (el) el.innerHTML = epHtmlDetalhe(chave);
 }
-function epMaisDetalhe(chave) { ep.detalhes[chave].mostrar += 60; epAtualizarDetalhe(chave); }
+function epMaisDetalhe(chave) { ep.detalhes[chave].mostrar += 60; epAtualizarDetalhe(chave); epCarregarPrecos(chave); }
 
 /** "dd/mm/aaaa" -> Date (ou null). */
 function epData(t) {
@@ -331,36 +371,40 @@ function epDiasDesde(d) {
 }
 const epDataCurta = d => d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}` : '';
 
+function epPrecoDe(p) { const c = epCodigo(p.codigo); return c ? ep.precos[c] : null; }
+
 function epHtmlDetalhe(chave) {
   const det = ep.detalhes[chave] || {};
   if (det.carregando) return '<div class="ep-det-corpo">⏳ Buscando produtos e lojas no SavWin...</div>';
   if (det.erro) return `<div class="ep-det-corpo">⚠️ ${escHTML(det.erro)}</div>`;
   if (!det.linhas) return '';
   const custoOk = ep.dados.CustoLiberado !== false;
-  const porProd = new Map();
-  det.linhas.forEach(l => {
-    const k = l.codigo || l.produto;
-    let p = porProd.get(k);
-    if (!p) { p = { produto: l.produto, codigo: l.codigo, tipo: l.tipo, pecas: 0, custo: 0, lojas: [], entrada: null }; porProd.set(k, p); }
-    p.pecas += l.pecas; p.custo += l.custo; p.lojas.push(l);
-    const d = epData(l.data);
-    if (d && (!p.entrada || d > p.entrada)) p.entrada = d;   // entrada mais recente entre as lojas
-  });
-  const lista = [...porProd.values()].sort((a, b) => b.custo - a.custo || b.pecas - a.pecas);
+  const lista = epProdutosDaGrife(det);
   const vis = lista.slice(0, det.mostrar);
   const grife = ((ep.dados.Cobertura || []).find(g => String(g.Chave) === String(chave)) || {}).Descricao || '';
   const lupa = p => typeof linkImagemProduto === 'function'
-    ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: p.produto, grife })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto({ descricao: p.produto, grife }, p.pecas ? { valor: p.custo / p.pecas, rotulo: 'Nosso custo' } : null)}` : '';
+    ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: p.produto, grife })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>${linksPrecoProduto({ descricao: p.produto, grife, corNome: (epPrecoDe(p) || {}).cor, modeloSavwin: (epPrecoDe(p) || {}).modelo }, [
+      epPrecoDe(p) && epPrecoDe(p).venda ? { valor: epPrecoDe(p).promocao || epPrecoDe(p).venda, rotulo: epPrecoDe(p).promocao ? 'Nossa promoção' : 'Nosso preço de venda' } : null,
+      p.pecas ? { valor: p.custo / p.pecas, rotulo: 'Nosso custo' } : null].filter(Boolean))}` : '';
+  const venda = p => {
+    const pr = epPrecoDe(p);
+    if (pr === undefined) return '<small class="ep-venda">venda: buscando…</small>';
+    if (!pr || !pr.venda) return '<small class="ep-venda ee-sem-giro">sem preço de venda</small>';
+    const custoUn = p.pecas ? p.custo / p.pecas : 0;
+    const efetivo = pr.promocao > 0 ? pr.promocao : pr.venda;
+    const mk = custoUn > 0 ? efetivo / custoUn : 0;
+    return `<small class="ep-venda">venda <b>${epR(pr.venda)}</b>${pr.promocao > 0 ? ` · promo <b class="ep-promo">${epR(pr.promocao)}</b>` : ''}${mk ? ` · markup <b class="${mk < 2 ? 'ee-enc' : ''}">${mk.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}×</b>` : ''}</small>`;
+  };
   const entrada = p => {
     if (!p.entrada) return '<span class="ee-sem-giro">sem data de entrada</span>';
     const dias = epDiasDesde(p.entrada);
     return `últ. entrada ${p.entrada.toLocaleDateString('pt-BR')} <b class="${dias > 365 ? 'ee-enc' : ''}">(${dias.toLocaleString('pt-BR')} d)</b>`;
   };
   return `<div class="ep-det-corpo">
-    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · data da última entrada (compra ou transferência) · 🔍 imagens · 💲 Google Shopping · ML Mercado Livre · 🤖 pesquisa de preço com IA</div>
+    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · data da última entrada (compra ou transferência) · 🔍 imagens · 💲 Google Shopping · ML Mercado Livre · 🤖 pesquisa de preço com IA · venda/promo do cadastro do SavWin${det.erroPrecos ? ` <span class="ee-enc">(preços: ${escHTML(det.erroPrecos)})</span>` : ''}</div>
     ${vis.map(p => `<div class="ep-det-prod">
       <div class="ep-det-nome">${escHTML(p.produto)}${lupa(p)}<small>${escHTML([p.codigo && 'cód. ' + p.codigo, p.tipo].filter(Boolean).join(' · '))}</small></div>
-      <div class="ep-det-num">${epPc(p.pecas)} pç${custoOk ? ' · ' + epR(p.custo) : ''}<small>${entrada(p)}</small></div>
+      <div class="ep-det-num">${epPc(p.pecas)} pç${custoOk ? ` · custo ${epR(p.custo)}${p.pecas > 1 ? ` <small class="ep-un">(${epR(p.custo / p.pecas)} un.)</small>` : ''}` : ''}${venda(p)}<small>${entrada(p)}</small></div>
       <div class="ep-det-lojas">${p.lojas.sort((a, b) => b.pecas - a.pecas).map(l => `<span class="ee-chip ee-chip-parado" title="${escHTML(l.loja)}${l.data ? ' · última entrada ' + escHTML(l.data) : ''}">${escHTML(String(l.loja).replace(/\s*-\s*OTIC\w*\s*/i, ' '))} · ${epPc(l.pecas)}${epData(l.data) ? ' · ' + epDataCurta(epData(l.data)) : ''}</span>`).join('')}</div>
     </div>`).join('')}
     ${lista.length > vis.length ? `<button type="button" class="tv-link" onclick="event.stopPropagation(); epMaisDetalhe('${escHTML(String(chave))}')">Mostrar mais (${lista.length - vis.length})</button>` : ''}

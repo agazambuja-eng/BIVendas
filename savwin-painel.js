@@ -25,6 +25,17 @@ let lojasSavwin = null;          // { quando, porCodigo: Map(codigo -> {id, nome
 const paineis = new Map();       // chaveCache -> { quando, dados }
 const buscas = new Map();        // chaveCache -> { inicio }
 const errosBusca = new Map();    // chaveCache -> { mensagem, quando }
+const cachePrecos = new Map();   // código do produto -> { quando, dados }
+
+/** "3.072,00" / "0.00" / 1080 -> número. */
+function numeroBR(v) {
+  if (typeof v === 'number') return v;
+  let s = String(v || '').trim();
+  if (!s) return 0;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = Number(s);
+  return isFinite(n) ? n : 0;
+}
 
 // ------------------------------------------------------------------ http
 function postar(caminho, corpo, { chave, identificador } = {}) {
@@ -242,6 +253,41 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas }) {
     } catch (err) { responderErro(res, err); }
   });
 
+  /**
+   * Preço de venda e promoção de produtos (tela Consulta Preço Estoque do SavWin),
+   * pelo código do produto. ~0,1 s por produto; cache de 6 h.
+   */
+  app.post('/savwin/precos', exigirUsuario('acessar_bi'), async (req, res) => {
+    try {
+      if (!sessao) throw new SessaoExpirada('O BI não está conectado ao SavWin.');
+      const codigos = [...new Set([].concat(req.body.CODIGOS || []).map(c => String(c).replace(/\D/g, '').replace(/^0+/, '')).filter(Boolean))].slice(0, 80);
+      const precos = {};
+      const fila = codigos.filter(c => {
+        const em = cachePrecos.get(c);
+        if (em && Date.now() - em.quando < 6 * 60 * 60 * 1000) { precos[c] = em.dados; return false; }
+        return true;
+      });
+      const trabalhar = async () => {
+        for (let c = fila.shift(); c; c = fila.shift()) {
+          const j = await postarComSessao('api/Comercial/ConsultaPrecoEstoque/ConsultaPrecoEstoque', { loja: '', pesquisa: c, tipo: 'SEQUENCIAL' });
+          const lista = typeof j === 'string' ? (() => { try { return JSON.parse(j); } catch { return []; } })() : j;
+          const x = (Array.isArray(lista) ? lista : []).find(l => String(l.MATSEQUENCIAL).replace(/^0+/, '') === c) || (lista || [])[0];
+          const dados = x ? {
+            venda: numeroBR(x.PRECOVENDA), promocao: numeroBR(x.PRECOPROMOCAO), matid: String(x.MATID || ''),
+            modelo: String(x.ARMDESCRICAO || '').trim(), cor: String(x.ARCDESCRICAO || '').trim().replace(/^\.$/, ''),
+            tamanho: String(x.ATODESCRICAO || '').trim(), linha: String(x.ARLDESCRICAO || '').trim(),
+            cadastro: String(x.MATDTCADASTRO || '')
+          } : null;
+          precos[c] = dados;
+          cachePrecos.set(c, { quando: Date.now(), dados });
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(6, fila.length) }, trabalhar));   // 6 consultas por vez
+      if (cachePrecos.size > 20000) cachePrecos.clear();
+      res.json({ precos });
+    } catch (err) { responderErro(res, err); }
+  });
+
   /** Produtos × lojas de uma grife (bloco "O que está encalhado"). */
   app.post('/savwin/estoque/detalhe', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
     try {
@@ -263,4 +309,4 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas }) {
   });
 }
 
-module.exports = { registrarRotasPainelSavwin, codigoDaDescricao, textoSimples, janela };
+module.exports = { registrarRotasPainelSavwin, codigoDaDescricao, textoSimples, janela, numeroBR };
