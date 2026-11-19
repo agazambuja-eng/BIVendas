@@ -179,7 +179,7 @@ function epMudar(campo, valor) {
 }
 function epVisao(v) {
   ep.visao = v; ep.mostrar = 100;
-  ep.ordem = v === 'grife' ? { campo: 'ordem', desc: false } : { campo: 'Custo', desc: true };
+  ep.ordem = v === 'grife' ? { campo: 'ordem', desc: false } : v === 'prodloja' ? { campo: 'custo', desc: true } : { campo: 'Custo', desc: true };
   document.querySelectorAll('#epVisoes button').forEach(b => b.classList.toggle('ativo', b.dataset.v === v));
   epRenderizarTabela();
 }
@@ -242,6 +242,7 @@ function epTh(campo, rotulo, cls = 'num') {
 function epRenderizarTabela() {
   const alvo = document.getElementById('epTabela');
   if (!alvo || !ep.dados) return;
+  if (ep.visao === 'prodloja' && typeof plRenderizar === 'function') return plRenderizar(alvo);
   const custoOk = ep.dados.CustoLiberado !== false;
   const busca = ep.busca.trim().toUpperCase();
   const casa = x => !busca || String(x.Descricao || '').toUpperCase().includes(busca);
@@ -479,7 +480,7 @@ function epExpDesenhar(estado = 'rodando', msg = '') {
   const el = epExpPainel();
   el.style.display = '';
   const pct = epExp.total ? Math.round(epExp.feito / epExp.total * 100) : 0;
-  const titulo = `⬇ Planilha ${epExp.formato === 'xlsx' ? 'Excel' : 'CSV'} · por produto`;
+  const titulo = epExp.titulo || `⬇ Planilha ${epExp.formato === 'xlsx' ? 'Excel' : 'CSV'} · por produto`;
   if (estado === 'rodando') {
     el.innerHTML = `<div class="ep-exp-cab"><b>${titulo}</b><span class="ep-exp-tempo">⏱ ${epExpTempo()}</span></div>
       <div class="ep-exp-fase">${escHTML(epExp.fase)}${epExp.total ? ` · ${epExp.feito.toLocaleString('pt-BR')} de ${epExp.total.toLocaleString('pt-BR')}` : ''}</div>
@@ -509,7 +510,7 @@ async function epExportarProdutos(formato) {
     return;
   }
   epExportando = true;
-  Object.assign(epExp, { inicio: Date.now(), cancelar: false, fase: 'Preparando', feito: 0, total: 0, grifes: '', produtos: 0, precos: '', formato });
+  Object.assign(epExp, { inicio: Date.now(), cancelar: false, fase: 'Preparando', feito: 0, total: 0, grifes: '', produtos: 0, precos: '', formato, titulo: '' });
   epExpBotoes(true);
   epExpDesenhar();
   epExp.timer = setInterval(() => epExpDesenhar(), 1000);
