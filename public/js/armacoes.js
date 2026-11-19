@@ -205,11 +205,13 @@ const FONTES_PRECO = [
 ];
 
 /** Botões "pesquisar preço" (Google Shopping e Mercado Livre) para usar ao lado da lupa. */
-function linksPrecoProduto(p) {
-  const termo = termoBuscaProduto(p);
+function linksPrecoProduto(p, ref) {
+  const completo = termoBuscaProduto(p);
+  const termo = typeof termoPrecoProduto === 'function' ? termoPrecoProduto(completo) : completo;
   if (!termo) return '';
   return FONTES_PRECO.map(f => `<a class="link-preco link-preco-${f.id}" href="${f.url(termo)}" target="_blank" rel="noopener noreferrer"
-      title="Pesquisar o preço desta peça no ${f.nome}: ${escHTML(termo)}" onclick="event.stopPropagation()">${f.icone}</a>`).join('');
+      title="Pesquisar o preço desta peça no ${f.nome}: ${escHTML(termo)}" onclick="event.stopPropagation()">${f.icone}</a>`).join('') +
+    (typeof botaoPrecoWeb === 'function' ? botaoPrecoWeb(p, ref) : '');
 }
 
 const MEDALHAS = [
