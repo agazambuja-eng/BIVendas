@@ -721,3 +721,16 @@ th.filtrada { color: #5ee7ff !important; }
 .ai-tabela .ee-lojas { min-width: 130px; max-width: 170px; }
 .ep-exportar { font-size: 12px; color: #5ee7ff; white-space: nowrap; }
 .ep-exportar .tv-link { padding: 4px 2px; }
+/* Painel flutuante da exportação */
+.ep-exp-painel { position: fixed; right: 18px; bottom: 18px; z-index: 2500; width: min(380px, calc(100vw - 32px)); padding: 12px 14px; border-radius: 12px;
+  background: #0f1433; border: 1px solid rgba(94,231,255,.45); box-shadow: 0 12px 40px rgba(0,0,0,.55), 0 0 18px rgba(94,231,255,.15); color: #e8ecff; font-size: 12.5px; }
+.ep-exp-cab { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.ep-exp-tempo { color: #5ee7ff; font-variant-numeric: tabular-nums; font-weight: 600; }
+.ep-exp-fase { color: #cfd6ff; margin-bottom: 6px; }
+.ep-exp-contas { margin-top: 6px; color: #8a93c9; font-size: 11.5px; }
+.ep-exp-rodape { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; }
+.ep-exp-rodape small { color: #8a93c9; font-size: 10.5px; }
+.ep-exp-fim { padding: 6px 0; line-height: 1.45; }
+.ep-exp-fim.erro { color: #ffb3c8; }
+.ep-exp-fim.cancelado { color: #ffd35e; }
+.ep-exportar.ocupado { opacity: .5; }
