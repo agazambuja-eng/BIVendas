@@ -357,7 +357,7 @@ function epHtmlDetalhe(chave) {
     return `últ. entrada ${p.entrada.toLocaleDateString('pt-BR')} <b class="${dias > 365 ? 'ee-enc' : ''}">(${dias.toLocaleString('pt-BR')} d)</b>`;
   };
   return `<div class="ep-det-corpo">
-    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · data da última entrada (compra ou transferência) · 🔍 imagens · 💲 Google Shopping · ML Mercado Livre · 🛒 preços aqui mesmo</div>
+    <div class="ep-det-cab">${lista.length} produtos em estoque${det.limitado ? ' (o SavWin limitou a lista)' : ''} · em cada loja: peças · data da última entrada (compra ou transferência) · 🔍 imagens · 💲 Google Shopping · ML Mercado Livre · 🤖 pesquisa de preço com IA</div>
     ${vis.map(p => `<div class="ep-det-prod">
       <div class="ep-det-nome">${escHTML(p.produto)}${lupa(p)}<small>${escHTML([p.codigo && 'cód. ' + p.codigo, p.tipo].filter(Boolean).join(' · '))}</small></div>
       <div class="ep-det-num">${epPc(p.pecas)} pç${custoOk ? ' · ' + epR(p.custo) : ''}<small>${entrada(p)}</small></div>
