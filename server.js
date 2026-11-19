@@ -133,7 +133,7 @@ registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavwin: HEADE
 // 5. Estoque pelo painel do SavWin (login informado no card; só a chave fica em memória)
 registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas });
 
-// 6. Preço da mesma peça na web (Google Shopping Brasil via Serper; variável SERPER_API_KEY)
+// 6. Preço da mesma peça na web com IA (Gemini + pesquisa Google; variável GEMINI_API_KEY)
 registrarRotaPrecos(app, { exigirUsuario });
 
 const PORT = process.env.PORT || 3000;
