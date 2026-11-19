@@ -603,3 +603,9 @@ th.filtrada { color: #5ee7ff !important; }
 .ep-det-num small { display: block; color: #8a93c9; font-size: 10.5px; margin-top: 2px; }
 .ep-det-num small b { font-weight: 600; color: #cfd6ff; }
 .ep-det-num small b.ee-enc { color: #ff8fb0; }
+/* Pesquisa de preço da mesma peça (Google Shopping / Mercado Livre) */
+.link-preco { display: inline-flex; align-items: center; justify-content: center; margin-left: 5px; min-width: 20px; height: 18px; padding: 0 4px;
+  border-radius: 5px; font-size: 10px; font-weight: 700; text-decoration: none; vertical-align: middle; opacity: .75;
+  border: 1px solid rgba(120,140,255,.35); color: #cfd6ff !important; background: rgba(47,107,255,.10); }
+.link-preco:hover { opacity: 1; box-shadow: 0 0 8px rgba(94,231,255,.45); }
+.link-preco-ml { color: #2d3277 !important; background: #ffe600; border-color: #ffe600; }

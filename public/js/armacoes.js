@@ -184,11 +184,32 @@ function desenharArmacoes() {
 }
 
 /** Link do Google Imagens pela descrição do produto (acrescenta a grife se ela não estiver na descrição). */
-function linkImagemProduto(p) {
-  const desc = String(p.descricao || '').trim();
+/**
+ * Termo de busca de um produto na internet: grife (se ainda não estiver no nome) + descrição.
+ * Fica num lugar só para ser reaproveitado depois (ex.: pesquisa automática de preços com IA).
+ */
+function termoBuscaProduto(p) {
+  const desc = String(p.descricao || '').replace(/\s+/g, ' ').trim();
   const grife = String(p.grife || '').trim();
-  const termo = (grife && grife !== 'SEM GRIFE' && grife !== '—' && !desc.toUpperCase().includes(grife.toUpperCase()) ? grife + ' ' : '') + desc;
-  return 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(termo);
+  return (grife && grife !== 'SEM GRIFE' && grife !== '—' && !desc.toUpperCase().includes(grife.toUpperCase()) ? grife + ' ' : '') + desc;
+}
+
+function linkImagemProduto(p) {
+  return 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(termoBuscaProduto(p));
+}
+
+/** Onde pesquisar o preço da mesma peça (abre em outra aba). */
+const FONTES_PRECO = [
+  { id: 'google', nome: 'Google Shopping', icone: '💲', url: t => 'https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(t) },
+  { id: 'ml', nome: 'Mercado Livre', icone: 'ML', url: t => 'https://lista.mercadolivre.com.br/' + encodeURIComponent(t.replace(/\s+/g, '-')) }
+];
+
+/** Botões "pesquisar preço" (Google Shopping e Mercado Livre) para usar ao lado da lupa. */
+function linksPrecoProduto(p) {
+  const termo = termoBuscaProduto(p);
+  if (!termo) return '';
+  return FONTES_PRECO.map(f => `<a class="link-preco link-preco-${f.id}" href="${f.url(termo)}" target="_blank" rel="noopener noreferrer"
+      title="Pesquisar o preço desta peça no ${f.nome}: ${escHTML(termo)}" onclick="event.stopPropagation()">${f.icone}</a>`).join('');
 }
 
 const MEDALHAS = [

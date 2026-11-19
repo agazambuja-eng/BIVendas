@@ -156,7 +156,7 @@ function desenharPesquisaEspecial() {
     </tr>`;
     let html = achados.map((c, i) => linha(
       `<span class="pesq-cor" style="background:${CORES_PALETA[i % CORES_PALETA.length]}"></span><b>${escHTML(c)}</b> · ${escHTML(desc(c))}` +
-      (typeof linkImagemProduto === 'function' ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: desc(c) })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto">🔍</a>` : ''),
+      (typeof linkImagemProduto === 'function' ? ` <a class="la-lupa" href="${linkImagemProduto({ descricao: desc(c) })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto">🔍</a>${linksPrecoProduto({ descricao: desc(c) })}` : ''),
       valores(c))).join('');
     if (achados.length > 1) {
       const soma = periodos.map((_, k) => achados.reduce((s, c) => s + valores(c)[k], 0));
