@@ -574,17 +574,23 @@ async function epExportarProdutos(formato) {
     // 3) planilha: um produto por linha, uma coluna de peças por loja
     const lojas = [...new Set(produtos.flatMap(p => p.lojas.map(l => String(l.loja))))].sort();
     const custoOk = ep.dados.CustoLiberado !== false;
-    const cab = ['Grife', 'Produto', 'Código', 'Tipo', 'Peças', ...lojas.map(epLojaCurta),
+    // por loja: peças e a data da última entrada daquele item naquela loja
+    const cab = ['Grife', 'Produto', 'Código', 'Tipo', 'Peças', ...lojas.flatMap(l => [`${epLojaCurta(l)} · peças`, `${epLojaCurta(l)} · últ. entrada`]),
       ...(custoOk ? ['Custo unitário', 'Custo total'] : []), 'Preço de venda', 'Promoção', 'Preço efetivo', ...(custoOk ? ['Markup'] : []),
-      'Valor de venda do estoque', 'Última entrada', 'Dias desde a entrada', 'Grife: última venda', 'Grife: dias sem vender', 'Grife: cobertura (meses)'];
+      'Valor de venda do estoque', 'Última entrada (mais recente entre as lojas)', 'Dias desde a entrada', 'Grife: última venda', 'Grife: dias sem vender', 'Grife: cobertura (meses)'];
     const n = v => (v === null || v === undefined || v === '' || !isFinite(v)) ? '' : Math.round(v * 100) / 100;
     const linhas = produtos.sort((a, b) => b.custo - a.custo).map(p => {
       const pr = ep.precos[epCodigo(p.codigo)] || null;
       const custoUn = p.pecas ? p.custo / p.pecas : 0;
       const efetivo = pr ? (pr.promocao > 0 ? pr.promocao : pr.venda) : 0;
-      const porLoja = {};
-      p.lojas.forEach(l => { porLoja[l.loja] = (porLoja[l.loja] || 0) + l.pecas; });
-      return [p.g.Descricao, p.produto, p.codigo, p.tipo, n(p.pecas), ...lojas.map(l => porLoja[l] ? n(porLoja[l]) : ''),
+      const porLoja = {}, entradaLoja = {};
+      p.lojas.forEach(l => {
+        porLoja[l.loja] = (porLoja[l.loja] || 0) + l.pecas;
+        const d = epData(l.data);
+        if (d && (!entradaLoja[l.loja] || d > entradaLoja[l.loja])) entradaLoja[l.loja] = d;
+      });
+      return [p.g.Descricao, p.produto, p.codigo, p.tipo, n(p.pecas),
+        ...lojas.flatMap(l => [porLoja[l] ? n(porLoja[l]) : '', entradaLoja[l] ? entradaLoja[l].toLocaleDateString('pt-BR') : '']),
         ...(custoOk ? [n(custoUn), n(p.custo)] : []), pr ? n(pr.venda) : '', pr && pr.promocao > 0 ? n(pr.promocao) : '', n(efetivo),
         ...(custoOk ? [efetivo && custoUn ? n(efetivo / custoUn) : ''] : []), efetivo ? n(efetivo * p.pecas) : '',
         p.entrada ? p.entrada.toLocaleDateString('pt-BR') : '', p.entrada ? epDiasDesde(p.entrada) : '',
