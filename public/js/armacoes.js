@@ -279,7 +279,7 @@ function desenharCartoesGrifes(cards) {
         <li class="${k === 0 ? 'cl-destaque' : ''}" title="${escHTML(g.nome)}: ${formatarMoedaBR(g.liquido)} · ${g.qtd.toLocaleString('pt-BR')} un.">
           <i style="background:${coresGrife[g.nome]}; box-shadow: 0 0 8px ${coresGrife[g.nome]};"></i>
           <span>${escHTML(g.nome)}</span>
-          <b>${pctTxt(vA(g), c.total)}</b>
+          <b>${pctTxt(vA(g), c.total)}</b><em class="arm-un">${g.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</em>
         </li>`).join('') : '<li class="arm-sem">Sem vendas.</li>';
     return `<div class="cl-card ${c.onClick ? 'arm-clicavel' : ''}" data-i="${i}" style="animation-delay:${i * 70}ms; border-top: 3px solid ${c.cor};"
         ${c.onClick ? 'title="Clique para ver por loja"' : ''}>

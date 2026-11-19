@@ -775,6 +775,11 @@ function processarDadosBI(dados, dadosPagamentos) {
         || ia.meioPagamento.localeCompare(ib.meioPagamento);
     });
 
+    // total geral (para a % de cada forma de pagamento)
+    let totalTodasFormas = 0;
+    chavesOrdenadas.forEach(k => Object.values(agrupadoPagamentos[k].lojas).forEach(d => { totalTodasFormas += d.vendasValor; }));
+    const pctPg = (v, t) => (t > 0 ? (v / t) * 100 : 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+
     htmlPagamentos = chavesOrdenadas.map(chaveReal => {
       const item = agrupadoPagamentos[chaveReal];
       let totalGeralValorGrupo = 0;
@@ -791,7 +796,7 @@ function processarDadosBI(dados, dadosPagamentos) {
         return `
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; border-bottom: 1px dashed #eee; font-size: 12px; background: #fff;">
             <span style="font-weight: bold; color: #555;">Loja ${idLoja}</span>
-            <span style="color: #333;">${formatarMoedaBR(dadosLoja.vendasValor)}</span>
+            <span style="color: #333;"><span class="pg-pct" title="% desta forma de pagamento que veio desta loja">${pctPg(dadosLoja.vendasValor, totalGeralValorGrupo)}</span><span class="pg-rs">${formatarMoedaBR(dadosLoja.vendasValor)}</span></span>
             <span style="color: #666; font-size: 11px;">Qtd: <strong>${dadosLoja.quantidadeVendas}</strong></span>
           </div>
         `;
@@ -810,7 +815,7 @@ function processarDadosBI(dados, dadosPagamentos) {
             
             <div style="display: flex; gap: 12px; align-items: center; font-size: 12px;">
               <span style="color: #555; font-size: 11px;">Qtd: <strong>${totalGeralQtdGrupo}</strong></span>
-              <span style="color: #0078d7; font-weight: bold;">${formatarMoedaBR(totalGeralValorGrupo)}</span>
+              <span style="color: #0078d7; font-weight: bold;"><span class="pg-pct" title="${formatarMoedaBR(totalGeralValorGrupo)}">${pctPg(totalGeralValorGrupo, totalTodasFormas)}</span><span class="pg-rs">${formatarMoedaBR(totalGeralValorGrupo)}</span></span>
               <button type="button" onclick="event.stopPropagation(); abrirModalZoom('${chaveReal}')" style="background: #0078d7; color: #fff; border: none; padding: 3px 6px; border-radius: 4px; font-size: 10px; cursor: pointer;" title="Ver Detalhes por Loja">🔍</button>
             </div>
           </div>
@@ -1244,3 +1249,19 @@ function renderizarGraficoVendaLojasGeral(totalLiquidoGeral = 0) {
     }
   });
 }
+
+
+/* Resumo de Pagamento & Parcelas: mostrar % (padrão) ou valor em R$. Só troca a classe do cartão. */
+function escolherMetricaPagamentos(m) {
+  const card = document.getElementById('cardResumoPagamento');
+  if (!card) return;
+  card.classList.toggle('pg-modo-pct', m === 'pct');
+  card.classList.toggle('pg-modo-rs', m === 'rs');
+  document.querySelectorAll('#pgMetrica button').forEach(b => b.classList.toggle('ativo', b.dataset.m === m));
+  try { localStorage.setItem('bi_metrica_pagamentos', m); } catch { /* sem armazenamento */ }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  let m = 'pct';
+  try { m = localStorage.getItem('bi_metrica_pagamentos') || 'pct'; } catch { /* sem armazenamento */ }
+  escolherMetricaPagamentos(m === 'rs' ? 'rs' : 'pct');
+});
