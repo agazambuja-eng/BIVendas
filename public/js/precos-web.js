@@ -206,30 +206,29 @@ function pwQuantil(ordenados, q) {
 }
 
 /** Painel ao lado das ofertas: onde estamos no mercado e 3 preços sugeridos. */
-function pwSugestao(precos, mediana) {
-  const venda = pw.ref && pw.ref.valor > 0 ? pw.ref.valor : 0;
-  const ehCusto = pw.ref && /custo/i.test(pw.ref.rotulo);
-  const custo = pw.ref2 && pw.ref2.valor > 0 ? pw.ref2.valor : (ehCusto ? venda : 0);
-  const nosso = ehCusto ? 0 : venda;
-  if (!precos.length) return '<aside class="pw-sugestao"><h4>💡 Sugestão de preço</h4><p class="pw-sug-txt">Sem ofertas para comparar.</p></aside>';
-
+/**
+ * Cálculo da sugestão (usado no modal e na análise em lote).
+ * precos: ofertas ordenadas; nosso: nosso preço de venda (0 se não houver); custo: custo unitário;
+ * contexto: { diasEntrada, parado (-1 = grife sem venda) }.
+ */
+function pwCalcularSugestao({ precos, mediana, nosso, custo, contexto }) {
+  if (!precos.length) return null;
   const mkMin = pwMarkupMinimo();
   const piso = custo ? custo * mkMin : 0;
   const p25 = precos.length >= 4 ? pwQuantil(precos, 0.25) : precos[0] * 1.02;
   const maior = precos[precos.length - 1];
-  const c = pw.contexto || {};
+  const c = contexto || {};
   const nunca = c.parado === -1;
   const urg = nunca || (c.diasEntrada || 0) > 365 ? 'alta' : (c.diasEntrada || 0) > 180 || (c.parado || 0) > 180 ? 'media' : 'baixa';
 
-  // nível do nosso preço
   let nivel = null;
   if (nosso) {
-    const maisBaratas = precos.filter(p => p < nosso).length;
-    const pos = Math.round(maisBaratas / precos.length * 100);
-    nivel = nosso > maior ? { cls: 'n-alto', txt: '🔴 Acima de todas as ofertas' }
-      : nosso > mediana * 1.05 ? { cls: 'n-acima', txt: '🟠 Acima da mediana do mercado' }
-      : nosso >= mediana * 0.95 ? { cls: 'n-ok', txt: '🟢 Na média do mercado' }
-      : { cls: 'n-baixo', txt: '🔵 Abaixo da mediana do mercado' };
+    const pos = Math.round(precos.filter(p => p < nosso).length / precos.length * 100);
+    nivel = nosso > maior ? { cls: 'n-alto', txt: '🔴 Acima de todas as ofertas', curto: 'Acima de todas' }
+      : nosso > mediana * 1.05 ? { cls: 'n-acima', txt: '🟠 Acima da mediana do mercado', curto: 'Acima da mediana' }
+      : nosso >= mediana * 0.95 ? { cls: 'n-ok', txt: '🟢 Na média do mercado', curto: 'Na média' }
+      : { cls: 'n-baixo', txt: '🔵 Abaixo da mediana do mercado', curto: 'Abaixo da mediana' };
+    nivel.pos = pos;
     nivel.det = `${pos}% das ofertas estão mais baratas que o nosso preço`;
   }
 
@@ -242,9 +241,13 @@ function pwSugestao(precos, mediana) {
     { id: 'mediana', rot: 'Alinhar ao mercado', ajuda: 'preço da mediana das ofertas', preco: ajustar(mediana) },
     { id: 'girar', rot: 'Girar rápido', ajuda: 'entre as 25% mais baratas', preco: ajustar(p25) },
     ...(piso ? [{ id: 'piso', rot: 'Piso de margem', ajuda: `custo × ${mkMin.toLocaleString('pt-BR')} (markup mínimo)`, preco: Math.ceil((piso + 0.1) / 10) * 10 - 0.10 }] : [])
-  ];
+  ].map(o => ({
+    ...o,
+    desconto: nosso ? (1 - o.preco / nosso) * 100 : null,
+    markup: custo ? o.preco / custo : null,
+    margem: custo ? (1 - custo / o.preco) * 100 : null
+  }));
 
-  // recomendação
   let rec, texto;
   if (nosso && nosso <= mediana * 1.05) {
     rec = null;
@@ -255,16 +258,35 @@ function pwSugestao(precos, mediana) {
       ? `Peça ${nunca ? 'de grife sem venda no período' : 'parada há mais de 1 ano'}: vale uma promoção para girar rápido.`
       : urg === 'media' ? 'Parada há mais de 6 meses: alinhe ao preço do mercado.'
       : 'Alinhe ao preço do mercado para não perder venda.';
-    const escolhido = opcoes.find(o => o.id === rec);
-    if (piso && escolhido && pwPrecoVitrine(rec === 'girar' ? p25 : mediana) < piso) {
+    if (piso && pwPrecoVitrine(rec === 'girar' ? p25 : mediana) < piso) {
       texto += ` O mercado está abaixo do nosso piso de margem (${pwR(piso)}): a promoção vai até o piso; abaixo disso, considere trocar com o fornecedor ou remanejar.`;
     }
   }
+  return { nivel, opcoes, rec, texto, piso, mkMin, urg };
+}
+
+/** Ofertas que valem para a comparação: mesmo modelo (se houver alguma), senão todas. */
+function pwOfertasDoModelo(ofertas, chaves) {
+  const conf = ofertas.map(x => ({ ...x, confere: pwConfere(x, chaves) }));
+  const doModelo = conf.filter(x => x.confere.modelo);
+  return (doModelo.length ? doModelo : conf).sort((a, b) => a.preco - b.preco);
+}
+function pwMediana(precos) {
+  return precos.length ? (precos.length % 2 ? precos[(precos.length - 1) / 2] : (precos[precos.length / 2 - 1] + precos[precos.length / 2]) / 2) : 0;
+}
+
+function pwSugestao(precos, mediana) {
+  const venda = pw.ref && pw.ref.valor > 0 ? pw.ref.valor : 0;
+  const ehCusto = pw.ref && /custo/i.test(pw.ref.rotulo);
+  const custo = pw.ref2 && pw.ref2.valor > 0 ? pw.ref2.valor : (ehCusto ? venda : 0);
+  const nosso = ehCusto ? 0 : venda;
+  if (!precos.length) return '<aside class="pw-sugestao"><h4>💡 Sugestão de preço</h4><p class="pw-sug-txt">Sem ofertas para comparar.</p></aside>';
+  const c = pw.contexto || {};
+  const nunca = c.parado === -1;
+  const { nivel, opcoes, rec, texto, mkMin } = pwCalcularSugestao({ precos, mediana, nosso, custo, contexto: c });
 
   const linha = o => {
-    const desc = nosso ? (1 - o.preco / nosso) * 100 : null;
-    const mk = custo ? o.preco / custo : null;
-    const margem = custo ? (1 - custo / o.preco) * 100 : null;
+    const desc = o.desconto, mk = o.markup, margem = o.margem;
     return `<div class="pw-opcao ${o.id === rec ? 'rec' : ''}">
       <div class="pw-op-cab"><span>${o.id === rec ? '⭐ ' : ''}${o.rot}</span><b>${pwR(o.preco)}</b></div>
       <div class="pw-op-det">${o.ajuda}${desc !== null ? ` · ${desc > 0 ? '−' : '+'}${Math.abs(desc).toFixed(0)}% no nosso preço` : ''}${mk ? ` · markup ${mk.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}×` : ''}${margem !== null ? ` · margem ${margem.toFixed(0)}%` : ''}</div>
