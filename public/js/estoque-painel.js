@@ -463,13 +463,58 @@ async function epBaixarPlanilha(cab, linhas, nome, formato, colunasMoeda = []) {
 const epLojaCurta = l => String(l).replace(/\s*-\s*OTIC\w*\s*(VIA\s+VISAO\s*-\s*)?/i, ' ').replace(/\s+/g, ' ').trim();
 let epExportando = false;
 
+/* Painel flutuante da exportação: cronômetro, fase, contagem ao vivo e Cancelar.
+   Fica no canto da tela (visível onde a pessoa estiver) e não bloqueia o BI. */
+const epExp = { inicio: 0, timer: null, cancelar: false, fase: '', feito: 0, total: 0, grifes: '', produtos: 0, precos: '', formato: '' };
+function epExpTempo() {
+  const s = Math.round((Date.now() - epExp.inicio) / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function epExpPainel() {
+  let el = document.getElementById('epExpPainel');
+  if (!el) { el = document.createElement('div'); el.id = 'epExpPainel'; el.className = 'ep-exp-painel'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  return el;
+}
+function epExpDesenhar(estado = 'rodando', msg = '') {
+  const el = epExpPainel();
+  el.style.display = '';
+  const pct = epExp.total ? Math.round(epExp.feito / epExp.total * 100) : 0;
+  const titulo = `⬇ Planilha ${epExp.formato === 'xlsx' ? 'Excel' : 'CSV'} · por produto`;
+  if (estado === 'rodando') {
+    el.innerHTML = `<div class="ep-exp-cab"><b>${titulo}</b><span class="ep-exp-tempo">⏱ ${epExpTempo()}</span></div>
+      <div class="ep-exp-fase">${escHTML(epExp.fase)}${epExp.total ? ` · ${epExp.feito.toLocaleString('pt-BR')} de ${epExp.total.toLocaleString('pt-BR')}` : ''}</div>
+      <div class="ee-progresso"><i style="width:${pct}%"></i></div>
+      <div class="ep-exp-contas">${[epExp.grifes, epExp.produtos ? `${epExp.produtos.toLocaleString('pt-BR')} produtos` : '', epExp.precos].filter(Boolean).join(' · ')}</div>
+      <div class="ep-exp-rodape"><small>Pode continuar usando o BI; a planilha baixa sozinha ao terminar.</small>
+        <button type="button" class="tv-link" onclick="epExp.cancelar = true; this.textContent = 'Cancelando…'">Cancelar</button></div>`;
+  } else {
+    el.innerHTML = `<div class="ep-exp-cab"><b>${titulo}</b><span class="ep-exp-tempo">⏱ ${epExpTempo()}</span></div>
+      <div class="ep-exp-fim ${estado}">${msg}</div>
+      <div class="ep-exp-rodape"><span></span><button type="button" class="tv-link" onclick="document.getElementById('epExpPainel').style.display='none'">Fechar</button></div>`;
+  }
+}
+function epExpFase(fase, feito, total) {
+  Object.assign(epExp, { fase, feito, total });
+  epExpDesenhar();
+}
+function epExpBotoes(desligar) {
+  document.querySelectorAll('.ep-exportar button').forEach(b => { b.disabled = desligar; });
+  const sp = document.querySelector('.ep-exportar');
+  if (sp) sp.classList.toggle('ocupado', desligar);
+}
+
 async function epExportarProdutos(formato) {
-  if (epExportando || !ep.dados) return;
+  if (epExportando || !ep.dados) {
+    if (epExportando) epExpPainel().style.display = '';
+    return;
+  }
   epExportando = true;
-  const barra = (txt, feito, total) => {
-    const pct = total ? Math.round(feito / total * 100) : 0;
-    epStatus(`<div class="ee-progresso-topo"><span>⏳ ${txt}${total ? ` · ${feito} de ${total}` : ''}</span><span>${pct}%</span></div><div class="ee-progresso"><i style="width:${pct}%"></i></div>`);
-  };
+  Object.assign(epExp, { inicio: Date.now(), cancelar: false, fase: 'Preparando', feito: 0, total: 0, grifes: '', produtos: 0, precos: '', formato });
+  epExpBotoes(true);
+  epExpDesenhar();
+  epExp.timer = setInterval(() => epExpDesenhar(), 1000);
+  const barra = (txt, feito, total) => epExpFase(txt, feito, total);
+  const cancelado = () => { if (epExp.cancelar) throw Object.assign(new Error('Exportação cancelada.'), { cancelado: true }); };
   try {
     // grifes da lista atual (tipo e busca), na ordem da tela
     const doTipo = epGrifesDoTipo();
@@ -480,8 +525,10 @@ async function epExportarProdutos(formato) {
     // 1) produtos × lojas de cada grife (3 por vez; reaproveita as já abertas)
     let feitas = 0, i = 0;
     barra('Lendo produtos e lojas das grifes', 0, grifes.length);
-    await Promise.all(Array.from({ length: Math.min(3, grifes.length) }, async () => {
+    let achados = 0;
+    await Promise.all(Array.from({ length: Math.min(5, grifes.length) }, async () => {
       while (i < grifes.length) {
+        cancelado();
         const g = grifes[i++];
         const chave = String(g.Chave);
         if (!(ep.detalhes[chave] && ep.detalhes[chave].linhas)) {
@@ -489,9 +536,14 @@ async function epExportarProdutos(formato) {
           if (r.status === 409) { ep.situacao = { conectado: false }; epDesenharConexao(); throw new Error(r.j.error || 'Conecte o SavWin de novo.'); }
           if (r.ok) ep.detalhes[chave] = Object.assign(ep.detalhes[chave] || { aberto: false, mostrar: 60 }, { linhas: r.j.linhas || [], limitado: r.j.limitado });
         }
+        const det = ep.detalhes[chave];
+        if (det && det.linhas) achados += epProdutosDaGrife(det).length;
+        epExp.produtos = achados;
+        epExp.grifes = `${feitas + 1} de ${grifes.length} grifes`;
         barra('Lendo produtos e lojas das grifes', ++feitas, grifes.length);
       }
     }));
+    cancelado();
     const produtos = [];
     grifes.forEach(g => {
       const det = ep.detalhes[String(g.Chave)];
@@ -501,18 +553,23 @@ async function epExportarProdutos(formato) {
     // 2) preço de venda e promoção (cadastro do SavWin), 80 códigos por pedido, 2 pedidos por vez
     const codigos = [...new Set(produtos.map(p => epCodigo(p.codigo)).filter(c => c && !(c in ep.precos) || ep.precos[c] === undefined))].filter(Boolean);
     const lotes = [];
-    for (let k = 0; k < codigos.length; k += 80) lotes.push(codigos.slice(k, k + 80));
+    for (let k = 0; k < codigos.length; k += 60) lotes.push(codigos.slice(k, k + 60));
     let lidos = 0, j = 0;
     barra('Buscando preço de venda no SavWin', 0, codigos.length);
-    await Promise.all(Array.from({ length: Math.min(2, lotes.length) }, async () => {
+    await Promise.all(Array.from({ length: Math.min(3, lotes.length) }, async () => {
       while (j < lotes.length) {
+        cancelado();
         const lote = lotes[j++];
         const r = await epPost('/savwin/precos', { CODIGOS: lote });
         if (r.ok) lote.forEach(c => { ep.precos[c] = r.j.precos[c] || null; });
         lidos += lote.length;
+        epExp.precos = `preços ${lidos.toLocaleString('pt-BR')} de ${codigos.length.toLocaleString('pt-BR')}`;
         barra('Buscando preço de venda no SavWin', lidos, codigos.length);
       }
     }));
+    cancelado();
+    barra('Montando a planilha', 0, 0);
+    await new Promise(r => setTimeout(r, 30));
 
     // 3) planilha: um produto por linha, uma coluna de peças por loja
     const lojas = [...new Set(produtos.flatMap(p => p.lojas.map(l => String(l.loja))))].sort();
@@ -533,14 +590,19 @@ async function epExportarProdutos(formato) {
         p.entrada ? p.entrada.toLocaleDateString('pt-BR') : '', p.entrada ? epDiasDesde(p.entrada) : '',
         p.g.UltimaVenda || 'nunca vendeu', p.g.UltimaVenda ? p.g.DiasSemVender : '', p.g.GiroMensal > 0 ? n(p.g.MesesCobertura) : 'sem giro'];
     });
-    epStatus('');
     await epBaixarPlanilha(cab, linhas, 'estoque_produtos_por_loja', formato,
       ['Custo unitário', 'Custo total', 'Preço de venda', 'Promoção', 'Preço efetivo', 'Valor de venda do estoque']);
+    clearInterval(epExp.timer);
+    epExpDesenhar('ok', `✅ Planilha pronta: <b>${linhas.length.toLocaleString('pt-BR')}</b> produtos em ${lojas.length} lojas. O arquivo foi baixado.`);
+    setTimeout(() => { const el = document.getElementById('epExpPainel'); if (el && !epExportando) el.style.display = 'none'; }, 12000);
     epRenderizarTabela();
   } catch (e) {
-    epStatus(`⚠️ ${escHTML(e.message)}`);
+    clearInterval(epExp.timer);
+    epExpDesenhar(e.cancelado ? 'cancelado' : 'erro', e.cancelado ? '⏹ Exportação cancelada.' : `⚠️ ${escHTML(e.message)}`);
   } finally {
+    clearInterval(epExp.timer);
     epExportando = false;
+    epExpBotoes(false);
   }
 }
 
