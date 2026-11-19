@@ -757,3 +757,14 @@ th.filtrada { color: #5ee7ff !important; }
 .ep-chip-loja small { font-size: 10px; opacity: .9; }
 .ep-det-num .ep-ultvenda { display: block; color: #a9b1e0; font-size: 10.5px; margin-top: 2px; }
 .ep-det-num .ep-ultvenda b { color: #e8ecff; }
+
+/* Resumo de pagamento: % ou R$ */
+.pg-titulo { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pg-titulo .ca-alternar button { padding: 3px 10px; font-size: 11px; }
+.pg-modo-pct .pg-rs, .pg-modo-rs .pg-pct { display: none; }
+/* roscas de grifes: unidades ao lado da % */
+.arm-lista li .arm-un { font-style: normal; font-size: 10.5px; color: #8a93c9; margin-left: 6px; white-space: nowrap; min-width: 42px; text-align: right; }
+/* janela de armações: rosca menor para caber nome da grife + % + unidades */
+#gradeArmacoes .cl-grafico { flex-basis: 40%; }
+#gradeArmacoes .cl-lista li { gap: 5px; padding: 2px 4px; }
+#gradeArmacoes .arm-lista li .arm-un { min-width: 34px; margin-left: 2px; font-size: 10px; }

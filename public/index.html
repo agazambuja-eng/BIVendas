@@ -120,8 +120,12 @@
       
       <!-- COLUNA ESQUERDA: RESUMO DE PAGAMENTO & PARCELAS -->
       <div class="bi-card" style="border-left-color: #17a2b8; padding: 15px; flex: 1; min-width: 350px;">
-        <div class="bi-card-title" style="margin-bottom: 10px;">Resumo de Pagamento & Parcelas</div>
-        <div class="bi-card-value" id="cardResumoPagamento" style="font-size: 14px; font-weight: normal; line-height: 1.5; text-align: left;">
+        <div class="bi-card-title pg-titulo" style="margin-bottom: 10px;">Resumo de Pagamento & Parcelas
+          <span id="pgMetrica" class="ca-alternar">
+            <button type="button" data-m="pct" class="ativo" onclick="escolherMetricaPagamentos('pct')">%</button>
+            <button type="button" data-m="rs" onclick="escolherMetricaPagamentos('rs')">Valor (R$)</button>
+          </span></div>
+        <div class="bi-card-value pg-modo-pct" id="cardResumoPagamento" style="font-size: 14px; font-weight: normal; line-height: 1.5; text-align: left;">
           Aguardando consulta...
         </div>
       </div>
