@@ -596,7 +596,7 @@ th.filtrada { color: #5ee7ff !important; }
 .ee-tabela tr.ep-det > td { padding: 0; background: rgba(10,14,40,.6); }
 .ep-det-corpo { padding: 10px 14px 12px 28px; font-size: 12px; }
 .ep-det-cab { color: #8a93c9; margin-bottom: 6px; }
-.ep-det-prod { display: grid; grid-template-columns: minmax(200px, 1.2fr) 150px minmax(0, 2fr); gap: 6px 12px; padding: 6px 0; border-bottom: 1px solid rgba(120,140,255,.08); align-items: start; }
+.ep-det-prod { display: grid; grid-template-columns: minmax(200px, 1.2fr) 240px minmax(0, 2fr); gap: 6px 12px; padding: 6px 0; border-bottom: 1px solid rgba(120,140,255,.08); align-items: start; }
 .ep-det-nome small { display: block; color: #8a93c9; font-size: 10.5px; }
 .ep-det-num { text-align: right; white-space: nowrap; }
 @media (max-width: 800px) { .ep-det-prod { grid-template-columns: 1fr; } .ep-det-num { text-align: left; } }
@@ -625,7 +625,7 @@ th.filtrada { color: #5ee7ff !important; }
 .pw-num { padding: 8px 10px; border-radius: 10px; background: rgba(47,107,255,.10); border: 1px solid rgba(120,140,255,.2); }
 .pw-num span { display: block; font-size: 10.5px; color: #8a93c9; text-transform: uppercase; letter-spacing: .3px; }
 .pw-num b { font-size: 15px; }
-.pw-num small { margin-left: 6px; color: #ffd35e; }
+.pw-num small { display: block; color: #ffd35e; font-size: 11px; }
 .pw-filtros { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0 8px; }
 .pw-lista { display: flex; flex-direction: column; gap: 6px; }
 .pw-item { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px; border-radius: 10px; text-decoration: none; color: inherit; border: 1px solid rgba(120,140,255,.15); background: rgba(10,14,40,.5); }
@@ -652,3 +652,8 @@ th.filtrada { color: #5ee7ff !important; }
 .pw-fontes { margin-top: 10px; font-size: 11.5px; color: #8a93c9; }
 .pw-fontes summary { cursor: pointer; }
 .pw-fontes a { display: block; color: #5ee7ff; margin: 3px 0 0 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-det-num .ep-venda { display: block; color: #cfd6ff; font-size: 11px; margin-top: 2px; }
+.ep-det-num .ep-venda b { color: #3dffa8; font-weight: 600; }
+.ep-det-num .ep-venda b.ee-enc { color: #ff8fb0; }
+.ep-det-num .ep-venda b.ep-promo { color: #ffd35e; }
+.ep-det-num .ep-un { display: block; color: #8a93c9; font-size: 10.5px; margin-top: 1px; }

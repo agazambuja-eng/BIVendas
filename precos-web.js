@@ -68,7 +68,9 @@ function montarPedido(nome, termo, chaves, regiao) {
     'Você pesquisa preços para uma rede de óticas no Brasil.',
     `Pesquise no Google ofertas ATUAIS da peça: "${nome}".`,
     chaves.modelo ? `Código do modelo: ${chaves.modelo}.` : '',
+    chaves.modeloSavwin ? `Modelo no cadastro: ${chaves.modeloSavwin}.` : '',
     chaves.cor ? `Código da cor: ${chaves.cor}.` : '',
+    chaves.corNome ? `Cor: ${chaves.corNome}.` : '',
     chaves.tamanho ? `Aro/tamanho: ${chaves.tamanho}.` : '',
     `Termo de busca sugerido: "${termo}".`,
     regiao
@@ -166,7 +168,7 @@ async function pesquisarComIA({ nome, termo, chaves, regiao }) {
   if (!String(process.env.GEMINI_API_KEY || '').trim()) {
     throw Object.assign(new Error('Pesquisa com IA não configurada: falta a variável GEMINI_API_KEY no Render.'), { http: 503 });
   }
-  const k = `${nome.toUpperCase()}|${regiao}`;
+  const k = `${nome.toUpperCase()}|${regiao}|${chaves.corNome || ''}`;
   const c = cache.get(k);
   if (c && Date.now() - c.quando < VALIDADE_MS) return { ...c.resultado, doCache: true, uso: situacaoUso() };
   const u = situacaoUso();
@@ -219,7 +221,7 @@ function registrarRotaPrecos(app, { exigirUsuario }) {
       const limpa = (v, n) => String(v || '').replace(/[\u0000-\u001f"\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
       const nome = limpa(b.nome || b.termo, 150);
       if (nome.length < 3) return res.status(400).json({ error: 'Informe o produto a pesquisar.' });
-      const chaves = { modelo: limpa(b.modelo, 30), cor: limpa(b.cor, 30), tamanho: limpa(b.tamanho, 10) };
+      const chaves = { modelo: limpa(b.modelo, 30), cor: limpa(b.cor, 30), tamanho: limpa(b.tamanho, 10), corNome: limpa(b.corNome, 40), modeloSavwin: limpa(b.modeloSavwin, 40) };
       res.json(await pesquisarComIA({ nome, termo: limpa(b.termo || nome, 150), chaves, regiao: limpa(b.regiao, 80) }));
     } catch (err) {
       console.error('Erro na pesquisa de preços com IA:', err.message);
