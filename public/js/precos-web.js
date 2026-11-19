@@ -130,6 +130,7 @@ async function abrirPesquisaPreco(el) {
     pw.fontes = j.fontes || [];
     pw.uso = j.uso || null;
     pw.doCache = !!j.doCache;
+    pw.ia = j.modelo ? `${j.modelo} · chave ${j.chaveN}${j.tentativas > 1 ? ` (${j.tentativas}ª tentativa)` : ''}` : '';
     pwRenderizar();
   } catch (e) {
     document.getElementById('pwCorpo').innerHTML = `<div class="pw-aguarde">⚠️ ${escHTML(e.message)}</div>`;
@@ -221,7 +222,7 @@ function pwRenderizar() {
       </a>`; }).join('')}</div>`
       : `<div class="pw-aguarde">Nenhuma oferta ${pw.filtro === 'todos' ? '' : 'com o mesmo modelo '}encontrada.${pw.filtro !== 'todos' && conta.todos ? ' Veja "Todos" para resultados parecidos.' : ''}</div>`}
     ${pw.fontes && pw.fontes.length ? `<details class="pw-fontes"><summary>Fontes consultadas pela IA (${pw.fontes.length})</summary>${pw.fontes.map(f => `<a href="${escHTML(f.url)}" target="_blank" rel="noopener noreferrer">${escHTML(f.titulo || f.url)}</a>`).join('')}</details>` : ''}
-    <p class="pw-rodape">Pesquisa feita por IA (Gemini com pesquisa no Google)${pw.regiao ? ` · região ${escHTML(pwRotuloRegiao(pw.regiao))}` : ''}${pw.quando ? ' · ' + new Date(pw.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''}${pw.doCache ? ' (guardada; repete a mesma pesquisa sem custo por 24 h)' : ''}${pw.uso ? ` · ${pw.uso.usadas} de ${pw.uso.limite} pesquisas neste mês` : ''}.
+    <p class="pw-rodape">Pesquisa feita por IA (Gemini com pesquisa no Google${pw.ia ? ' · ' + escHTML(pw.ia) : ''})${pw.regiao ? ` · região ${escHTML(pwRotuloRegiao(pw.regiao))}` : ''}${pw.quando ? ' · ' + new Date(pw.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''}${pw.doCache ? ' (guardada; repete a mesma pesquisa sem custo por 24 h)' : ''}${pw.uso ? ` · ${pw.uso.usadas} de ${pw.uso.limite} pesquisas neste mês` : ''}.
       A IA pode errar: confira a oferta antes de usar o preço.</p>`;
 }
 

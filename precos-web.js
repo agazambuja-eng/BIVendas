@@ -15,8 +15,34 @@
  *  3. cache de 24 h por peça e região.
  */
 
-const MODELO = () => process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-const URL_GEMINI = () => process.env.GEMINI_URL || `https://generativelanguage.googleapis.com/v1beta/models/${MODELO()}:generateContent`;
+/**
+ * Chaves e modelos em rodízio. No Render:
+ *   GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, GEMINI_API_KEY_4 ... (até 10)
+ *   GEMINI_MODELS = "gemini-3.6-flash,gemini-3.5-flash-lite,gemini-2.5-flash" (ordem de preferência)
+ *   (GEMINI_MODEL, com um modelo só, também é aceito)
+ * Combinações na ordem: chave 1 · modelo 1, chave 2 · modelo 1, ... chave 1 · modelo 2 ...
+ * Cada pesquisa começa na combinação seguinte à anterior; se uma falhar (limite,
+ * chave sem permissão, modelo inexistente, erro do Google), tenta a próxima.
+ */
+const MODELOS_PADRAO = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+function chavesGemini() {
+  const lista = [process.env.GEMINI_API_KEY];
+  for (let i = 2; i <= 10; i++) lista.push(process.env[`GEMINI_API_KEY_${i}`]);
+  return lista.map((c, i) => ({ chave: String(c || '').trim(), n: i + 1 })).filter(x => x.chave);
+}
+function modelosGemini() {
+  const txt = process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || '';
+  const lista = txt.split(/[,;\s]+/).map(m => m.trim()).filter(Boolean);
+  return lista.length ? [...new Set(lista)] : MODELOS_PADRAO;
+}
+function combinacoesGemini() {
+  const chaves = chavesGemini();
+  return modelosGemini().flatMap(modelo => chaves.map(c => ({ ...c, modelo })));
+}
+const URL_GEMINI = modelo => (process.env.GEMINI_URL || 'https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent').replace('{modelo}', modelo);
+let proximaCombinacao = 0;
+const quarentena = new Map();     // 'chave3' / 'modelo:x' -> até quando evitar (chave inválida, modelo inexistente)
+const LIMITE_TOTAL_MS = 110000;   // tempo máximo somando as tentativas
 const VALIDADE_MS = 24 * 60 * 60 * 1000;
 const cache = new Map();                 // nome|regiao -> { quando, resultado }
 const uso = { mes: '', pesquisas: 0 };   // contador do mês (em memória)
@@ -88,30 +114,68 @@ function montarPedido(nome, termo, chaves, regiao) {
   return partes.filter(Boolean).join('\n');
 }
 
-async function perguntarGemini(texto) {
-  const chave = String(process.env.GEMINI_API_KEY || '').trim();
-  const resp = await fetch(URL_GEMINI(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: texto }] }],
-      tools: [{ google_search: {} }],
-      generationConfig: { temperature: 0.2 }
-    }),
-    signal: AbortSignal.timeout(90000)
-  });
+/** Uma chamada ao Gemini com uma chave e um modelo. Lança erro com "motivo" curto. */
+async function chamarGemini(texto, { chave, modelo }, limiteMs) {
+  let resp;
+  try {
+    resp = await fetch(URL_GEMINI(modelo), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: texto }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: { temperature: 0.2 }
+      }),
+      signal: AbortSignal.timeout(limiteMs)
+    });
+  } catch (e) {
+    throw Object.assign(new Error(e.name === 'TimeoutError' ? 'demorou demais' : 'sem conexão'), { motivo: 'rede' });
+  }
   const corpo = await resp.text();
-  if (resp.status === 400 && /API key/i.test(corpo)) throw Object.assign(new Error('Chave do Gemini inválida (GEMINI_API_KEY).'), { http: 502 });
-  if (resp.status === 401 || resp.status === 403) throw Object.assign(new Error('Chave do Gemini sem permissão (GEMINI_API_KEY).'), { http: 502 });
-  if (resp.status === 404) throw Object.assign(new Error(`Modelo "${MODELO()}" não encontrado no Gemini. Ajuste GEMINI_MODEL no Render.`), { http: 502 });
-  if (resp.status === 429) throw Object.assign(new Error('Limite do Gemini atingido. Tente mais tarde.'), { http: 429 });
-  if (!resp.ok) throw Object.assign(new Error(`Gemini respondeu ${resp.status}: ${corpo.slice(0, 200)}`), { http: 502 });
+  if (resp.status === 400 && /API key/i.test(corpo)) throw Object.assign(new Error('chave inválida'), { motivo: 'chave' });
+  if (resp.status === 401 || resp.status === 403) throw Object.assign(new Error('chave sem permissão'), { motivo: 'chave' });
+  if (resp.status === 404) throw Object.assign(new Error('modelo não encontrado'), { motivo: 'modelo' });
+  if (resp.status === 429) throw Object.assign(new Error('limite atingido'), { motivo: 'limite' });
+  if (!resp.ok) throw Object.assign(new Error(`erro ${resp.status}: ${corpo.replace(/\s+/g, ' ').slice(0, 120)}`), { motivo: 'google' });
   const j = JSON.parse(corpo);
   const cand = (j.candidates || [])[0] || {};
   const textoResp = ((cand.content && cand.content.parts) || []).map(p => p.text || '').join('');
+  if (!textoResp.trim()) throw Object.assign(new Error(`resposta vazia (${cand.finishReason || 'sem motivo'})`), { motivo: 'vazio' });
   const meta = cand.groundingMetadata || {};
   const fontes = (meta.groundingChunks || []).map(c => c.web).filter(Boolean).map(w => ({ titulo: w.title || '', url: w.uri || '' }));
   return { textoResp, fontes, consultas: meta.webSearchQueries || [] };
+}
+
+/** Tenta as combinações chave × modelo em rodízio até uma responder. */
+async function perguntarGemini(texto) {
+  const combos = combinacoesGemini();
+  if (!combos.length) throw Object.assign(new Error('Pesquisa com IA não configurada: falta a variável GEMINI_API_KEY no Render.'), { http: 503 });
+  const inicio = Date.now();
+  const inicial = proximaCombinacao % combos.length;
+  proximaCombinacao = (inicial + 1) % combos.length;          // a próxima pesquisa começa na combinação seguinte
+  const falhas = [];
+  const evitar = k => (quarentena.get(k) || 0) > Date.now();   // chave inválida / modelo inexistente: evita por 10 min
+  const pular = c => evitar('chave' + c.n) || evitar('modelo:' + c.modelo);
+  // se tudo estiver em quarentena, tenta mesmo assim (pode ter sido corrigido no Render)
+  if (combos.every(pular)) quarentena.clear();
+  for (let i = 0; i < combos.length; i++) {
+    const c = combos[(inicial + i) % combos.length];
+    if (pular(c)) continue;
+    const resta = LIMITE_TOTAL_MS - (Date.now() - inicio);
+    if (resta < 8000) { falhas.push('tempo esgotado'); break; }
+    try {
+      const r = await chamarGemini(texto, c, Math.min(60000, resta));
+      if (falhas.length) console.log(`Gemini: respondeu com chave ${c.n} · ${c.modelo} depois de ${falhas.length} falha(s)`);
+      return { ...r, modelo: c.modelo, chaveN: c.n, tentativas: falhas.length + 1 };
+    } catch (e) {
+      falhas.push(`chave ${c.n} · ${c.modelo}: ${e.message}`);
+      if (e.motivo === 'chave') quarentena.set('chave' + c.n, Date.now() + 10 * 60 * 1000);
+      if (e.motivo === 'modelo') quarentena.set('modelo:' + c.modelo, Date.now() + 10 * 60 * 1000);
+    }
+  }
+  console.error('Gemini: todas as combinações falharam:', falhas.join(' | '));
+  const soLimite = falhas.length && falhas.every(f => /limite/.test(f));
+  throw Object.assign(new Error(`${soLimite ? 'Limite do Gemini atingido em todas as chaves. Tente mais tarde.' : 'O Gemini não respondeu.'} Tentativas: ${falhas.join(' · ')}`), { http: soLimite ? 429 : 502 });
 }
 
 // ------------------------------------------------------------- página da oferta
@@ -165,7 +229,7 @@ function extrairDaPagina(html, urlBase) {
 
 // ------------------------------------------------------------- pesquisa
 async function pesquisarComIA({ nome, termo, chaves, regiao }) {
-  if (!String(process.env.GEMINI_API_KEY || '').trim()) {
+  if (!chavesGemini().length) {
     throw Object.assign(new Error('Pesquisa com IA não configurada: falta a variável GEMINI_API_KEY no Render.'), { http: 503 });
   }
   const k = `${nome.toUpperCase()}|${regiao}|${chaves.corNome || ''}`;
@@ -173,7 +237,7 @@ async function pesquisarComIA({ nome, termo, chaves, regiao }) {
   if (c && Date.now() - c.quando < VALIDADE_MS) return { ...c.resultado, doCache: true, uso: situacaoUso() };
   const u = situacaoUso();
   if (u.usadas >= u.limite) throw Object.assign(new Error(`Limite de ${u.limite} pesquisas com IA neste mês atingido (PRECOS_LIMITE_MES).`), { http: 429 });
-  const { textoResp, fontes, consultas } = await perguntarGemini(montarPedido(nome, termo, chaves, regiao));
+  const { textoResp, fontes, consultas, modelo, chaveN, tentativas } = await perguntarGemini(montarPedido(nome, termo, chaves, regiao));
   uso.pesquisas++;
   const json = jsonDoTexto(textoResp) || { ofertas: [] };
   let ofertas = (Array.isArray(json.ofertas) ? json.ofertas : []).slice(0, 12).map(o => ({
@@ -206,7 +270,7 @@ async function pesquisarComIA({ nome, termo, chaves, regiao }) {
   }).filter(o => o.preco > 0);
 
   const resultado = {
-    nome, termo, regiao, quando: new Date().toISOString(), modelo: MODELO(),
+    nome, termo, regiao, quando: new Date().toISOString(), modelo, chaveN, tentativas,
     resumo: String(json.resumo || '').slice(0, 300), ofertas, fontes: fontes.slice(0, 12), consultas
   };
   cache.set(k, { quando: Date.now(), resultado });
@@ -230,4 +294,4 @@ function registrarRotaPrecos(app, { exigirUsuario }) {
   });
 }
 
-module.exports = { registrarRotaPrecos, precoNumero, jsonDoTexto, urlSegura, montarPedido, extrairDaPagina };
+module.exports = { registrarRotaPrecos, combinacoesGemini, precoNumero, jsonDoTexto, urlSegura, montarPedido, extrairDaPagina };
