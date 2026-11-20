@@ -3,16 +3,20 @@
  *
  * A API externa (EstoqueAnaliticoGrid) leva ~10 min; o painel interno do
  * SavWin responde em ~40 s, já resumido. Ele exige uma sessão do sistema:
- *  - um gestor do BI informa identificador, login e senha no card;
- *  - o servidor faz o login no SavWin e guarda SÓ a chave de sessão, em memória
- *    (a senha não é gravada nem registrada em log);
- *  - quando a chave vence (< 1 dia) ou o servidor reinicia, é preciso conectar de novo.
+ *  - cada usuário do BI cadastra o SEU acesso ao SavWin (identificadorsav,
+ *    loginsav e senhasav, na tabela usuarios) pelo botão "Conexão SavWin";
+ *  - a senha é gravada cifrada (AES-256-GCM, chave derivada da
+ *    SUPABASE_SECRET_KEY); se alguém digitar a senha pura direto na tabela,
+ *    ela também funciona;
+ *  - o servidor entra no SavWin com esse acesso, guarda a chave de sessão em
+ *    memória (uma por usuário do BI) e reconecta sozinho quando ela vence.
  * Cada usuário do BI recebe o painel apenas das lojas liberadas para ele.
  *
  * API interna, não oficial: pode mudar sem aviso.
  */
 const https = require('https');
 const zlib = require('zlib');
+const crypto = require('crypto');
 
 const BASE = process.env.SAVWIN_GATEWAY_URL || 'https://apigat.savwinweb.com.br';
 const URL_APP = 'https://appsav.savwinweb.com.br';
@@ -20,8 +24,8 @@ const TELA = '/tela/FRMDASHBOARDGESTOR';
 const VALIDADE_PAINEL_MS = 30 * 60 * 1000;
 const LIMITE_MS = 5 * 60 * 1000;
 
-let sessao = null;               // { chave, identificador, usuarioSavwin, loja, conectadoEm, conectadoPor }
-let lojasSavwin = null;          // { quando, porCodigo: Map(codigo -> {id, nome}) }
+const sessoes = new Map();       // id do usuário do BI -> { chave, identificador, usuarioSavwin, loja, conectadoEm, lojasSavwin }
+const conectando = new Map();    // id do usuário do BI -> login em andamento
 const paineis = new Map();       // chaveCache -> { quando, dados }
 const buscas = new Map();        // chaveCache -> { inicio }
 const errosBusca = new Map();    // chaveCache -> { mensagem, quando }
@@ -77,19 +81,23 @@ function textoSimples(t) {
 
 class SessaoExpirada extends Error {}
 
-async function postarComSessao(caminho, corpo) {
-  if (!sessao) throw new SessaoExpirada('O BI não está conectado ao SavWin.');
-  const r = await postar(caminho, corpo, sessao);
+function esquecerSessao(s) {
+  sessoes.forEach((v, k) => { if (v === s) sessoes.delete(k); });
+}
+
+async function postarComSessao(s, caminho, corpo) {
+  if (!s) throw new SessaoExpirada('O BI não está conectado ao SavWin.');
+  const r = await postar(caminho, corpo, s);
   if (r.status === 401 || r.status === 403) {
-    sessao = null; lojasSavwin = null;
-    throw new SessaoExpirada('A sessão do SavWin expirou. Conecte de novo.');
+    esquecerSessao(s);
+    throw new SessaoExpirada('A sessão do SavWin expirou.');
   }
   if (r.status < 200 || r.status >= 300) throw new Error(`SavWin respondeu ${r.status}: ${r.texto.slice(0, 200)}`);
   let j;
   try { j = JSON.parse(r.texto); } catch { throw new Error(`Resposta inesperada da SavWin: ${r.texto.slice(0, 150)}`); }
   if (j && j.Liberado === false && /sess[aã]o|login|chave/i.test(String(j.Mensagem || ''))) {
-    sessao = null; lojasSavwin = null;
-    throw new SessaoExpirada(`SavWin: ${j.Mensagem}. Conecte de novo.`);
+    esquecerSessao(s);
+    throw new SessaoExpirada(`SavWin: ${j.Mensagem}`);
   }
   return j;
 }
@@ -134,13 +142,74 @@ function codigoDaDescricao(desc) {
   return m ? m[1] : '';
 }
 
-async function mapaLojas() {
-  if (lojasSavwin && Date.now() - lojasSavwin.quando < 6 * 60 * 60 * 1000) return lojasSavwin;
-  const f = await postarComSessao('api/Comercial/EstoqueGestor/RetornaFiltros', {});
+async function mapaLojas(s) {
+  if (s.lojasSavwin && Date.now() - s.lojasSavwin.quando < 6 * 60 * 60 * 1000) return s.lojasSavwin;
+  const f = await postarComSessao(s, 'api/Comercial/EstoqueGestor/RetornaFiltros', {});
   const porCodigo = new Map();
   (f.Lojas || []).forEach(l => { const c = codigoDaDescricao(l.Descricao); if (c) porCodigo.set(c, { id: String(l.Id), nome: l.Descricao }); });
-  lojasSavwin = { quando: Date.now(), porCodigo };
-  return lojasSavwin;
+  s.lojasSavwin = { quando: Date.now(), porCodigo };
+  return s.lojasSavwin;
+}
+
+// ------------------------------------------------------------------ credenciais do usuário
+function chaveCifra() {
+  const base = String(process.env.SUPABASE_SECRET_KEY || '').trim();
+  if (!base) throw new Error('Falta a variável SUPABASE_SECRET_KEY no Render (usada para cifrar a senha do SavWin).');
+  return crypto.createHash('sha256').update('bivendas-savwin|' + base).digest();
+}
+/** Senha -> "v1:iv.tag.texto" (base64). */
+function cifrar(texto) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', chaveCifra(), iv);
+  const enc = Buffer.concat([c.update(String(texto), 'utf8'), c.final()]);
+  return `v1:${iv.toString('base64')}.${c.getAuthTag().toString('base64')}.${enc.toString('base64')}`;
+}
+/** Volta a senha; se não estiver cifrada (digitada direto na tabela), usa como está. */
+function decifrar(valor) {
+  const v = String(valor || '');
+  if (!v.startsWith('v1:')) return v;
+  const [iv, tag, enc] = v.slice(3).split('.').map(x => Buffer.from(x, 'base64'));
+  const d = crypto.createDecipheriv('aes-256-gcm', chaveCifra(), iv);
+  d.setAuthTag(tag);
+  return Buffer.concat([d.update(enc), d.final()]).toString('utf8');
+}
+function credenciaisDo(perfil) {
+  const p = perfil || {};
+  return { identificador: String(p.identificadorsav || '').trim(), login: String(p.loginsav || '').trim(), senhaCifrada: p.senhasav || '' };
+}
+const configurado = perfil => { const c = credenciaisDo(perfil); return !!(c.identificador && c.login && c.senhaCifrada); };
+
+/** Sessão do SavWin do usuário do BI: reaproveita a que existe ou entra com o acesso cadastrado. */
+async function obterSessao(req, forcar = false) {
+  const perfil = req.usuario || {};
+  const id = String(perfil.id || '');
+  if (!forcar && sessoes.has(id)) return sessoes.get(id);
+  if (!configurado(perfil)) {
+    throw Object.assign(new Error('Configure sua conexão com o SavWin (botão "🔌 Conexão SavWin", ao lado de Trocar senha).'), { semCredencial: true });
+  }
+  if (conectando.has(id)) return conectando.get(id);
+  const c = credenciaisDo(perfil);
+  const promessa = (async () => {
+    let senha;
+    try { senha = decifrar(c.senhaCifrada); } catch { throw Object.assign(new Error('Não foi possível ler a senha do SavWin cadastrada. Informe de novo em "🔌 Conexão SavWin".'), { semCredencial: true }); }
+    const s = await conectar({ identificador: c.identificador, login: c.login, senha });
+    const nova = { ...s, conectadoEm: new Date().toISOString() };
+    sessoes.set(id, nova);
+    console.log(`SavWin conectado para ${perfil.login || id} (usuário SavWin ${s.usuarioSavwin})`);
+    return nova;
+  })();
+  conectando.set(id, promessa);
+  try { return await promessa; } finally { conectando.delete(id); }
+}
+
+/** Roda a função com a sessão do usuário; se a sessão tiver vencido, reconecta uma vez e repete. */
+async function comSessao(req, fn) {
+  let s = await obterSessao(req);
+  try { return await fn(s); } catch (e) {
+    if (!(e instanceof SessaoExpirada)) throw e;
+    s = await obterSessao(req, true);
+    return fn(s);
+  }
 }
 
 // ------------------------------------------------------------------ painel
@@ -158,9 +227,9 @@ function janela(meses) {
 
 const CAMPOS_PAINEL = ['Resumo', 'Cobertura', 'PorLoja', 'PorFornecedor', 'PorTipo', 'TipoGrife', 'GrifeArmacao', 'GrifeLente', 'GrifeOutros', 'CustoLiberado', 'TemposMs'];
 
-function iniciarBusca(chaveCache, corpo) {
+function iniciarBusca(s, chaveCache, corpo) {
   buscas.set(chaveCache, { inicio: Date.now() });
-  postarComSessao('api/Comercial/EstoqueGestor/RetornaPainel', corpo)
+  postarComSessao(s, 'api/Comercial/EstoqueGestor/RetornaPainel', corpo)
     .then(j => {
       if (j.Liberado === false) throw new Error(`SavWin: ${j.Mensagem || 'painel não liberado'}`);
       const dados = {};
@@ -176,12 +245,12 @@ function iniciarBusca(chaveCache, corpo) {
 }
 
 /** Lojas do pedido -> ids do SavWin (só as que o usuário do BI pode ver). */
-async function lojasDoPedido(req) {
+async function lojasDoPedido(req, s) {
   const perfil = req.usuario || {};
   const pedidas = String((req.body && req.body.LOJAS) || '').split(/[,;\s]+/).map(codigoDaDescricao).filter(Boolean);
   if (!pedidas.length && perfil.todas_lojas === true) return { ids: [], codigos: [] };   // todas
   if (!pedidas.length) throw Object.assign(new Error('Nenhuma loja liberada para o seu usuário.'), { http: 403 });
-  const mapa = await mapaLojas();
+  const mapa = await mapaLojas(s);
   const achadas = pedidas.filter(c => mapa.porCodigo.has(c));
   if (!achadas.length) throw Object.assign(new Error('Suas lojas do BI não foram encontradas no SavWin.'), { http: 404 });
   return { ids: achadas.map(c => mapa.porCodigo.get(c).id).sort(), codigos: achadas };
@@ -198,44 +267,88 @@ function enviarCompactado(req, res, obj) {
 
 /** 409 = precisa conectar o SavWin (não usar 401: o BI entenderia como sessão do BI expirada). */
 function responderErro(res, err) {
+  if (err.semCredencial) return res.status(409).json({ error: err.message, precisaConfigurar: true });
   if (err instanceof SessaoExpirada) return res.status(409).json({ error: err.message, precisaConectar: true });
   res.status(err.http || 500).json({ error: err.message });
 }
 
-function situacao() {
-  return sessao
-    ? { conectado: true, usuarioSavwin: sessao.usuarioSavwin, identificador: sessao.identificador, loja: sessao.loja, conectadoEm: sessao.conectadoEm, conectadoPor: sessao.conectadoPor }
-    : { conectado: false };
+function situacao(req) {
+  const perfil = req.usuario || {};
+  const c = credenciaisDo(perfil);
+  const s = sessoes.get(String(perfil.id || ''));
+  return {
+    configurado: configurado(perfil), identificador: c.identificador, usuarioSavwin: c.login,
+    conectado: !!s, loja: s ? s.loja : '', conectadoEm: s ? s.conectadoEm : ''
+  };
 }
 
 // ------------------------------------------------------------------ rotas
-function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas }) {
-  app.post('/savwin/situacao', exigirUsuario('acessar_bi'), (req, res) => res.json(situacao()));
+function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, chamarSupabaseAdmin, cachePerfis }) {
+  app.post('/savwin/situacao', exigirUsuario('acessar_bi'), (req, res) => res.json(situacao(req)));
 
-  app.post('/savwin/conectar', exigirUsuario('gerenciar_usuarios'), async (req, res) => {
+  /** Conecta (ou reconecta) com o acesso cadastrado no usuário. */
+  app.post('/savwin/conectar', exigirUsuario('acessar_bi'), async (req, res) => {
     try {
-      const s = await conectar(req.body || {});
-      sessao = { ...s, conectadoEm: new Date().toISOString(), conectadoPor: (req.usuario && (req.usuario.nome || req.usuario.login)) || '' };
-      lojasSavwin = null; paineis.clear(); errosBusca.clear();
-      console.log(`SavWin conectado (identificador ${s.identificador}, usuário ${s.usuarioSavwin}) por ${sessao.conectadoPor}`);
-      res.json(situacao());
+      await obterSessao(req, req.body && req.body.FORCAR === true);
+      res.json(situacao(req));
     } catch (err) {
       console.error('Falha ao conectar no SavWin:', err.message);
+      if (err.semCredencial) return res.status(409).json({ ...situacao(req), error: err.message, precisaConfigurar: true });
+      res.status(400).json({ ...situacao(req), error: err.message });
+    }
+  });
+
+  app.post('/savwin/desconectar', exigirUsuario('acessar_bi'), (req, res) => {
+    sessoes.delete(String((req.usuario || {}).id || ''));
+    res.json(situacao(req));
+  });
+
+  /**
+   * Cadastra/troca o acesso do usuário ao SavWin (identificadorsav, loginsav, senhasav).
+   * Testa o login antes de gravar. Senha em branco = mantém a que já está cadastrada.
+   * { remover: true } apaga o acesso.
+   */
+  app.post('/savwin/minha-conexao', exigirUsuario('acessar_bi'), async (req, res) => {
+    const perfil = req.usuario || {};
+    const id = String(perfil.id || '');
+    try {
+      if (!id) throw new Error('Usuário sem identificação.');
+      if (typeof chamarSupabaseAdmin !== 'function') throw new Error('Servidor sem acesso de gravação ao Supabase.');
+      const b = req.body || {};
+      let campos;
+      if (b.remover === true) {
+        campos = { identificadorsav: null, loginsav: null, senhasav: null };
+        sessoes.delete(id);
+      } else {
+        const identificador = String(b.identificador || '').trim();
+        const login = String(b.login || '').trim();
+        let senha = String(b.senha || '');
+        if (!identificador || !login) throw new Error('Preencha identificador e login.');
+        if (!senha) {
+          const c = credenciaisDo(perfil);
+          if (!c.senhaCifrada) throw new Error('Informe a senha do SavWin.');
+          senha = decifrar(c.senhaCifrada);
+        }
+        const s = await conectar({ identificador, login, senha });           // testa antes de gravar
+        sessoes.set(id, { ...s, conectadoEm: new Date().toISOString() });
+        campos = { identificadorsav: identificador, loginsav: login, senhasav: cifrar(senha) };
+      }
+      await chamarSupabaseAdmin(`/rest/v1/usuarios?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: campos, prefer: 'return=minimal' });
+      if (cachePerfis && cachePerfis.clear) cachePerfis.clear();             // o próximo pedido relê o cadastro
+      Object.assign(perfil, campos);
+      res.json(situacao(req));
+    } catch (err) {
+      console.error('Falha ao salvar a conexão SavWin:', err.message);
       res.status(400).json({ error: err.message });
     }
   });
 
-  app.post('/savwin/desconectar', exigirUsuario('gerenciar_usuarios'), (req, res) => {
-    sessao = null; lojasSavwin = null; paineis.clear();
-    res.json(situacao());
-  });
-
   app.post('/savwin/estoque', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
     try {
-      if (!sessao) throw new SessaoExpirada('O BI não está conectado ao SavWin.');
+      const s = await obterSessao(req);
       const meses = [3, 6, 12].includes(Number(req.body.MESES)) ? Number(req.body.MESES) : 12;
-      const { ids } = await lojasDoPedido(req);
-      const chaveCache = `${meses}|${ids.join(',')}`;
+      const { ids } = await comSessao(req, sx => lojasDoPedido(req, sx));
+      const chaveCache = `${s.identificador}|${s.usuarioSavwin}|${meses}|${ids.join(',')}`;
       const pronto = paineis.get(chaveCache);
       const forcar = req.body.ATUALIZAR === true && pronto && Date.now() - pronto.quando > 2 * 60 * 1000;
       if (pronto && !forcar && Date.now() - pronto.quando < VALIDADE_PAINEL_MS) {
@@ -244,11 +357,15 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas }) {
       const erro = errosBusca.get(chaveCache);
       if (erro && !buscas.has(chaveCache)) {
         errosBusca.delete(chaveCache);
-        if (Date.now() - erro.quando < 2 * 60 * 1000) {
-          return erro.expirou ? res.status(409).json({ error: erro.mensagem, precisaConectar: true }) : res.status(502).json({ error: erro.mensagem });
+        if (erro.expirou) {
+          // a sessão venceu durante a busca: reconecta e busca de novo
+          const nova = await obterSessao(req, true);
+          iniciarBusca(nova, chaveCache, { ...janela(meses), Lojas: ids, Tipos: [], Grifes: [], MesesCobertura: meses, Widgets: ['estCobertura'] });
+          return res.status(202).json({ carregando: true, segundos: 0 });
         }
+        if (Date.now() - erro.quando < 2 * 60 * 1000) return res.status(502).json({ error: erro.mensagem });
       }
-      if (!buscas.has(chaveCache)) iniciarBusca(chaveCache, { ...janela(meses), Lojas: ids, Tipos: [], Grifes: [], MesesCobertura: meses, Widgets: ['estCobertura'] });
+      if (!buscas.has(chaveCache)) iniciarBusca(sessoes.get(String(req.usuario.id)) || s, chaveCache, { ...janela(meses), Lojas: ids, Tipos: [], Grifes: [], MesesCobertura: meses, Widgets: ['estCobertura'] });
       res.status(202).json({ carregando: true, segundos: Math.round((Date.now() - buscas.get(chaveCache).inicio) / 1000) });
     } catch (err) { responderErro(res, err); }
   });
@@ -259,7 +376,6 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas }) {
    */
   app.post('/savwin/precos', exigirUsuario('acessar_bi'), async (req, res) => {
     try {
-      if (!sessao) throw new SessaoExpirada('O BI não está conectado ao SavWin.');
       const codigos = [...new Set([].concat(req.body.CODIGOS || []).map(c => String(c).replace(/\D/g, '').replace(/^0+/, '')).filter(Boolean))].slice(0, 80);
       const precos = {};
       const fila = codigos.filter(c => {
@@ -269,7 +385,7 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas }) {
       });
       const trabalhar = async () => {
         for (let c = fila.shift(); c; c = fila.shift()) {
-          const j = await postarComSessao('api/Comercial/ConsultaPrecoEstoque/ConsultaPrecoEstoque', { loja: '', pesquisa: c, tipo: 'SEQUENCIAL' });
+          const j = await comSessao(req, s => postarComSessao(s, 'api/Comercial/ConsultaPrecoEstoque/ConsultaPrecoEstoque', { loja: '', pesquisa: c, tipo: 'SEQUENCIAL' }));
           const lista = typeof j === 'string' ? (() => { try { return JSON.parse(j); } catch { return []; } })() : j;
           const x = (Array.isArray(lista) ? lista : []).find(l => String(l.MATSEQUENCIAL).replace(/^0+/, '') === c) || (lista || [])[0];
           const dados = x ? {
@@ -291,12 +407,13 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas }) {
   /** Produtos × lojas de uma grife (bloco "O que está encalhado"). */
   app.post('/savwin/estoque/detalhe', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
     try {
-      if (!sessao) throw new SessaoExpirada('O BI não está conectado ao SavWin.');
       const meses = [3, 6, 12].includes(Number(req.body.MESES)) ? Number(req.body.MESES) : 12;
-      const { ids } = await lojasDoPedido(req);
-      const j = await postarComSessao('api/Comercial/EstoqueGestor/RetornaDetalhe', {
-        ...janela(meses), Lojas: ids, Tipos: [], Grifes: [], MesesCobertura: meses, Widgets: [],
-        Bloco: 'estCobertura', Chave: String(req.body.CHAVE || '')
+      const j = await comSessao(req, async s => {
+        const { ids } = await lojasDoPedido(req, s);
+        return postarComSessao(s, 'api/Comercial/EstoqueGestor/RetornaDetalhe', {
+          ...janela(meses), Lojas: ids, Tipos: [], Grifes: [], MesesCobertura: meses, Widgets: [],
+          Bloco: 'estCobertura', Chave: String(req.body.CHAVE || '')
+        });
       });
       if (j.Liberado === false) throw new Error(`SavWin: ${j.Mensagem || 'detalhe não liberado'}`);
       const linhas = (j.Linhas || []).map(l => ({
@@ -309,4 +426,4 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas }) {
   });
 }
 
-module.exports = { registrarRotasPainelSavwin, codigoDaDescricao, textoSimples, janela, numeroBR };
+module.exports = { registrarRotasPainelSavwin, codigoDaDescricao, textoSimples, janela, numeroBR, cifrar, decifrar };

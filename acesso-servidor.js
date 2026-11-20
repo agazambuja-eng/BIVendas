@@ -285,6 +285,7 @@ module.exports = {
   exigirUsuario,
   restringirLojas,
   registrarRotasUsuarios,
+  chamarSupabaseAdmin,
   // exportados para testes
   validarLogin, validarSenha, normalizarLogin, emailDoLogin, temPermissao, perfilDoToken, cachePerfis
 };

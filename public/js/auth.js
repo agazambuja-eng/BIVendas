@@ -126,6 +126,7 @@ function montarBarraUsuario(elemento, { mostrarInicio = true } = {}) {
     <span class="usuario-nome" title="Login: ${escHTML(perfilAtual.login)}">👤 ${escHTML(perfilAtual.nome)}</span>
     ${mostrarInicio ? '<a href="/inicio.html" class="usuario-link">Início</a>' : ''}
     <button type="button" class="usuario-link" onclick="abrirTrocarSenha(false)">Trocar senha</button>
+    ${typeof abrirConexaoSavwin === 'function' ? '<button type="button" class="usuario-link" onclick="abrirConexaoSavwin()" title="Seu acesso ao SavWin (identificador, login e senha)">🔌 Conexão SavWin</button>' : ''}
     <button type="button" class="usuario-link" onclick="sair()">Sair</button>`;
 }
 

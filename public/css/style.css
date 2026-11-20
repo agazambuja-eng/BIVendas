@@ -768,3 +768,7 @@ th.filtrada { color: #5ee7ff !important; }
 #gradeArmacoes .cl-grafico { flex-basis: 40%; }
 #gradeArmacoes .cl-lista li { gap: 5px; padding: 2px 4px; }
 #gradeArmacoes .arm-lista li .arm-un { min-width: 34px; margin-left: 2px; font-size: 10px; }
+/* conexão SavWin */
+.ep-ponto.ep-off { background: #6f78a8; }
+.ep-ponto.ep-erro { background: #ff5c8a; box-shadow: 0 0 8px #ff5c8a; }
+.cx-situacao { font-size: 12.5px; margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
