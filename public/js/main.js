@@ -560,6 +560,8 @@ async function consultar() {
     lojas, tipodata
   };
   if (typeof limparComparativo === 'function') limparComparativo();
+  // Estoque encalhado: conecta no SavWin com o acesso do usuário e carrega em segundo plano
+  if (typeof epAutoCarregar === 'function') setTimeout(epAutoCarregar, 0);
 
   try {
     const [resGrid, resPagamentos] = await Promise.all([

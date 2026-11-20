@@ -423,13 +423,6 @@
       <div class="secao-prod-corpo">
         <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
           <div id="epConexao" class="ep-conexao">Verificando conexão com o SavWin...</div>
-          <form id="epFormConectar" class="ep-form" style="display: none;" autocomplete="off" onsubmit="return epConectar(event)">
-            <label>Identificador <input type="text" id="epIdentificador" autocomplete="off" placeholder="ex.: 09983-ONE" required></label>
-            <label>Login <input type="text" id="epLogin" autocomplete="off" required></label>
-            <label>Senha <input type="password" id="epSenha" autocomplete="new-password" required></label>
-            <button type="submit" id="epBtnConectar" class="btn-comparar-lojas">Conectar SavWin</button>
-            <span id="epMsgConectar" class="ep-msg"></span>
-          </form>
           <div id="epStatus" class="ee-status" style="display: none;"></div>
 
           <div id="epConteudo" style="display: none;">
@@ -872,6 +865,7 @@
   <script src="/js/lentes-fotossensiveis.js"></script>
   <script src="/js/comparativo-armacoes.js"></script>
   <script src="/js/pesquisa-especial.js"></script>
+  <script src="/js/conexao-savwin.js"></script>
   <script src="/js/estoque-painel.js"></script>
   <script src="/js/analise-ia.js"></script>
   <script src="/js/encalhe-loja.js"></script>

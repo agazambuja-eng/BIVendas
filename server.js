@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const { exigirUsuario, restringirLojas, registrarRotasUsuarios } = require("./acesso-servidor");
+const { exigirUsuario, restringirLojas, registrarRotasUsuarios, chamarSupabaseAdmin, cachePerfis } = require("./acesso-servidor");
 const { registrarRotaEstoque } = require("./estoque-servidor");
 const { registrarRotasPainelSavwin } = require("./savwin-painel");
 const { registrarRotaPrecos } = require("./precos-web");
@@ -130,8 +130,8 @@ const HEADERS_SAVWIN = {
 // 4. Estoque (EstoqueAnaliticoGrid) · módulo Estoque encalhado
 registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavwin: HEADERS_SAVWIN });
 
-// 5. Estoque pelo painel do SavWin (login informado no card; só a chave fica em memória)
-registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas });
+// 5. Estoque pelo painel do SavWin (acesso de cada usuário: identificadorsav/loginsav/senhasav)
+registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, chamarSupabaseAdmin, cachePerfis });
 
 // 6. Preço da mesma peça na web com IA (Gemini + pesquisa Google; variável GEMINI_API_KEY)
 registrarRotaPrecos(app, { exigirUsuario });

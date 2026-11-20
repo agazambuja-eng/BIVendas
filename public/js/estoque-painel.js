@@ -63,59 +63,52 @@ async function epCarregarSituacao() {
 }
 
 function epDesenharConexao() {
-  const s = ep.situacao || { conectado: false };
-  const gestor = typeof temPermissao === 'function' && temPermissao('gerenciar_usuarios');
+  const s = ep.situacao || { conectado: false, configurado: false };
   const caixa = document.getElementById('epConexao');
-  const form = document.getElementById('epFormConectar');
   const btn = document.getElementById('epBtnCarregar');
   if (!caixa) return;
+  const config = '<button type="button" class="tv-link" onclick="abrirConexaoSavwin()">🔌 Configurar conexão</button>';
+  if (!s.configurado) {
+    caixa.innerHTML = `<span class="ep-ponto ep-off"></span> Sua conexão com o SavWin ainda não foi configurada. ${config}`;
+    btn.style.display = 'none';
+    return;
+  }
+  btn.style.display = '';
   if (s.conectado) {
     const quando = s.conectadoEm ? new Date(s.conectadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
-    caixa.innerHTML = `<span class="ep-ponto ep-on"></span> Conectado ao SavWin · usuário <b>${escHTML(s.usuarioSavwin || '')}</b>
-      ${s.conectadoPor ? ` · por ${escHTML(s.conectadoPor)}` : ''}${quando ? ` em ${quando}` : ''}
-      ${gestor ? ' <button type="button" class="tv-link" onclick="epDesconectar()">Desconectar</button>' : ''}`;
-    form.style.display = 'none';
-    btn.style.display = '';
+    caixa.innerHTML = `<span class="ep-ponto ep-on"></span> Conectado ao SavWin · <b>${escHTML(s.usuarioSavwin || '')}</b> · ${escHTML(s.identificador || '')}${quando ? ` · desde ${quando}` : ''}
+      <button type="button" class="tv-link" onclick="epReconectar()" title="Entra de novo no SavWin com o seu acesso">↻ Reconectar</button> ${config}`;
   } else {
-    caixa.innerHTML = `<span class="ep-ponto"></span> BI não conectado ao SavWin.` +
-      (gestor ? ' Informe o acesso abaixo. A senha é usada só para entrar e não fica gravada.'
-              : ' Peça a um gestor (quem gerencia usuários) para conectar.');
-    form.style.display = gestor ? '' : 'none';
-    btn.style.display = 'none';
+    caixa.innerHTML = `<span class="ep-ponto ${s.erro ? 'ep-erro' : ''}"></span> ${s.erro ? `Não conectado: ${escHTML(s.erro)}` : `SavWin: <b>${escHTML(s.usuarioSavwin || '')}</b> · ${escHTML(s.identificador || '')} · conecta ao consultar`}
+      <button type="button" class="tv-link" onclick="epReconectar()">↻ Conectar agora</button> ${config}`;
   }
 }
 
-async function epConectar(ev) {
-  if (ev) ev.preventDefault();
-  const id = document.getElementById('epIdentificador');
-  const lg = document.getElementById('epLogin');
-  const sn = document.getElementById('epSenha');
-  const msg = document.getElementById('epMsgConectar');
-  const bt = document.getElementById('epBtnConectar');
-  msg.textContent = '';
-  bt.disabled = true; bt.textContent = 'Conectando...';
-  try {
-    const r = await epPost('/savwin/conectar', { identificador: id.value, login: lg.value, senha: sn.value });
-    if (!r.ok) throw new Error(r.j.error || `Erro ${r.status}`);
-    ep.situacao = r.j;
-    sn.value = '';
-    epDesenharConexao();
-    epCarregar();
-  } catch (e) {
-    msg.textContent = e.message;
-  } finally {
-    sn.value = '';
-    bt.disabled = false; bt.textContent = 'Conectar SavWin';
-  }
-  return false;
-}
-
-async function epDesconectar() {
-  await epPost('/savwin/desconectar');
-  ep.situacao = { conectado: false };
-  ep.dados = null;
-  document.getElementById('epConteudo').style.display = 'none';
+/** Conecta (ou reconecta) com o acesso cadastrado no usuário. */
+async function epReconectar(silencioso = false) {
+  const caixa = document.getElementById('epConexao');
+  if (caixa && !silencioso) caixa.innerHTML = '<span class="ep-ponto"></span> ⏳ Conectando ao SavWin…';
+  const r = await epPost('/savwin/conectar', { FORCAR: !silencioso });
+  ep.situacao = { ...(r.j || {}), erro: r.ok ? '' : (r.j.error || `Erro ${r.status}`) };
   epDesenharConexao();
+  return r.ok;
+}
+
+/** Chamado pelo "Consultar Relatório Completo": conecta e carrega o estoque em segundo plano. */
+async function epAutoCarregar() {
+  try {
+    if (!ep.situacao) await epCarregarSituacao();
+    if (!ep.situacao || !ep.situacao.configurado) return;
+    if (!ep.situacao.conectado && !(await epReconectar(true))) return;
+    epCarregar(!!ep.dados);
+  } catch (e) { /* o relatório de vendas segue normal */ }
+}
+
+/** Depois de salvar a conexão no modal. */
+function epConexaoAtualizada(sit) {
+  ep.situacao = sit;
+  epDesenharConexao();
+  if (sit && sit.conectado && !ep.dados) epCarregar();
 }
 
 // ---------------------------------------------------------------- barra
@@ -152,7 +145,7 @@ async function epCarregar(atualizar = false) {
         await new Promise(ok => setTimeout(ok, 3000));
         continue;
       }
-      if (r.status === 409) { ep.situacao = { conectado: false }; epDesenharConexao(); throw new Error(r.j.error || 'Conecte o SavWin.'); }
+      if (r.status === 409) { ep.situacao = { ...(ep.situacao || {}), conectado: false, configurado: !r.j.precisaConfigurar, erro: r.j.error }; epDesenharConexao(); throw new Error(r.j.error || 'Conecte o SavWin.'); }
       if (!r.ok) throw new Error(r.j.error || (r.status >= 502 ? `O servidor reiniciou ou não respondeu (erro ${r.status}). Tente de novo.` : `Erro ${r.status}`));
       ep.dados = r.j;
       break;
@@ -307,7 +300,7 @@ async function epAbrirGrife(chave) {
   epAtualizarDetalhe(chave);
   try {
     const r = await epPost('/savwin/estoque/detalhe', { CHAVE: chave, LOJAS: epLojasPedido(), MESES: ep.meses });
-    if (r.status === 409) { ep.situacao = { conectado: false }; epDesenharConexao(); }
+    if (r.status === 409) { ep.situacao = { ...(ep.situacao || {}), conectado: false, configurado: !r.j.precisaConfigurar, erro: r.j.error }; epDesenharConexao(); }
     if (!r.ok) throw new Error(r.j.error || `Erro ${r.status}`);
     det.linhas = r.j.linhas || [];
     det.limitado = r.j.limitado;
@@ -563,7 +556,7 @@ async function epExportarProdutos(formato) {
         const chave = String(g.Chave);
         if (!(ep.detalhes[chave] && ep.detalhes[chave].linhas)) {
           const r = await epPost('/savwin/estoque/detalhe', { CHAVE: chave, LOJAS: epLojasPedido(), MESES: ep.meses });
-          if (r.status === 409) { ep.situacao = { conectado: false }; epDesenharConexao(); throw new Error(r.j.error || 'Conecte o SavWin de novo.'); }
+          if (r.status === 409) { ep.situacao = { ...(ep.situacao || {}), conectado: false, configurado: !r.j.precisaConfigurar, erro: r.j.error }; epDesenharConexao(); throw new Error(r.j.error || 'Conecte o SavWin de novo.'); }
           if (r.ok) ep.detalhes[chave] = Object.assign(ep.detalhes[chave] || { aberto: false, mostrar: 60 }, { linhas: r.j.linhas || [], limitado: r.j.limitado });
         }
         const det = ep.detalhes[chave];
