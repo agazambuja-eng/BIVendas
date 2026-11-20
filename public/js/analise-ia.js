@@ -57,7 +57,7 @@ function aiDesenharConfig() {
   const grifes = aiGrifesEscopo(soParadas);
   const limite = ai.cfgLimite || 20;
   const regiao = ai.cfgRegiao !== undefined ? ai.cfgRegiao : (pw.regiao || '');
-  const opRegiao = REGIOES_PW.map(([v, t]) => `<option value="${escHTML(v)}" ${v === regiao ? 'selected' : ''}>${escHTML(t)}</option>`).join('');
+  const opRegiao = [...REGIOES_PW, ...(pw.regioesExtra || []).filter(r => !REGIOES_PW.some(x => x[0] === r)).map(r => [r, r])].map(([v, t]) => `<option value="${escHTML(v)}" ${v === regiao ? 'selected' : ''}>${escHTML(t)}</option>`).join('');
   document.getElementById('aiCorpo').innerHTML = `
     <div class="ai-config">
       <div class="ai-escopo">
@@ -68,7 +68,9 @@ function aiDesenharConfig() {
       <div class="ai-linha">
         <label>Analisar até <select id="aiLimite" onchange="ai.cfgLimite = Number(this.value); aiDesenharConfig()">${LIMITES_AI.map(n => `<option value="${n}" ${n === limite ? 'selected' : ''}>${n} modelos</option>`).join('')}</select></label>
         <label>📍 Região <select id="aiRegiao" onchange="ai.cfgRegiao = this.value">${opRegiao}</select></label>
+        <label>Onde pesquisar <select id="aiAlcance" onchange="ai.cfgAlcance = this.value">${ALCANCES_PW.map(([v, t]) => `<option value="${v}" ${v === (ai.cfgAlcance || pw.alcance || 'todas') ? 'selected' : ''}>${t.replace(/^\S+\s/, '')}</option>`).join('')}</select></label>
       </div>
+      <label class="ai-op"><input type="checkbox" id="aiRedes" ${(ai.cfgRedes ?? pw.redes) ? 'checked' : ''} onchange="ai.cfgRedes = this.checked"> 📱 Incluir publicações do Instagram, Facebook e TikTok</label>
       <p class="lf-ajuda">Escolhe os modelos de <b>maior custo parado</b>. Cores do mesmo modelo dividem uma pesquisa.
         Leva cerca de <b>${Math.max(1, Math.round(limite * 25 / 2 / 60))} min</b> (2 pesquisas por vez) e usa até <b>${limite}</b> pesquisas da IA no mês
         (o que já foi pesquisado nas últimas 24 h não conta). Pode parar quando quiser e exportar o que já veio.</p>
@@ -99,7 +101,9 @@ async function aiIniciar() {
   const soParadas = document.getElementById('aiSoParadas').checked;
   const limite = Number(document.getElementById('aiLimite').value) || 20;
   const regiao = document.getElementById('aiRegiao').value;
-  Object.assign(ai, { rodando: true, cancelar: false, linhas: [], lojas: [], erroGeral: '', regiao, quando: new Date().toISOString(), cfgSoParadas: soParadas, cfgLimite: limite, cfgRegiao: regiao });
+  const alcance = document.getElementById('aiAlcance').value;
+  const redes = document.getElementById('aiRedes').checked;
+  Object.assign(ai, { rodando: true, cancelar: false, linhas: [], lojas: [], erroGeral: '', regiao, alcance, redes, quando: new Date().toISOString(), cfgSoParadas: soParadas, cfgLimite: limite, cfgRegiao: regiao, cfgAlcance: alcance, cfgRedes: redes });
   document.getElementById('aiCorpo').innerHTML = `
     <div class="ai-barra"><div id="aiProgresso" class="ee-status"></div>
       <button type="button" class="tv-link" onclick="ai.cancelar = true; this.textContent = 'Parando…'">⏹ Parar</button></div>
@@ -154,7 +158,7 @@ async function aiIniciar() {
       try {
         const resp = await fetchAutenticado('/precos/pesquisar', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome: rep.desc, termo: m.termo, modelo: chaves.modelo, cor: chaves.cor, tamanho: chaves.tamanho, regiao, corNome: pr.cor || '', modeloSavwin: pr.modelo || '' })
+          body: JSON.stringify({ nome: rep.desc, termo: m.termo, modelo: chaves.modelo, cor: chaves.cor, tamanho: chaves.tamanho, regiao, corNome: pr.cor || '', modeloSavwin: pr.modelo || '', alcance, redes })
         });
         const j = await resp.json().catch(() => ({}));
         if (!resp.ok) {
@@ -175,7 +179,7 @@ async function aiIniciar() {
 }
 
 function aiAdicionarModelo(m, chaves, ofertas, erro) {
-  const validas = pwOfertasDoModelo(ofertas, chaves);
+  const validas = pwOfertasDoModelo(pwFiltrarAlcance(ofertas, ai.alcance, ai.regiao).dentro, chaves);
   const precos = validas.map(o => o.preco);
   const mediana = pwMediana(precos);
   const g = m.grife;
@@ -259,7 +263,7 @@ function aiDesenharResultado() {
   const quando = ai.quando ? new Date(ai.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
   corpo.innerHTML = `
     <div class="ai-barra">
-      <div class="ai-info">${ai.cancelar && !ai.erroGeral ? '⏹ Análise interrompida · ' : ''}${ai.erroGeral ? `⚠️ ${escHTML(ai.erroGeral)} · ` : ''}Análise de ${quando}${ai.regiao ? ' · região ' + escHTML(pwRotuloRegiao(ai.regiao)) : ' · Brasil'}</div>
+      <div class="ai-info">${ai.cancelar && !ai.erroGeral ? '⏹ Análise interrompida · ' : ''}${ai.erroGeral ? `⚠️ ${escHTML(ai.erroGeral)} · ` : ''}Análise de ${quando}${ai.regiao ? ' · região ' + escHTML(pwRotuloRegiao(ai.regiao)) : ' · Brasil'} · ${{ todas: 'lojas físicas e internet', fisicas: 'só lojas físicas', internet: 'só internet' }[ai.alcance || 'todas']}${ai.redes ? ' + redes sociais' : ''}</div>
       <div class="ai-botoes">
         <button type="button" class="btn-comparar-lojas" onclick="aiExportarExcel()" ${ai.linhas.length ? '' : 'disabled'}>⬇ Excel</button>
         <button type="button" class="tv-link" onclick="aiExportarCSV()" ${ai.linhas.length ? '' : 'disabled'}>⬇ CSV</button>
@@ -281,6 +285,8 @@ function aiVerOfertas(i) {
     diasEntrada: l.contexto.diasEntrada != null ? l.contexto.diasEntrada : '', parado: l.contexto.parado != null ? l.contexto.parado : ''
   });
   pw.regiao = ai.regiao;
+  if (ai.alcance) pw.alcance = ai.alcance;      // mesmo alcance do lote (aproveita o cache)
+  if (ai.redes !== undefined) pw.redes = !!ai.redes;
   abrirPesquisaPreco(el);
 }
 

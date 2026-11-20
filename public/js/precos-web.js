@@ -27,6 +27,34 @@ const REGIOES_PW = [
 ];
 const CHAVE_REGIAO_PW = 'bi_regiao_precos_ia';
 try { pw.regiao = localStorage.getItem(CHAVE_REGIAO_PW) || ''; } catch { /* sem armazenamento */ }
+
+/* Alcance da pesquisa: tudo, só lojas físicas da região ou só internet; e redes sociais. */
+const ALCANCES_PW = [['todas', 'Tudo'], ['fisicas', '📍 Lojas físicas'], ['internet', '🌐 Internet']];
+pw.alcance = 'todas'; pw.redes = false; pw.regioesExtra = []; pw.mostrarFora = false;
+try {
+  pw.alcance = localStorage.getItem('bi_alcance_precos') || 'todas';
+  pw.redes = localStorage.getItem('bi_redes_precos') === '1';
+  pw.regioesExtra = JSON.parse(localStorage.getItem('bi_regioes_extra') || '[]');
+} catch { /* sem armazenamento */ }
+const pwNormLocal = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const pwCidade = r => pwNormLocal(String(r || '').split(/\s*[-,]\s*/)[0]).trim();
+
+/**
+ * Filtro rígido do lado do BI (a IA nem sempre obedece):
+ *  - lojas físicas: só "loja física" e, com região, só as que citam a cidade no local;
+ *  - internet: só online / marketplaces / redes.
+ */
+function pwFiltrarAlcance(ofertas, alcance = pw.alcance, regiao = pw.regiao) {
+  const cidade = pwCidade(regiao);
+  const dentro = [], fora = [];
+  (ofertas || []).forEach(o => {
+    let ok = true;
+    if (alcance === 'fisicas') ok = o.tipo === 'loja física' && (!cidade || pwNormLocal(o.local).includes(cidade));
+    else if (alcance === 'internet') ok = o.tipo !== 'loja física';
+    (ok ? dentro : fora).push(o);
+  });
+  return { dentro, fora };
+}
 const pwSemAcento = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 const pwNorm = s => String(s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -111,7 +139,7 @@ async function abrirPesquisaPreco(el) {
   };
   pw.chaves = pwChavesDoProduto(nome);
   pw.filtro = pw.chaves.modelo ? 'modelo' : 'todos';
-  pw.itens = [];
+  pw.itens = []; pw.itensTodos = []; pw.foraDoAlcance = 0; pw.mostrarFora = false;
   pw.el = el;
   const m = pwModal();
   m.style.display = 'flex';
@@ -122,12 +150,13 @@ async function abrirPesquisaPreco(el) {
   document.getElementById('pwCorpo').innerHTML = `<div class="pw-aguarde">🤖 A IA está pesquisando na web${pw.regiao ? ' · ' + escHTML(pwRotuloRegiao(pw.regiao)) : ' (Brasil)'}…<br><small>leva de 15 a 40 segundos: ela pesquisa no Google e o BI confere foto e preço em cada página</small></div>`;
   try {
     const resp = await fetchAutenticado('/precos/pesquisar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, termo, modelo: pw.chaves.modelo, cor: pw.chaves.cor, tamanho: pw.chaves.tamanho, regiao: pw.regiao, corNome: pw.extra.corNome, modeloSavwin: pw.extra.modeloSavwin })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, termo, modelo: pw.chaves.modelo, cor: pw.chaves.cor, tamanho: pw.chaves.tamanho, regiao: pw.regiao, corNome: pw.extra.corNome, modeloSavwin: pw.extra.modeloSavwin, alcance: pw.alcance, redes: pw.redes })
     });
     const j = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(j.error || `Erro ${resp.status}`);
     if (pw.termo !== termo) return;                            // outra pesquisa foi aberta
-    pw.itens = (j.ofertas || []).map(x => ({ ...x, confere: pwConfere(x, pw.chaves) }));
+    pw.itensTodos = (j.ofertas || []).map(x => ({ ...x, confere: pwConfere(x, pw.chaves) }));
+    pwAplicarAlcance();
     if (pw.filtro === 'modelo' && !pw.itens.some(x => x.confere.modelo)) pw.filtro = 'todos';   // a IA nem sempre repete o código
     pw.quando = j.quando;
     pw.resumoIA = j.resumo || '';
@@ -143,17 +172,51 @@ async function abrirPesquisaPreco(el) {
 
 function pwFiltrar(f) { pw.filtro = f; pwRenderizar(); }
 
+function pwAplicarAlcance() {
+  const { dentro, fora } = pwFiltrarAlcance(pw.itensTodos || []);
+  pw.foraDoAlcance = fora.length;
+  pw.itens = pw.mostrarFora ? (pw.itensTodos || []) : dentro;
+}
+function pwMudarAlcance(a) {
+  pw.alcance = a;
+  try { localStorage.setItem('bi_alcance_precos', a); } catch { /* sem armazenamento */ }
+  abrirPesquisaPreco(pw.el || pw.nome);           // a IA pesquisa de novo com o novo alcance
+}
+function pwMudarRedes(v) {
+  pw.redes = !!v;
+  try { localStorage.setItem('bi_redes_precos', v ? '1' : '0'); } catch { /* sem armazenamento */ }
+  abrirPesquisaPreco(pw.el || pw.nome);
+}
+function pwAlternarFora() { pw.mostrarFora = !pw.mostrarFora; pwAplicarAlcance(); pwRenderizar(); }
+
+/** Atalhos (grátis) para ver a peça nas redes, via pesquisa do Google. */
+function pwLinksRedes() {
+  const cidade = pw.regiao ? ' ' + String(pw.regiao).split(/\s*-\s*/)[0] : '';
+  const q = site => `https://www.google.com/search?q=${encodeURIComponent(`site:${site} ${pw.termo}${cidade}`)}`;
+  return `<span class="pw-redes-links">ver nas redes: <a href="${q('instagram.com')}" target="_blank" rel="noopener noreferrer">📷 Instagram</a> · <a href="${q('facebook.com')}" target="_blank" rel="noopener noreferrer">📘 Facebook</a> · <a href="${q('tiktok.com')}" target="_blank" rel="noopener noreferrer">🎵 TikTok</a></span>`;
+}
+
 function pwRotuloRegiao(r) {
   const achada = REGIOES_PW.find(x => x[0] === r);
   return achada ? achada[1] : r;
 }
 function pwSeletorRegiao() {
-  const lista = REGIOES_PW.some(x => x[0] === pw.regiao) ? REGIOES_PW : [...REGIOES_PW, [pw.regiao, pwRotuloRegiao(pw.regiao)]];
+  const extras = (pw.regioesExtra || []).filter(r => r && !REGIOES_PW.some(x => x[0] === r)).map(r => [r, r]);
+  let lista = [...REGIOES_PW, ...extras];
+  if (pw.regiao && !lista.some(x => x[0] === pw.regiao)) lista = [...lista, [pw.regiao, pwRotuloRegiao(pw.regiao)]];
   return `<label class="pw-regiao">📍 Região
     <select onchange="pwMudarRegiao(this.value)">${lista.map(([v, t]) => `<option value="${escHTML(v)}" ${v === pw.regiao ? 'selected' : ''}>${escHTML(t)}</option>`).join('')}
+      <option value="__outra">Outra cidade…</option>
       <option value="__minha">Usar minha localização…</option></select></label>`;
 }
 async function pwMudarRegiao(v) {
+  if (v === '__outra') {
+    const c = prompt('Cidade e estado (ex.: Arapiraca - AL, Campina Grande - PB):', '');
+    if (!c || !c.trim()) { pwRenderizar(); return; }
+    v = c.trim().replace(/\s+/g, ' ');
+    pw.regioesExtra = [v, ...(pw.regioesExtra || []).filter(x => x !== v)].slice(0, 8);
+    try { localStorage.setItem('bi_regioes_extra', JSON.stringify(pw.regioesExtra)); } catch { /* sem armazenamento */ }
+  }
   if (v === '__minha') {
     try { v = await pwRegiaoDoNavegador(); }
     catch (e) { alert(e.message); pwRenderizar(); return; }
@@ -174,7 +237,10 @@ function pwRegiaoDoNavegador() {
         const cidade = String(j.city || j.locality || '').trim();
         const estado = String(j.principalSubdivision || '').trim();
         if (!cidade) throw new Error('Não foi possível descobrir a cidade.');
-        ok(estado ? `${cidade} - ${estado}` : cidade);
+        const reg = estado ? `${cidade} - ${estado}` : cidade;
+        pw.regioesExtra = [reg, ...(pw.regioesExtra || []).filter(x => x !== reg)].slice(0, 8);
+        try { localStorage.setItem('bi_regioes_extra', JSON.stringify(pw.regioesExtra)); } catch { /* sem armazenamento */ }
+        ok(reg);
       } catch (e) { falha(new Error('Não foi possível descobrir a cidade pela localização.')); }
     }, () => falha(new Error('Localização não permitida no navegador.')), { timeout: 10000, maximumAge: 3600000 });
   });
@@ -334,8 +400,15 @@ function pwRenderizar() {
       ${pw.ref2 && pw.ref2.valor > 0 ? `<div class="pw-num"><span>${escHTML(pw.ref2.rotulo)}</span><b>${pwR(pw.ref2.valor)}</b>${mediana ? `<small>mediana ${(mediana / pw.ref2.valor).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}×</small>` : ''}</div>` : ''}
     </div>
     ${pw.resumoIA ? `<div class="pw-ia">🤖 ${escHTML(pw.resumoIA)}</div>` : ''}
-    <div class="pw-filtros">
+    <div class="pw-filtros pw-filtros-alcance">
       ${pwSeletorRegiao()}
+      <div class="ca-alternar">${ALCANCES_PW.map(([v, t]) => `<button type="button" class="${pw.alcance === v ? 'ativo' : ''}" onclick="pwMudarAlcance('${v}')">${t}</button>`).join('')}</div>
+      <label class="pw-redes"><input type="checkbox" ${pw.redes ? 'checked' : ''} onchange="pwMudarRedes(this.checked)"> 📱 Incluir Instagram, Facebook e TikTok</label>
+      ${pwLinksRedes()}
+    </div>
+    ${pw.foraDoAlcance ? `<div class="pw-aviso">${pw.mostrarFora ? 'Mostrando também' : 'Ocultadas'} <b>${pw.foraDoAlcance}</b> oferta(s) fora do filtro (${pw.alcance === 'fisicas' ? `não são lojas físicas${pw.regiao ? ' de ' + escHTML(pwRotuloRegiao(pw.regiao)) : ''}` : 'não são da internet'}). <button type="button" class="tv-link" onclick="pwAlternarFora()">${pw.mostrarFora ? 'ocultar' : 'mostrar'}</button></div>` : ''}
+    ${pw.alcance === 'fisicas' && !pw.itens.length && !pw.mostrarFora ? `<div class="pw-aviso">Nenhuma loja física${pw.regiao ? ' de ' + escHTML(pwRotuloRegiao(pw.regiao)) : ''} com preço publicado foi encontrada. Lojas físicas raramente publicam preço; tente incluir as redes sociais ou use os atalhos "ver nas redes".</div>` : ''}
+    <div class="pw-filtros">
       <div class="ca-alternar">${pw.chaves.modelo ? botao('modelo', 'Mesmo modelo') + (pw.chaves.cor ? botao('cor', 'Modelo e cor') : '') : ''}${botao('todos', 'Todos')}</div>
       <a class="tv-link" href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(pw.termo)}" target="_blank" rel="noopener noreferrer">abrir no Google Shopping ↗</a>
     </div>
@@ -351,7 +424,7 @@ function pwRenderizar() {
           <div class="pw-titulo">${escHTML(x.titulo || x.tituloPagina || pw.nome)}</div>
           <div class="pw-loja">${x.tipo === 'loja física' ? '📍' : '🌐'} <b>${escHTML(x.loja || 'loja não informada')}</b>${x.local && !/^online$/i.test(x.local) ? ` · ${escHTML(x.local)}` : x.tipo === 'online' ? ' · online' : ''}${x.cor ? ` · cor ${escHTML(x.cor)}` : ''}</div>
           ${x.observacao ? `<div class="pw-obs">${escHTML(x.observacao)}</div>` : ''}
-          <div class="pw-tags">${x.confere.modelo && pw.chaves.modelo ? '<span class="pw-tag ok">modelo ✓</span>' : ''}${x.confere.cor ? '<span class="pw-tag ok">cor ✓</span>' : ''}${x.confere.tamanho ? '<span class="pw-tag ok">aro ✓</span>' : ''}${origem}</div>
+          <div class="pw-tags">${{ instagram: '<span class="pw-tag rede">📷 Instagram</span>', facebook: '<span class="pw-tag rede">📘 Facebook</span>', tiktok: '<span class="pw-tag rede">🎵 TikTok</span>', marketplace: '<span class="pw-tag">🛒 marketplace</span>' }[x.origem] || ''}${x.confere.modelo && pw.chaves.modelo ? '<span class="pw-tag ok">modelo ✓</span>' : ''}${x.confere.cor ? '<span class="pw-tag ok">cor ✓</span>' : ''}${x.confere.tamanho ? '<span class="pw-tag ok">aro ✓</span>' : ''}${origem}</div>
         </div>
         <div class="pw-preco">${pwR(x.preco)}${ref ? `<small>${x.preco >= ref.valor ? '+' : ''}${((x.preco / ref.valor - 1) * 100).toFixed(0)}% vs ${escHTML(ref.rotulo.toLowerCase())}</small>` : ''}</div>
       </a>`; }).join('')}</div>`

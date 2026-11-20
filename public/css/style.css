@@ -779,3 +779,10 @@ th.filtrada { color: #5ee7ff !important; }
 .ai-lojas-of a em { font-style: normal; color: #8a93c9; }
 .ai-lojas-of a b { color: #3dffa8; font-weight: 600; }
 .ai-mais-of { font-size: 10px; color: #8a93c9; }
+/* preço na web: alcance e redes */
+.pw-filtros-alcance { justify-content: flex-start; }
+.pw-redes { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #cfd6ff; white-space: nowrap; }
+.pw-redes input { width: auto; min-width: 0; margin: 0; }
+.pw-redes-links { font-size: 11px; color: #8a93c9; }
+.pw-redes-links a { color: #5ee7ff; text-decoration: none; }
+.pw-tag.rede { background: rgba(255,92,240,.12); color: #ffb3f7; border-color: rgba(255,92,240,.4); }
