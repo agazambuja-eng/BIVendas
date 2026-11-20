@@ -431,3 +431,5 @@ button.chip:hover { border-color: currentColor; }
 .compras-escuro .acesso-modal .check { color: #c9cff5; }
 html:has(body.compras-escuro) { background: #080b1f; }
 .compras-escuro { background-color: #080b1f; background-attachment: scroll; }
+.lista-abas-usuario { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+@media (max-width: 560px) { .lista-abas-usuario { grid-template-columns: 1fr; } }

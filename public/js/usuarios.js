@@ -18,6 +18,18 @@ const CHIPS = {
 };
 
 let usuarios = [];
+/** A coluna abas_bloqueadas existe? (só depois de rodar o 12_abas_por_usuario.sql) */
+const temColunaAbas = () => usuarios.some(u => Object.prototype.hasOwnProperty.call(u, 'abas_bloqueadas'));
+function montarAbasForm(bloqueadas) {
+  const caixa = $('listaAbasUsuario');
+  if (!caixa) return;
+  if (!temColunaAbas()) {
+    caixa.innerHTML = '<p class="acesso-ajuda" style="margin:0">Para escolher as abas, rode no Supabase o arquivo <b>database/12_abas_por_usuario.sql</b>.</p>';
+    return;
+  }
+  caixa.innerHTML = ABAS_BI.map(([k, rot]) => `<label class="check"><input type="checkbox" id="aba_${k}" ${bloqueadas.includes(k) ? '' : 'checked'}> ${escHTML(rot)}</label>`).join('');
+}
+const abasBloqueadasForm = () => ABAS_BI.map(([k]) => k).filter(k => $('aba_' + k) && !$('aba_' + k).checked);
 let lojasCadastro = [];          // todas as lojas (para marcar no formulário)
 let lojasPorUsuario = {};        // usuario_id -> [codigos]
 let usuarioEmEdicao = null;   // null = novo
@@ -129,7 +141,7 @@ function renderizarUsuarios() {
       <td><strong>${escHTML(u.nome)}</strong>${souEu ? ' <span class="chip">você</span>' : ''}
         ${u.trocar_senha ? '<br><small style="color:#b07a00">senha provisória</small>' : ''}</td>
       <td>${escHTML(u.login)}</td>
-      <td>${chips}</td>
+      <td>${chips}${Array.isArray(u.abas_bloqueadas) && u.abas_bloqueadas.length ? `<br><span class="chip" title="Abas escondidas: ${escHTML(u.abas_bloqueadas.map(k => (ABAS_BI.find(a => a[0] === k) || [k, k])[1]).join(', '))}">🗂️ ${ABAS_BI.length - u.abas_bloqueadas.filter(k => ABAS_BI.some(a => a[0] === k)).length} de ${ABAS_BI.length} abas</span>` : ''}</td>
       <td>${textoLojasUsuario(u)}</td>
       <td><span class="situacao ${u.ativo ? 'ativo' : 'inativo'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
       <td class="acoes">
@@ -161,6 +173,7 @@ function abrirFormUsuario(id = null) {
   $('usuAtivo').checked = u ? u.ativo : true;
   $('usuTodasLojas').checked = u ? !!u.todas_lojas : false;
   montarListaLojasForm(u ? (lojasPorUsuario[u.id] || []) : []);
+  montarAbasForm(u && Array.isArray(u.abas_bloqueadas) ? u.abas_bloqueadas : []);
 
   // Não deixa o administrador tirar o próprio acesso de administrador/ativo
   const souEu = u && perfilAtual && u.id === perfilAtual.id;
@@ -191,6 +204,10 @@ $('formUsuario').onsubmit = async (e) => {
   const lojasMarcadas = lojasMarcadasForm();
 
   if (!nome) return mensagem('msgFormUsuario', 'Informe o nome.', 'erro');
+  const abasBloqueadas = temColunaAbas() ? abasBloqueadasForm() : null;
+  if (perms.pode_acessar_bi && abasBloqueadas && abasBloqueadas.length === ABAS_BI.length) {
+    return mensagem('msgFormUsuario', 'Deixe pelo menos uma aba do BI liberada (ou desmarque "Acessar o BI").', 'erro');
+  }
   if (perms.pode_acessar_bi && !todasLojas && !lojasMarcadas.length) {
     return mensagem('msgFormUsuario', 'Marque pelo menos uma loja ou "Todas as lojas".', 'erro');
   }
@@ -200,7 +217,7 @@ $('formUsuario').onsubmit = async (e) => {
   mensagem('msgFormUsuario', 'Salvando...');
   try {
     if (usuarioEmEdicao) {
-      const alteracao = { nome, email_contato: email || null, ...perms, ativo, todas_lojas: todasLojas };
+      const alteracao = { nome, email_contato: email || null, ...perms, ativo, todas_lojas: todasLojas, ...(abasBloqueadas ? { abas_bloqueadas: abasBloqueadas } : {}) };
       if (usuarioEmEdicao.id === perfilAtual.id) {  // proteção extra
         alteracao.pode_gerenciar_usuarios = true;
         alteracao.ativo = true;
@@ -219,7 +236,7 @@ $('formUsuario').onsubmit = async (e) => {
       const resp = await fetchAutenticado('/api/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, login, senha, email_contato: email, ativo, trocar_senha: true, todas_lojas: todasLojas, ...perms })
+        body: JSON.stringify({ nome, login, senha, email_contato: email, ativo, trocar_senha: true, todas_lojas: todasLojas, ...(abasBloqueadas ? { abas_bloqueadas: abasBloqueadas } : {}), ...perms })
       });
       const corpo = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(corpo.error || `Erro ${resp.status}`);

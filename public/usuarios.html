@@ -69,6 +69,12 @@
         <label class="check"><input type="checkbox" id="perm_gerenciar_usuarios"> ⚙️ Criar usuários e dar acessos (administrador)</label>
       </fieldset>
 
+      <fieldset class="permissoes-caixa" id="caixaAbasUsuario">
+        <legend>Abas do BI que pode ver</legend>
+        <div id="listaAbasUsuario" class="lista-abas-usuario"></div>
+        <p class="acesso-ajuda" style="margin:4px 0 0">Desmarque as abas que este usuário não deve ver. Abas novas aparecem liberadas.</p>
+      </fieldset>
+
       <fieldset class="permissoes-caixa">
         <legend>Lojas que pode ver</legend>
         <label class="check"><input type="checkbox" id="usuTodasLojas" onchange="atualizarListaLojasForm()"> 🏬 Todas as lojas (inclusive as cadastradas no futuro)</label>

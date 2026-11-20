@@ -15,6 +15,17 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || 'https://uumttubexjtgzeualqnz.
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_o177jMO-LmlRF6sY-cx4tA_fv5KIEKa';
 const DOMINIO_LOGIN = 'bivendas.local';
 
+const ABAS_BI = ['dashboard', 'metas', 'cards', 'produtos', 'comparativo', 'comissao', 'detalhes'];
+
+/** Bloqueia a rota se a aba estiver escondida para o usuário (usar depois de exigirUsuario). */
+function exigirAba(aba) {
+  return (req, res, next) => {
+    const b = req.usuario && Array.isArray(req.usuario.abas_bloqueadas) ? req.usuario.abas_bloqueadas : [];
+    if (b.includes(aba)) return res.status(403).json({ error: 'Você não tem acesso a esta aba do BI. Fale com o administrador.' });
+    next();
+  };
+}
+
 const PERMISSOES = ['acessar_bi', 'gerenciar_usuarios', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras'];
 
 function chaveSecreta() {
@@ -244,6 +255,7 @@ function registrarRotasUsuarios(app) {
           trocar_senha: corpo.trocar_senha !== false,
           pode_acessar_bi: true,
           ...(corpo.todas_lojas === true ? { todas_lojas: true } : {}),
+          ...(Array.isArray(corpo.abas_bloqueadas) ? { abas_bloqueadas: corpo.abas_bloqueadas.filter(a => ABAS_BI.includes(a)) } : {}),
           ...permissoesDoCorpo(corpo)
         }
       });
@@ -284,6 +296,7 @@ function registrarRotasUsuarios(app) {
 module.exports = {
   exigirUsuario,
   restringirLojas,
+  exigirAba,
   registrarRotasUsuarios,
   chamarSupabaseAdmin,
   // exportados para testes

@@ -75,6 +75,17 @@ async function obterPerfil() {
   return Array.isArray(linhas) && linhas[0] ? linhas[0] : null;
 }
 
+/** Abas do BI (chave usada em usuarios.abas_bloqueadas e em mudarAba). */
+const ABAS_BI = [
+  ['dashboard', '🚀 Dashboard Executivo'], ['metas', '🎯 Metas'], ['cards', '📊 Visão Geral & Pagamentos'],
+  ['produtos', '🛍️ Avaliação de Produtos'], ['comparativo', '📈 Comparativo'], ['comissao', '💰 Comissão'],
+  ['detalhes', '🔍 Detalhes de Vendas (Período)']
+];
+/** O usuário pode ver a aba? (lista vazia = todas) */
+function abaLiberada(aba, perfil = perfilAtual) {
+  return !(perfil && Array.isArray(perfil.abas_bloqueadas) && perfil.abas_bloqueadas.includes(aba));
+}
+
 function temPermissao(permissao, perfil = perfilAtual) {
   return !!(perfil && perfil.ativo && perfil['pode_' + permissao] === true);
 }
