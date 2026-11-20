@@ -283,7 +283,7 @@ function situacao(req) {
 }
 
 // ------------------------------------------------------------------ rotas
-function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, chamarSupabaseAdmin, cachePerfis }) {
+function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, exigirAba = () => (q, r, n) => n(), chamarSupabaseAdmin, cachePerfis }) {
   app.post('/savwin/situacao', exigirUsuario('acessar_bi'), (req, res) => res.json(situacao(req)));
 
   /** Conecta (ou reconecta) com o acesso cadastrado no usuário. */
@@ -343,7 +343,7 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, chama
     }
   });
 
-  app.post('/savwin/estoque', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
+  app.post('/savwin/estoque', exigirUsuario('acessar_bi'), exigirAba('produtos'), restringirLojas, async (req, res) => {
     try {
       const s = await obterSessao(req);
       const meses = [3, 6, 12].includes(Number(req.body.MESES)) ? Number(req.body.MESES) : 12;
@@ -405,7 +405,7 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, chama
   });
 
   /** Comissão (espelho do relatório do SavWin) para as lojas e o período do BI. */
-  app.post('/savwin/comissao', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
+  app.post('/savwin/comissao', exigirUsuario('acessar_bi'), exigirAba('comissao'), restringirLojas, async (req, res) => {
     try {
       const b = req.body || {};
       const inicio = dataBR(b.DATAINICIAL), fim = dataBR(b.DATAFINAL);
@@ -432,7 +432,7 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, chama
   });
 
   /** Produtos × lojas de uma grife (bloco "O que está encalhado"). */
-  app.post('/savwin/estoque/detalhe', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
+  app.post('/savwin/estoque/detalhe', exigirUsuario('acessar_bi'), exigirAba('produtos'), restringirLojas, async (req, res) => {
     try {
       const meses = [3, 6, 12].includes(Number(req.body.MESES)) ? Number(req.body.MESES) : 12;
       const j = await comSessao(req, async s => {

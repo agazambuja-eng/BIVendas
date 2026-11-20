@@ -25,6 +25,7 @@ window.onload = async () => {
   // Só entra no BI quem está logado, ativo e com acesso ao BI
   await exigirLogin('acessar_bi');
   montarBarraUsuario(document.getElementById('barraUsuarioBI'));
+  aplicarAbasDoUsuario();
 
   // ⚙ de metas só aparece para quem pode incluir, alterar ou excluir metas
   const podeMetas = ['criar_metas', 'alterar_metas', 'excluir_metas'].some(p => temPermissao(p));
@@ -74,8 +75,22 @@ function toggleAcordeon(idUnico) {
   }
 }
 
+// --- ABAS LIBERADAS PARA O USUÁRIO (usuarios.abas_bloqueadas) ---
+const BOTOES_ABAS = { dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', cards: 'btnAbaCards', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', comissao: 'btnAbaComissao', detalhes: 'btnAbaDetalhes' };
+const abaDoUsuario = aba => typeof abaLiberada !== 'function' || abaLiberada(aba);
+function aplicarAbasDoUsuario() {
+  Object.entries(BOTOES_ABAS).forEach(([aba, id]) => {
+    const b = document.getElementById(id);
+    if (b) b.style.display = abaDoUsuario(aba) ? '' : 'none';
+  });
+}
+function primeiraAbaLiberada() {
+  return Object.keys(BOTOES_ABAS).find(abaDoUsuario) || 'dashboard';
+}
+
 // --- FUNÇÃO DE CONTROLE DE ABAS ---
 function mudarAba(aba) {
+  if (!abaDoUsuario(aba)) aba = primeiraAbaLiberada();
   const btnCards = document.getElementById("btnAbaCards");
   const btnDashboard = document.getElementById("btnAbaDashboard");
   const btnDetalhes = document.getElementById("btnAbaDetalhes");
@@ -566,9 +581,9 @@ async function consultar() {
   };
   if (typeof limparComparativo === 'function') limparComparativo();
   // Estoque encalhado: conecta no SavWin com o acesso do usuário e carrega em segundo plano
-  if (typeof epAutoCarregar === 'function') setTimeout(epAutoCarregar, 0);
+  if (typeof epAutoCarregar === 'function' && abaDoUsuario('produtos')) setTimeout(epAutoCarregar, 0);
   // Comissão: mesmo período e lojas, consulta o relatório de comissão do SavWin em segundo plano
-  if (typeof cmAutoCarregar === 'function') setTimeout(cmAutoCarregar, 0);
+  if (typeof cmAutoCarregar === 'function' && abaDoUsuario('comissao')) setTimeout(cmAutoCarregar, 0);
 
   try {
     const [resGrid, resPagamentos] = await Promise.all([
@@ -860,7 +875,7 @@ function processarDadosBI(dados, dadosPagamentos) {
   
   document.getElementById("biTabsHeader").style.display = "flex";
   document.getElementById("biCardsContainer").style.display = "flex";
-  mudarAba('dashboard');
+  mudarAba(primeiraAbaLiberada());
   
   // --- PROCESSAMENTO DO RESUMO POR LOJAS E VENDEDORES ---
   let agrupadoPorLoja = {};
