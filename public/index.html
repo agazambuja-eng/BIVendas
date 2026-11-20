@@ -89,7 +89,7 @@
   <div id="conteudoAbaCards" style="display: flex; flex-direction: column; gap: 15px;">
     
     <!-- Linha dos 5 Cards Superiores -->
-    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+    <div class="grade-cards-resumo" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
       <div class="bi-card" style="border-left-color: #0275d8; padding: 10px;">
         <div class="bi-card-title" style="font-size: 11px;">VALOR BRUTO TOTAL</div>
         <div class="bi-card-value" id="cardValorBruto">R$ 0,00</div>
@@ -120,7 +120,7 @@
     <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-start;">
       
       <!-- COLUNA ESQUERDA: RESUMO DE PAGAMENTO & PARCELAS -->
-      <div class="bi-card" style="border-left-color: #17a2b8; padding: 15px; flex: 1; min-width: 350px;">
+      <div class="bi-card" style="border-left-color: #17a2b8; padding: 15px; flex: 1; min-width: min(350px, 100%);">
         <div class="bi-card-title pg-titulo" style="margin-bottom: 10px;">Resumo de Pagamento & Parcelas
           <span id="pgMetrica" class="ca-alternar">
             <button type="button" data-m="pct" class="ativo" onclick="escolherMetricaPagamentos('pct')">%</button>
@@ -132,7 +132,7 @@
       </div>
 
       <!-- COLUNA DIREITA: RESUMO POR VENDEDORES (SANFONA) -->
-      <div class="bi-card" style="border-left-color: #6f42c1; padding: 15px; flex: 1; min-width: 350px;">
+      <div class="bi-card" style="border-left-color: #6f42c1; padding: 15px; flex: 1; min-width: min(350px, 100%);">
         <div class="bi-card-title" style="margin-bottom: 10px;">Resumo por Vendedores</div>
         <div class="bi-card-value" id="cardResumoVendedores" style="font-size: 14px; font-weight: normal; line-height: 1.5; text-align: left;">
           <div style="margin-bottom: 8px; background: #fafafa; border-radius: 6px; border: 1px solid #e0e0e0; overflow: hidden;">

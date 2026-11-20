@@ -849,3 +849,38 @@ th.filtrada { color: #5ee7ff !important; }
 .cm-tabela .cm-ord { cursor: pointer; user-select: none; }
 .cm-barra-sep { color: #8a93c9; margin: 0 2px; }
 .cm-tabela th.th-filtro { white-space: nowrap; }
+
+/* ================= Responsivo: celular e tablet ================= */
+@media (max-width: 1024px) {
+  .bi-tabs-header { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; padding-bottom: 4px; }
+  .bi-tabs-header button { flex: 0 0 auto; white-space: nowrap; }
+  .bi-cards-container { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  body { margin: 10px; }
+  .bi-tabs-header button { padding: 8px 12px !important; font-size: 13px; }
+}
+@media (max-width: 480px) {
+  .bi-cards-container { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1024px) { .grade-cards-resumo { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+@media (max-width: 600px)  { .grade-cards-resumo { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+/* filtros do topo: no tablet quebram em 2 por linha */
+@media (min-width: 761px) and (max-width: 1024px) {
+  .linha { flex-wrap: wrap; }
+  .linha > label, .linha > .campo-tipos-venda { flex: 1 1 calc(50% - 20px) !important; min-width: 0; }
+}
+/* cabeçalho no celular: título em cima, usuário embaixo */
+@media (max-width: 600px) {
+  .header-titulo { flex-wrap: wrap; gap: 6px; }
+  .header-titulo h2 { white-space: nowrap; font-size: 22px; }
+  .header-titulo > :last-child { flex: 1 1 100%; justify-content: flex-start; flex-wrap: wrap; }
+}
+.bi-card { box-sizing: border-box; max-width: 100%; }
+@media (max-width: 600px) {
+  .cm-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cm-card b { font-size: 17px; }
+  .cm-linha { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cm-tabela th:first-child, .cm-tabela td:first-child { position: sticky; left: 0; z-index: 1; background: #0d1233; }
+  .cm-tabela td:first-child { max-width: 170px; white-space: normal; }
+}

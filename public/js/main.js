@@ -152,6 +152,10 @@ function mudarAba(aba) {
   // Classe da aba ativa (usada pelo tema escuro)
   const idsBotoes = { cards: 'btnAbaCards', dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', comissao: 'btnAbaComissao', detalhes: 'btnAbaDetalhes' };
   document.querySelectorAll('#biTabsHeader button').forEach(b => b.classList.toggle('aba-ativa', b.id === idsBotoes[aba]));
+  // no celular/tablet a barra de abas rola: mantém a aba ativa à vista
+  const ativa = document.getElementById(idsBotoes[aba]);
+  const barra = document.getElementById('biTabsHeader');
+  if (ativa && barra && barra.scrollWidth > barra.clientWidth) barra.scrollTo({ left: ativa.offsetLeft - (barra.clientWidth - ativa.offsetWidth) / 2, behavior: 'smooth' });
 }
 
 // --- FUNÇÕES DO MODAL DE LOJAS ---
