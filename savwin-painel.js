@@ -42,18 +42,18 @@ function numeroBR(v) {
 }
 
 // ------------------------------------------------------------------ http
-function postar(caminho, corpo, { chave, identificador } = {}) {
+function postar(caminho, corpo, { chave, identificador } = {}, tela = TELA) {
   return new Promise((ok, falha) => {
     const dados = Buffer.from(JSON.stringify(corpo || {}));
     const headers = {
       'Content-Type': 'application/json', Accept: 'application/json',
       'Accept-Encoding': 'gzip, deflate', 'Content-Length': dados.length,
-      Origin: URL_APP, Referer: URL_APP + TELA
+      Origin: URL_APP, Referer: URL_APP + tela
     };
     if (chave) {
       headers.Chave = chave;
       headers.ChaveValidacao = String(identificador || '').toUpperCase();
-      headers['X-Tela'] = TELA;
+      headers['X-Tela'] = tela;
     }
     const req = https.request(BASE.replace(/\/+$/, '') + '/' + caminho.replace(/^\/+/, ''), { method: 'POST', headers }, resp => {
       let fluxo = resp;
@@ -85,9 +85,9 @@ function esquecerSessao(s) {
   sessoes.forEach((v, k) => { if (v === s) sessoes.delete(k); });
 }
 
-async function postarComSessao(s, caminho, corpo) {
+async function postarComSessao(s, caminho, corpo, tela = TELA) {
   if (!s) throw new SessaoExpirada('O BI não está conectado ao SavWin.');
-  const r = await postar(caminho, corpo, s);
+  const r = await postar(caminho, corpo, s, tela);
   if (r.status === 401 || r.status === 403) {
     esquecerSessao(s);
     throw new SessaoExpirada('A sessão do SavWin expirou.');
@@ -404,6 +404,33 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, chama
     } catch (err) { responderErro(res, err); }
   });
 
+  /** Comissão (espelho do relatório do SavWin) para as lojas e o período do BI. */
+  app.post('/savwin/comissao', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
+    try {
+      const b = req.body || {};
+      const inicio = dataBR(b.DATAINICIAL), fim = dataBR(b.DATAFINAL);
+      if (!inicio || !fim) return res.status(400).json({ error: 'Informe o período.' });
+      const o = b.OPCOES || {};
+      const opcoes = {
+        incluiSaldoReceber: o.incluiSaldoReceber === true,
+        consideraOSSaldoReceber: o.consideraOSSaldoReceber !== false,
+        consideraOSSemEntrega: o.consideraOSSemEntrega !== false,
+        subtraiTaxaAdm: o.subtraiTaxaAdm === true
+      };
+      const codigos = String(b.LOJAS || '').split(/[,;\s]+/).map(codigoDaDescricao).filter(Boolean).sort((x, y) => x - y);
+      const s0 = await obterSessao(req);
+      const chave = `${s0.identificador}|${s0.usuarioSavwin}|${codigos.join(',')}|${inicio}|${fim}|${JSON.stringify(opcoes)}`;
+      const em = cacheComissao.get(chave);
+      if (em && b.ATUALIZAR !== true && Date.now() - em.quando < 5 * 60 * 1000) {
+        return enviarCompactado(req, res, { quando: new Date(em.quando).toISOString(), inicio, fim, opcoes, linhas: em.linhas });
+      }
+      const linhas = await comSessao(req, s => consultarComissao(s, { codigos, inicio, fim, opcoes }));
+      if (cacheComissao.size > 200) cacheComissao.clear();
+      cacheComissao.set(chave, { quando: Date.now(), linhas });
+      enviarCompactado(req, res, { quando: new Date().toISOString(), inicio, fim, opcoes, linhas });
+    } catch (err) { responderErro(res, err); }
+  });
+
   /** Produtos × lojas de uma grife (bloco "O que está encalhado"). */
   app.post('/savwin/estoque/detalhe', exigirUsuario('acessar_bi'), restringirLojas, async (req, res) => {
     try {
@@ -426,4 +453,67 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, chama
   });
 }
 
-module.exports = { registrarRotasPainelSavwin, codigoDaDescricao, textoSimples, janela, numeroBR, cifrar, decifrar };
+// ------------------------------------------------------------------ comissão
+const TELA_COMISSAO = '/tela/FRMRELATORIOCOMISSAO';
+const API_COMISSAO = 'api/Relatorios/RelatoriosComissao';
+const cacheComissao = new Map();     // 5 min por usuário SavWin + filtros
+const comoLista = j => {
+  let v = j;
+  if (typeof v === 'string') { try { v = v.trim() ? JSON.parse(v) : []; } catch { v = []; } }
+  return Array.isArray(v) ? v : (v && Array.isArray(v.Resultado) ? v.Resultado : []);
+};
+const dataBR = d => {
+  const t = String(d || '').trim();
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(t) ? t : '';
+};
+const sn = v => (v ? 'S' : 'N');
+
+/** Lojas e vendedores (ativos) da tela de comissão; guardados 6 h na sessão. */
+async function listasComissao(s) {
+  if (s.listasComissao && Date.now() - s.listasComissao.quando < 6 * 60 * 60 * 1000) return s.listasComissao;
+  const l = await postarComSessao(s, `${API_COMISSAO}/RetornaListasComissao`, {}, TELA_COMISSAO);
+  const v = await postarComSessao(s, `${API_COMISSAO}/RetornaVendedoresComissao`, { Valor: '1' }, TELA_COMISSAO);
+  const lj = typeof l === 'string' ? JSON.parse(l || '{}') : (l || {});
+  const vd = typeof v === 'string' ? JSON.parse(v || '{}') : (v || {});
+  const porCodigo = new Map();
+  (lj.ListaLoja || []).forEach(x => { const c = codigoDaDescricao(x.DESCRICAO); if (c) porCodigo.set(c, String(x.ID)); });
+  const vendedores = (vd.ListaVendedor || []).map(x => String(x.ID)).filter(Boolean);
+  s.listasComissao = { quando: Date.now(), porCodigo, vendedores };
+  return s.listasComissao;
+}
+
+/**
+ * Relatório de comissão "POR FAIXA · ANALÍTICO · FATURAMENTO" do SavWin (o mesmo da tela
+ * Relatórios de Comissão), uma linha por OS. Base de comissão = o que o cliente pagou da OS
+ * (com "Considera OS pendente (saldo a receber)"); percentual pela faixa do vendedor.
+ */
+async function consultarComissao(s, { codigos, inicio, fim, opcoes }) {
+  const { porCodigo, vendedores } = await listasComissao(s);
+  const ids = codigos.map(c => porCodigo.get(c)).filter(Boolean);
+  if (codigos.length && !ids.length) throw Object.assign(new Error('Suas lojas do BI não foram encontradas na comissão do SavWin.'), { http: 404 });
+  const filtro = {
+    SUBTRAITXADM: sn(opcoes.subtraiTaxaAdm),
+    VENDEDOR: vendedores.length ? `|${vendedores.join('|')}|` : null,   // só vendedores ativos, como na tela
+    VENDEDOR2: null,
+    FILIDLOJA: ids.length ? `|${ids.join('|')}|` : '',
+    INCLUIOSSEMENTREGA: sn(opcoes.consideraOSSemEntrega),
+    DATAENTRADAINICIO: inicio, DATAENTRADAFINAL: fim,
+    INCLUIOSCOMSALDORECEBER: sn(opcoes.consideraOSSaldoReceber),
+    INCLUISALDORECEBER: sn(opcoes.incluiSaldoReceber)
+  };
+  const j = await postarComSessao(s, `${API_COMISSAO}/RetornaComissaoPorFaixaAnaliticoFaturamento`, { sObjetoJSON: JSON.stringify(filtro) }, TELA_COMISSAO);
+  if (j && j.Liberado === false) throw new Error(`SavWin: ${j.Mensagem || 'relatório de comissão não liberado'}`);
+  return comoLista(j).map(x => ({
+    loja: String(x.LOJANOME || ''), lojaId: String(x.FILID || ''),
+    os: String(x.PEDSEQUENCIAL || ''), pedid: String(x.PEDID || ''), data: String(x.PEDDATAENTRADA || ''),
+    vendedor: String(x.VENDEDOR || ''), vendedorId: String(x.VNDID || ''), tabela: String(x.COMID || ''),
+    pecas: numeroBR(x.QTDEPECAS), servico: numeroBR(x.SERVICO), bruto: numeroBR(x.VALORBRUTO),
+    liquido: numeroBR(x.VALORLIQUIDOVENDA), base: numeroBR(x.BASECOMISSAO),
+    percentual: numeroBR(x.COMPERCENTUAL), comissao: numeroBR(x.COMISSAO),
+    totalVendedor: numeroBR(x.VALORTOTALVENDAS)
+  }));
+}
+
+module.exports = { registrarRotasPainelSavwin, consultarComissao, codigoDaDescricao, textoSimples, janela, numeroBR, cifrar, decifrar };
