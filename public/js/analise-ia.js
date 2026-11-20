@@ -35,14 +35,46 @@ function fecharAnaliseIA() {
 }
 
 /** Grifes no escopo: as da lista atual (tipo e busca), opcionalmente só as paradas, do maior custo para o menor. */
-function aiGrifesEscopo(soParadas) {
+function aiGrifesEscopo(soParadas, incluirDesmarcadas = false) {
   if (!ep.dados) return [];
   const doTipo = typeof epGrifesDoTipo === 'function' ? epGrifesDoTipo() : null;
   const busca = String(ep.busca || '').trim().toUpperCase();
   return (ep.dados.Cobertura || [])
     .filter(g => (!doTipo || doTipo.has(String(g.Chave))) && (!busca || String(g.Descricao || '').toUpperCase().includes(busca)))
     .filter(g => !soParadas || !g.UltimaVenda || g.DiasSemVender >= 180)
+    .filter(g => incluirDesmarcadas || !ai.fora.has(aiNomeGrife(g)))
     .sort((a, b) => b.Custo - a.Custo);
+}
+
+/* Grifes que o usuário desmarcou (ex.: marca própria): ficam fora da pesquisa e são lembradas. */
+ai.fora = new Set();
+try { ai.fora = new Set(JSON.parse(localStorage.getItem('bi_ai_grifes_fora') || '[]')); } catch { /* sem armazenamento */ }
+const aiNomeGrife = g => String(g.Descricao || g.Chave || '').trim().toUpperCase();
+function aiSalvarFora() {
+  try { localStorage.setItem('bi_ai_grifes_fora', JSON.stringify([...ai.fora])); } catch { /* sem armazenamento */ }
+}
+function aiMarcarGrife(nome, marcado) {
+  if (marcado) ai.fora.delete(nome); else ai.fora.add(nome);
+  aiSalvarFora(); aiAtualizarTotalGrifes();
+}
+function aiMarcarTodas(marcar) {
+  const visiveis = [...document.querySelectorAll('#aiListaGrifes label:not([hidden]) input')];
+  visiveis.forEach(i => { i.checked = marcar; if (marcar) ai.fora.delete(i.value); else ai.fora.add(i.value); });
+  aiSalvarFora(); aiAtualizarTotalGrifes();
+}
+function aiFiltrarListaGrifes(txt) {
+  const t = String(txt || '').trim().toUpperCase();
+  document.querySelectorAll('#aiListaGrifes label').forEach(l => { l.hidden = !!t && !l.dataset.nome.includes(t); });
+}
+function aiAtualizarTotalGrifes() {
+  const el = document.getElementById('aiTotalGrifes');
+  if (!el) return;
+  const todas = aiGrifesEscopo(ai.cfgSoParadas !== false, true);
+  const sel = todas.filter(g => !ai.fora.has(aiNomeGrife(g)));
+  const pecas = sel.reduce((t, g) => t + (Number(g.Qtde) || 0), 0), custo = sel.reduce((t, g) => t + (Number(g.Custo) || 0), 0);
+  el.innerHTML = `<b>${sel.length}</b> de ${todas.length} grifes marcadas · ${epPc(pecas)} peças · ${formatarMoedaBR(custo)} de custo`;
+  const bt = document.getElementById('aiBtnIniciar');
+  if (bt) bt.disabled = !sel.length;
 }
 
 function abrirAnaliseIA() {
@@ -54,8 +86,13 @@ function abrirAnaliseIA() {
 
 function aiDesenharConfig() {
   const soParadas = ai.cfgSoParadas !== false;
-  const grifes = aiGrifesEscopo(soParadas);
+  const grifes = aiGrifesEscopo(soParadas, true);
   const limite = ai.cfgLimite || 20;
+  const listaGrifes = grifes.map(g => {
+    const nome = aiNomeGrife(g);
+    return `<label data-nome="${escHTML(nome)}"><input type="checkbox" value="${escHTML(nome)}" ${ai.fora.has(nome) ? '' : 'checked'} onchange="aiMarcarGrife(this.value, this.checked)">
+      <span class="ai-g-nome">${escHTML(g.Descricao || g.Chave)}</span><span class="ai-g-num">${epPc(g.Qtde || 0)} pç · ${formatarMoedaBR(g.Custo || 0)}</span></label>`;
+  }).join('');
   const regiao = ai.cfgRegiao !== undefined ? ai.cfgRegiao : (pw.regiao || '');
   const opRegiao = [...REGIOES_PW, ...(pw.regioesExtra || []).filter(r => !REGIOES_PW.some(x => x[0] === r)).map(r => [r, r])].map(([v, t]) => `<option value="${escHTML(v)}" ${v === regiao ? 'selected' : ''}>${escHTML(t)}</option>`).join('');
   document.getElementById('aiCorpo').innerHTML = `
@@ -65,6 +102,16 @@ function aiDesenharConfig() {
         <small>Muda o tipo, a loja ou a busca na tela do estoque para mudar o escopo.</small>
       </div>
       <label class="ai-op"><input type="checkbox" id="aiSoParadas" ${soParadas ? 'checked' : ''} onchange="ai.cfgSoParadas = this.checked; aiDesenharConfig()"> Só grifes paradas (sem venda ou sem vender há 180 dias ou mais)</label>
+      <div class="ai-grifes">
+        <div class="ai-grifes-topo">
+          <b>Grifes a pesquisar</b>
+          <input type="search" placeholder="filtrar grife…" oninput="aiFiltrarListaGrifes(this.value)">
+          <button type="button" class="tv-link" onclick="aiMarcarTodas(true)">marcar todas</button>
+          <button type="button" class="tv-link" onclick="aiMarcarTodas(false)">desmarcar todas</button>
+        </div>
+        <div id="aiListaGrifes" class="ai-grifes-lista">${listaGrifes || '<small>Nenhuma grife no escopo.</small>'}</div>
+        <div class="ai-grifes-rodape"><span id="aiTotalGrifes"></span><small>Desmarque marca própria e o que não quer pesquisar; o BI lembra na próxima vez.</small></div>
+      </div>
       <div class="ai-linha">
         <label>Analisar até <select id="aiLimite" onchange="ai.cfgLimite = Number(this.value); aiDesenharConfig()">${LIMITES_AI.map(n => `<option value="${n}" ${n === limite ? 'selected' : ''}>${n} modelos</option>`).join('')}</select></label>
         <label>📍 Região <select id="aiRegiao" onchange="ai.cfgRegiao = this.value">${opRegiao}</select></label>
@@ -75,10 +122,11 @@ function aiDesenharConfig() {
         Leva cerca de <b>${Math.max(1, Math.round(limite * 25 / 2 / 60))} min</b> (2 pesquisas por vez) e usa até <b>${limite}</b> pesquisas da IA no mês
         (o que já foi pesquisado nas últimas 24 h não conta). Pode parar quando quiser e exportar o que já veio.</p>
       <div class="ai-botoes">
-        <button type="button" class="btn-comparar-lojas" onclick="aiIniciar()" ${grifes.length ? '' : 'disabled'}>▶ Iniciar análise</button>
+        <button type="button" class="btn-comparar-lojas" id="aiBtnIniciar" onclick="aiIniciar()">▶ Iniciar análise</button>
         ${ai.linhas.length ? `<button type="button" class="tv-link" onclick="aiDesenharResultado()">ver a última análise (${ai.linhas.length} produtos)</button>` : ''}
       </div>
     </div>`;
+  aiAtualizarTotalGrifes();
 }
 
 async function aiEmParalelo(itens, n, fn) {
