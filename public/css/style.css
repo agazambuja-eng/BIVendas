@@ -838,3 +838,11 @@ th.filtrada { color: #5ee7ff !important; }
 .cm-tag.parcial { background: rgba(255,200,70,.12); color: #ffd36e; border-color: rgba(255,200,70,.4); }
 .cm-erro { padding: 12px; border-radius: 8px; background: rgba(255,92,140,.1); border: 1px solid rgba(255,92,140,.35); }
 .cm-vazio { color: #8a93c9; font-size: 13px; }
+/* comissão: loja > vendedor e filtros de coluna */
+.cm-tabela tr.cm-loja { cursor: pointer; background: rgba(94,231,255,.07); }
+.cm-tabela tr.cm-loja td { font-weight: bold; color: #cfe9ff; border-top: 1px solid rgba(94,231,255,.25); }
+.cm-tabela tr.cm-loja td small { font-weight: normal; color: #8a93c9; margin-left: 6px; }
+.cm-tabela td.cm-recuo { padding-left: 26px !important; }
+.cm-filtro-linha th { padding: 4px 6px !important; background: rgba(10,14,40,.85); }
+.cm-filtro-linha input, .cm-filtro-linha select { width: 100%; min-width: 60px; padding: 3px 6px; font-size: 11px; font-weight: normal; text-transform: none; }
+.cm-f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
