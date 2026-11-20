@@ -132,48 +132,137 @@ function cmPorVendedor(linhas) {
   return [...m.values()];
 }
 
-/* ---------- filtros de coluna ----------
- * Texto: contém (Loja, Vendedor). Números: ">1000", "<500", ">=2,5", "1000-5000" ou só o número (igual).
- * Faixa: lista dos percentuais. */
+/* ---------- filtros de coluna (igual ao filtro tipo Excel da aba Detalhes) ----------
+ * Cada coluna guarda os valores DESMARCADOS. Vale por vendedor (linha da tabela). */
 const COLUNAS_CM = [
-  ['loja', 'Loja', 'texto'], ['nome', 'Vendedor', 'texto'], ['qtdOs', 'OS', 'num'], ['bruto', 'Total vendas', 'num'],
-  ['liquido', 'Valor líquido', 'num'], ['base', 'Base comissão', 'num'], ['faixa', 'Faixa', 'faixa'], ['comissao', 'Comissão (R$)', 'num']
+  { k: 'loja', t: 'Loja', tipo: 'texto', txt: v => typeof epLojaCurta === 'function' ? epLojaCurta(v.loja) : v.loja },
+  { k: 'nome', t: 'Vendedor', tipo: 'texto', txt: v => v.nome },
+  { k: 'qtdOs', t: 'OS', tipo: 'num', num: v => v.os.length },
+  { k: 'bruto', t: 'Total vendas', tipo: 'moeda', num: v => v.bruto },
+  { k: 'liquido', t: 'Valor líquido', tipo: 'moeda', num: v => v.liquido },
+  { k: 'base', t: 'Base comissão', tipo: 'moeda', num: v => v.base },
+  { k: 'faixa', t: 'Faixa', tipo: 'num', num: v => Math.max(...v.pct), txt: v => [...v.pct].map(p => cmN(p) + '%').join(' / ') },
+  { k: 'comissao', t: 'Comissão (R$)', tipo: 'moeda', num: v => v.comissao }
 ];
 cm.filtros = {};
 cm.lojasFechadas = new Set();
-const cmNumBR = t => Number(String(t).trim().replace(/\./g, '').replace(',', '.'));
-function cmPassaNumero(valor, expr) {
-  const e = String(expr || '').trim();
-  if (!e) return true;
-  const faixa = e.match(/^([\d.,]+)\s*(?:-|a|até)\s*([\d.,]+)$/i);
-  if (faixa) return valor >= cmNumBR(faixa[1]) && valor <= cmNumBR(faixa[2]);
-  const op = e.match(/^(>=|<=|>|<|=)?\s*([\d.,]+)$/);
-  if (!op) return true;
-  const n = cmNumBR(op[2]);
-  switch (op[1]) {
-    case '>': return valor > n; case '<': return valor < n; case '>=': return valor >= n; case '<=': return valor <= n;
-    default: return Math.abs(valor - n) < 0.005;
-  }
-}
-function cmPassa(v) {
-  const f = cm.filtros, norm = t => String(t || '').toUpperCase();
-  if (f.loja && !norm(v.loja).includes(norm(f.loja))) return false;
-  if (f.nome && !norm(v.nome).includes(norm(f.nome))) return false;
-  if (f.faixa && ![...v.pct].map(String).includes(f.faixa)) return false;
-  return cmPassaNumero(v.os.length, f.qtdOs) && cmPassaNumero(v.bruto, f.bruto) && cmPassaNumero(v.liquido, f.liquido)
-    && cmPassaNumero(v.base, f.base) && cmPassaNumero(v.comissao, f.comissao);
-}
-function cmFiltrar(campo, valor) {
-  cm.filtros[campo] = valor;
+let cmPopup = null;
+const cmColuna = k => COLUNAS_CM.find(c => c.k === k);
+const cmTextoCol = (c, v) => c.txt ? c.txt(v) : c.tipo === 'moeda' ? cmR(c.num(v)) : cmN(c.num(v), 2);
+const cmPassa = (v, ignorar = '') => COLUNAS_CM.every(c => c.k === ignorar || !cm.filtros[c.k] || !cm.filtros[c.k].has(cmTextoCol(c, v)));
+const cmBuscaOk = v => { const b = cm.busca.trim().toUpperCase(); return !b || `${v.nome} ${v.loja}`.toUpperCase().includes(b); };
+
+function cmLimparFiltros() { cm.filtros = {}; cm.busca = ''; cmFecharFiltro(); cmRenderizar(); }
+function cmBuscar(valor) {
+  cm.busca = valor;
   clearTimeout(window._cmF);
   window._cmF = setTimeout(() => {
-    const ativo = document.activeElement, id = ativo && ativo.id, pos = ativo && ativo.selectionStart;
+    const el0 = document.getElementById('cmBusca'), pos = el0 ? el0.selectionStart : null;
     cmRenderizar();
-    const el = id && document.getElementById(id);
-    if (el) { el.focus(); try { if (pos != null) el.setSelectionRange(pos, pos); } catch { /* select */ } }
+    const el = document.getElementById('cmBusca');
+    if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch { /* sem cursor */ } }
   }, 250);
 }
-function cmLimparFiltros() { cm.filtros = {}; cm.busca = ''; cmRenderizar(); }
+
+function cmAbrirFiltro(event, k) {
+  event.stopPropagation();
+  const col = cmColuna(k);
+  if (!col || !cm.dados) return;
+  if (cmPopup && cmPopup.k === k) return cmFecharFiltro();
+  const base = cmPorVendedor(cm.dados.linhas || []).filter(v => cmBuscaOk(v) && cmPassa(v, k));
+  const contagem = new Map(), numero = new Map();
+  base.forEach(v => { const t = cmTextoCol(col, v); contagem.set(t, (contagem.get(t) || 0) + 1); if (col.num) numero.set(t, col.num(v)); });
+  const desmarcados = cm.filtros[k] || new Set();
+  desmarcados.forEach(t => { if (!contagem.has(t)) contagem.set(t, 0); });
+  const valores = [...contagem.keys()].sort((a, b) => col.num ? (numero.get(a) ?? 0) - (numero.get(b) ?? 0) : a.localeCompare(b, 'pt-BR'));
+  cmPopup = { k, col, valores, contagem, marcados: new Set(valores.filter(v => !desmarcados.has(v))) };
+
+  let popup = document.getElementById('popupFiltroComissao');
+  if (!popup) {
+    popup = document.createElement('div');
+    popup.id = 'popupFiltroComissao';
+    popup.className = 'popup-filtro';
+    popup.addEventListener('click', e => e.stopPropagation());
+    document.body.appendChild(popup);
+  }
+  const numerica = col.tipo !== 'texto';
+  popup.innerHTML = `
+    <div class="pf-titulo">${escHTML(col.t)}</div>
+    <div class="pf-ordem">
+      <button type="button" onclick="cmOrdenarFiltro(true)">↑ Classificar ${numerica ? 'do menor para o maior' : 'de A a Z'}</button>
+      <button type="button" onclick="cmOrdenarFiltro(false)">↓ Classificar ${numerica ? 'do maior para o menor' : 'de Z a A'}</button>
+    </div>
+    <input type="search" id="cmPfBusca" placeholder="Pesquisar..." oninput="cmListaFiltro()">
+    <div class="pf-lista" id="cmPfLista"></div>
+    <div class="pf-rodape">
+      <button type="button" class="pf-limpar" onclick="cmLimparFiltroColuna()">Limpar filtro</button>
+      <span style="flex:1"></span>
+      <button type="button" class="pf-cancelar" onclick="cmFecharFiltro()">Cancelar</button>
+      <button type="button" class="pf-ok" onclick="cmConfirmarFiltro()">OK</button>
+    </div>`;
+  cmListaFiltro();
+  const r = event.currentTarget.closest('th').getBoundingClientRect();
+  popup.style.display = 'block';
+  const largura = popup.offsetWidth;
+  popup.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - largura - 8)) + 'px';
+  popup.style.top = (window.scrollY + r.bottom + 4) + 'px';
+  setTimeout(() => document.getElementById('cmPfBusca')?.focus(), 0);
+}
+function cmVisiveisFiltro() {
+  const b = (document.getElementById('cmPfBusca')?.value || '').trim().toLowerCase();
+  return cmPopup.valores.filter(v => !b || v.toLowerCase().includes(b));
+}
+function cmListaFiltro() {
+  const lista = document.getElementById('cmPfLista');
+  if (!lista || !cmPopup) return;
+  const vis = cmVisiveisFiltro();
+  const todos = vis.length && vis.every(v => cmPopup.marcados.has(v));
+  lista.innerHTML = `
+    <label class="pf-item pf-todos"><input type="checkbox" ${todos ? 'checked' : ''} onchange="cmMarcarTodos(this.checked)">
+      <span>(Selecionar tudo${vis.length !== cmPopup.valores.length ? ' da pesquisa' : ''})</span></label>
+    ${vis.map((v, i) => `<label class="pf-item"><input type="checkbox" data-i="${i}" ${cmPopup.marcados.has(v) ? 'checked' : ''} onchange="cmMarcarValor(this)">
+      <span>${escHTML(v)}</span><small>${cmPopup.contagem.get(v) || 0}</small></label>`).join('')}
+    ${!vis.length ? '<div class="pf-aviso">Nenhum valor encontrado.</div>' : ''}`;
+  lista._visiveis = vis;
+}
+function cmMarcarValor(cb) {
+  const v = document.getElementById('cmPfLista')._visiveis[Number(cb.dataset.i)];
+  if (cb.checked) cmPopup.marcados.add(v); else cmPopup.marcados.delete(v);
+  const todos = document.querySelector('#cmPfLista .pf-todos input');
+  if (todos) todos.checked = cmVisiveisFiltro().every(x => cmPopup.marcados.has(x));
+}
+function cmMarcarTodos(marcar) {
+  cmVisiveisFiltro().forEach(v => { if (marcar) cmPopup.marcados.add(v); else cmPopup.marcados.delete(v); });
+  cmListaFiltro();
+}
+function cmConfirmarFiltro() {
+  if (!cmPopup) return;
+  const b = (document.getElementById('cmPfBusca')?.value || '').trim();
+  // como no Excel: com pesquisa digitada, OK deixa só os marcados que aparecem na pesquisa
+  const permitidos = b ? new Set(cmVisiveisFiltro().filter(v => cmPopup.marcados.has(v))) : cmPopup.marcados;
+  const desmarcados = new Set(cmPopup.valores.filter(v => !permitidos.has(v)));
+  if (desmarcados.size) cm.filtros[cmPopup.k] = desmarcados; else delete cm.filtros[cmPopup.k];
+  cmFecharFiltro();
+  cmRenderizar();
+}
+function cmLimparFiltroColuna() { if (!cmPopup) return; delete cm.filtros[cmPopup.k]; cmFecharFiltro(); cmRenderizar(); }
+function cmOrdenarFiltro(crescente) {
+  if (!cmPopup) return;
+  cm.ordem = cmPopup.k + (crescente ? '_asc' : '');
+  cmFecharFiltro();
+  cmRenderizar();
+}
+function cmFecharFiltro() {
+  cmPopup = null;
+  const p = document.getElementById('popupFiltroComissao');
+  if (p) p.style.display = 'none';
+}
+document.addEventListener('click', () => { if (cmPopup) cmFecharFiltro(); });
+document.addEventListener('keydown', e => {
+  if (!cmPopup) return;
+  if (e.key === 'Escape') cmFecharFiltro();
+  if (e.key === 'Enter' && e.target && e.target.id === 'cmPfBusca') cmConfirmarFiltro();
+});
 
 function cmOrdenar(c) { cm.ordem = cm.ordem === c ? c + '_asc' : c; cmRenderizar(); }
 function cmAlternar(k) { if (cm.aberto.has(k)) cm.aberto.delete(k); else cm.aberto.add(k); cmRenderizar(); }
@@ -194,28 +283,26 @@ function cmRenderizar() {
   const soma = (lista, f) => lista.reduce((t, x) => t + (f(x) || 0), 0);
   const ini = cmData(cm.dados.inicio);
   const todos = cmPorVendedor(linhas);
-  const busca = cm.busca.trim().toUpperCase();
-  let vend = todos.filter(v => (!busca || `${v.nome} ${v.loja}`.toUpperCase().includes(busca)) && cmPassa(v));
+  let vend = todos.filter(v => cmBuscaOk(v) && cmPassa(v));
   const asc = cm.ordem.endsWith('_asc'), campo = cm.ordem.replace('_asc', '');
-  const val = v => campo === 'nome' ? v.nome : campo === 'qtdOs' ? v.os.length : v[campo];
+  const val = v => campo === 'nome' ? v.nome : campo === 'loja' ? v.loja : campo === 'qtdOs' ? v.os.length : campo === 'faixa' ? Math.max(...v.pct) : v[campo];
   const cmp = (a, b) => { const r = typeof a === 'string' ? a.localeCompare(b) : a - b; return asc ? r : -r; };
   vend.sort((a, b) => cmp(val(a), val(b)));
 
   // lojas: na ordem do mesmo campo (somado), vendedores dentro
   const lojas = new Map();
   vend.forEach(v => { if (!lojas.has(v.loja)) lojas.set(v.loja, []); lojas.get(v.loja).push(v); });
-  const valLoja = vs => campo === 'nome' ? vs[0].loja : campo === 'qtdOs' ? soma(vs, v => v.os.length) : soma(vs, v => v[campo]);
-  const grupos = [...lojas.entries()].sort((a, b) => campo === 'nome' ? a[0].localeCompare(b[0]) : cmp(valLoja(a[1]), valLoja(b[1])));
+  const valLoja = vs => campo === 'qtdOs' ? soma(vs, v => v.os.length) : campo === 'faixa' ? Math.max(...vs.map(val)) : soma(vs, v => v[campo]);
+  const grupos = [...lojas.entries()].sort((a, b) => ['nome', 'loja'].includes(campo) ? (campo === 'loja' ? cmp(a[0], b[0]) : a[0].localeCompare(b[0])) : cmp(valLoja(a[1]), valLoja(b[1])));
 
   const osVis = vend.flatMap(v => v.os);
   const anteriores = osVis.filter(l => ini && cmData(l.data) && cmData(l.data) < ini);
   const parciais = osVis.filter(l => l.base < l.liquido - 0.01);
   const filtrando = vend.length !== todos.length;
-  const th = (c, t, cls = 'num') => `<th class="${cls} cm-ord" onclick="cmOrdenar('${c}')">${t}${campo === c ? (asc ? ' ▲' : ' ▼') : ''}</th>`;
-  const faixas = [...new Set(linhas.map(l => l.percentual))].sort((a, b) => a - b);
-  const filtroCel = ([k, rot, tipo]) => tipo === 'faixa'
-    ? `<select id="cmF_${k}" onchange="cmFiltrar('${k}', this.value)"><option value="">todas</option>${faixas.map(f => `<option value="${f}" ${String(cm.filtros[k] || '') === String(f) ? 'selected' : ''}>${cmN(f)}%</option>`).join('')}</select>`
-    : `<input id="cmF_${k}" type="search" value="${escHTML(cm.filtros[k] || '')}" placeholder="${tipo === 'num' ? (k === 'qtdOs' ? '>5' : '>1000') : 'contém…'}" title="${tipo === 'num' ? 'Ex.: >1000 · <500 · 1000-5000 · ou o valor exato' : 'Mostra quem contém o texto'}" oninput="cmFiltrar('${k}', this.value)">`;
+  const btnF = k => `<button type="button" class="btn-filtro-col" onclick="cmAbrirFiltro(event, '${k}')" title="Filtrar / ordenar">${cm.filtros[k] && cm.filtros[k].size ? '⏷' : '▾'}</button>`;
+  const seta = c => campo === c ? (asc ? ' ↑' : ' ↓') : '';
+  const th = (c, t, cls = 'num') => `<th class="${cls} th-filtro${cm.filtros[c] && cm.filtros[c].size ? ' filtrada' : ''}"><span class="cm-ord" onclick="cmOrdenar('${c}')">${t}${seta(c)}</span> ${btnF(c)}</th>`;
+  const nFiltros = Object.values(cm.filtros).filter(x => x && x.size).length;
   const pctTxt = v => [...v.pct].map(p => cmN(p) + '%').join(' / ');
   const quando = new Date(cm.dados.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   const curta = l => escHTML(typeof epLojaCurta === 'function' ? epLojaCurta(l) : l);
@@ -228,14 +315,13 @@ function cmRenderizar() {
       <div class="cm-card"><span>Vendedores</span><b>${new Set(vend.map(v => v.id || v.nome)).size}</b><small>${parciais.length} OS com pagamento parcial · ${anteriores.length} OS de períodos anteriores</small></div>
     </div>
     <div class="cm-barra">
-      <input type="search" id="cmBusca" placeholder="buscar vendedor ou loja…" value="${escHTML(cm.busca)}" oninput="cm.busca = this.value; cmFiltrar('_', '')">
-      <small>SavWin de ${quando} · ${escHTML(cm.dados.inicio)} a ${escHTML(cm.dados.fim)} · clique na loja para recolher e no vendedor para ver as OS${filtrando ? ` · <b>filtro: ${vend.length} de ${todos.length} vendedores</b> <button type="button" class="tv-link" onclick="cmLimparFiltros()">✖ limpar filtros</button>` : ''}</small>
+      <input type="search" id="cmBusca" placeholder="buscar vendedor ou loja…" value="${escHTML(cm.busca)}" oninput="cmBuscar(this.value)">
+      <small>SavWin de ${quando} · ${escHTML(cm.dados.inicio)} a ${escHTML(cm.dados.fim)} · clique na loja para recolher e no vendedor para ver as OS${filtrando ? ` · <b>exibindo ${vend.length} de ${todos.length} vendedores${nFiltros ? ` · ${nFiltros} filtro(s)` : ''}</b> <button type="button" class="tv-link" onclick="cmLimparFiltros()">✖ Limpar filtros</button>` : ''}</small>
       <span class="ep-exportar">⬇ Exportar <button type="button" class="tv-link" onclick="cmExportar('xlsx')">Excel</button> · <button type="button" class="tv-link" onclick="cmExportar('csv')">CSV</button></span>
     </div>
     <div class="cm-tabela-wrap">
       <table class="ee-tabela cm-tabela">
-        <thead><tr>${th('nome', 'Loja / Vendedor', '')}${th('qtdOs', 'OS')}${th('bruto', 'Total vendas')}${th('liquido', 'Valor líquido')}${th('base', 'Base comissão')}<th class="num">Faixa</th>${th('comissao', 'Comissão (R$)')}</tr>
-          <tr class="cm-filtro-linha"><th><div class="cm-f2">${filtroCel(COLUNAS_CM[0]).replace('contém…', 'loja contém…')}${filtroCel(COLUNAS_CM[1]).replace('contém…', 'vendedor contém…')}</div></th>${COLUNAS_CM.slice(2).map(c => `<th>${filtroCel(c)}</th>`).join('')}</tr></thead>
+        <thead><tr><th class="th-filtro${['loja', 'nome'].some(k => cm.filtros[k] && cm.filtros[k].size) ? ' filtrada' : ''}"><span class="cm-ord" onclick="cmOrdenar('loja')">Loja${seta('loja')}</span> ${btnF('loja')} <span class="cm-barra-sep">/</span> <span class="cm-ord" onclick="cmOrdenar('nome')">Vendedor${seta('nome')}</span> ${btnF('nome')}</th>${th('qtdOs', 'OS')}${th('bruto', 'Total vendas')}${th('liquido', 'Valor líquido')}${th('base', 'Base comissão')}${th('faixa', 'Faixa')}${th('comissao', 'Comissão (R$)')}</tr></thead>
         <tbody>${grupos.length ? grupos.map(([loja, vs]) => {
           const fechada = cm.lojasFechadas.has(loja);
           return `<tr class="cm-loja" onclick="cmAlternarLoja('${escHTML(loja).replace(/'/g, '')}')">

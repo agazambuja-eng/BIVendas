@@ -846,3 +846,6 @@ th.filtrada { color: #5ee7ff !important; }
 .cm-filtro-linha th { padding: 4px 6px !important; background: rgba(10,14,40,.85); }
 .cm-filtro-linha input, .cm-filtro-linha select { width: 100%; min-width: 60px; padding: 3px 6px; font-size: 11px; font-weight: normal; text-transform: none; }
 .cm-f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cm-tabela .cm-ord { cursor: pointer; user-select: none; }
+.cm-barra-sep { color: #8a93c9; margin: 0 2px; }
+.cm-tabela th.th-filtro { white-space: nowrap; }
