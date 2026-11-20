@@ -78,7 +78,8 @@
   <button type="button" onclick="mudarAba('cards')" id="btnAbaCards" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📊 Visão Geral & Pagamentos</button>
   <button type="button" onclick="mudarAba('produtos')" id="btnAbaProdutos" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🛍️ Avaliação de Produtos</button>
   <button type="button" onclick="mudarAba('comparativo')" id="btnAbaComparativo" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📈 <span id="rotuloAbaComparativo">Comparativo 3 meses</span></button>
-  <button type="button" onclick="mudarAba('detalhes')" id="btnAbaDetalhes" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Detalhes de Vendas (Auditoria)</button>
+  <button type="button" onclick="mudarAba('comissao')" id="btnAbaComissao" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">💰 Comissão</button>
+  <button type="button" onclick="mudarAba('detalhes')" id="btnAbaDetalhes" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Detalhes de Vendas (Período)</button>
 </div>
   
 <!-- CONTAINER PRINCIPAL DAS ABAS -->
@@ -576,7 +577,20 @@
     </div>
   </div>
 
-  <!-- === ABA 3: DETALHES DE VENDAS / AUDITORIA DE PRODUTOS === -->
+  <!-- === ABA: COMISSÃO (espelho do relatório de comissão do SavWin) === -->
+  <div id="conteudoAbaComissao" style="display: none; flex-direction: column; gap: 15px;">
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <div class="cm-cab">
+        <h3 style="margin: 0; color: #333; font-size: 16px;">💰 Comissão <small class="arm-sub">espelho do Relatório de Comissão do SavWin</small></h3>
+        <button type="button" id="cmBtnExecutar" class="btn-comparar-lojas" onclick="cmExecutar(true)">🔄 Executar pesquisa</button>
+      </div>
+      <div id="cmFiltros" class="cm-filtros"></div>
+      <div id="cmStatus" class="ee-status" style="display: none;"></div>
+      <div id="cmConteudo"></div>
+    </div>
+  </div>
+
+  <!-- === ABA 3: DETALHES DE VENDAS (PERÍODO) / AUDITORIA DE PRODUTOS === -->
   <div id="conteudoAbaDetalhes" style="display: none; flex-direction: column; gap: 15px; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
       <h3 style="margin: 0; color: #333; font-size: 16px;">Auditoria Completa de Itens por OS (API Bruta)</h3>
@@ -869,5 +883,6 @@
   <script src="/js/estoque-painel.js"></script>
   <script src="/js/analise-ia.js"></script>
   <script src="/js/encalhe-loja.js"></script>
+  <script src="/js/comissao.js"></script>
 </body>
 </html>

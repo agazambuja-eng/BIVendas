@@ -92,6 +92,11 @@ function mudarAba(aba) {
   if (conteudoProd) conteudoProd.style.display = "none";
   if (aba === 'produtos' && conteudoProd) conteudoProd.style.display = "flex";
   if (btnComp) { btnComp.style.background = "#e0e0e0"; btnComp.style.color = "#333"; }
+  const btnComissao = document.getElementById("btnAbaComissao");
+  const conteudoComissao = document.getElementById("conteudoAbaComissao");
+  if (conteudoComissao) conteudoComissao.style.display = aba === 'comissao' ? "flex" : "none";
+  if (btnComissao) { btnComissao.style.background = aba === 'comissao' ? "#0078d7" : "#e0e0e0"; btnComissao.style.color = aba === 'comissao' ? "#fff" : "#333"; }
+  if (aba === 'comissao' && typeof cmAoAbrir === 'function') cmAoAbrir();
 
   conteudoCards.style.display = "none";
   conteudoDashboard.style.display = "none";
@@ -130,7 +135,7 @@ function mudarAba(aba) {
   }
 
   // Classe da aba ativa (usada pelo tema escuro)
-  const idsBotoes = { cards: 'btnAbaCards', dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', detalhes: 'btnAbaDetalhes' };
+  const idsBotoes = { cards: 'btnAbaCards', dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', comissao: 'btnAbaComissao', detalhes: 'btnAbaDetalhes' };
   document.querySelectorAll('#biTabsHeader button').forEach(b => b.classList.toggle('aba-ativa', b.id === idsBotoes[aba]));
 }
 
@@ -562,6 +567,8 @@ async function consultar() {
   if (typeof limparComparativo === 'function') limparComparativo();
   // Estoque encalhado: conecta no SavWin com o acesso do usuário e carrega em segundo plano
   if (typeof epAutoCarregar === 'function') setTimeout(epAutoCarregar, 0);
+  // Comissão: mesmo período e lojas, consulta o relatório de comissão do SavWin em segundo plano
+  if (typeof cmAutoCarregar === 'function') setTimeout(cmAutoCarregar, 0);
 
   try {
     const [resGrid, resPagamentos] = await Promise.all([
