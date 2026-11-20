@@ -800,3 +800,4 @@ th.filtrada { color: #5ee7ff !important; }
 .ai-grifes-lista label:has(input:not(:checked)) .ai-g-nome { color: #6b7299; text-decoration: line-through; }
 .ai-grifes-rodape { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; }
 .ai-grifes-rodape small { color: #8a93c9; }
+.pl-icones { margin-left: 4px; white-space: nowrap; }
