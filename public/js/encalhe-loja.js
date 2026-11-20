@@ -167,6 +167,7 @@ async function plMontar() {
         const diasVenda = aqui && aqui.ult ? epDiasDesde(new Date(aqui.ult)) : null;
         linhas.push({
           grife: g.Descricao, produto: l.produto, codigo: l.codigo, tipo: l.tipo, loja: l.loja, lojaCod: loja,
+          parado: g.UltimaVenda ? g.DiasSemVender : -1,
           pecas: l.pecas, custo: l.custo, custoUn: l.custoUnit || (l.pecas ? l.custo / l.pecas : 0), entrada, diasEntrada,
           vendidas: aqui ? aqui.q : 0, ultVenda: aqui && aqui.ult ? new Date(aqui.ult) : null, diasVenda,
           encalhado: !aqui || aqui.q <= 0,
@@ -188,6 +189,17 @@ async function plMontar() {
     pl.carregando = false;
     epRenderizarTabela();
   }
+}
+
+/** Ícones de pesquisa do produto (mesmos da aba "O que está encalhado"): imagens, Google Shopping, Mercado Livre e IA. */
+function plIcones(x) {
+  if (typeof linkImagemProduto !== 'function') return '';
+  const pr = typeof epPrecoDe === 'function' ? epPrecoDe(x) : null;
+  const refs = [
+    pr && pr.venda ? { valor: pr.promocao || pr.venda, rotulo: pr.promocao ? 'Nossa promoção' : 'Nosso preço de venda' } : null,
+    x.custoUn ? { valor: x.custoUn, rotulo: 'Nosso custo' } : null].filter(Boolean);
+  return `<span class="pl-icones"><a class="la-lupa" href="${linkImagemProduto({ descricao: x.produto, grife: x.grife })}" target="_blank" rel="noopener noreferrer" title="Ver imagens deste produto na internet (Google Imagens)" onclick="event.stopPropagation()">🔍</a>${
+    linksPrecoProduto({ descricao: x.produto, grife: x.grife, corNome: (pr || {}).cor, modeloSavwin: (pr || {}).modelo, diasEntrada: x.diasEntrada, parado: x.parado ?? null }, refs)}</span>`;
 }
 
 function plFiltro(campo, valor) { pl[campo] = valor; ep.mostrar = 100; epRenderizarTabela(); }
@@ -246,7 +258,7 @@ function plRenderizar(alvo) {
       <thead><tr>${th('produto', 'Produto', 'ee-nome')}${th('loja', 'Loja', '')}${th('pecas', 'Peças')}${custoOk ? th('custo', 'Custo') : ''}
         ${th('diasEntrada', 'Última entrada')}${th('vendidas', `Vendidas (${pl.dados.meses} m)`)}${th('diasParado', 'Parado há')}${th('outras', 'Vende em outra loja', '')}</tr></thead>
       <tbody>${vis.map(x => `<tr class="${x.encalhado ? 'pl-enc' : ''}">
-        <td class="ee-nome">${escHTML(x.produto)}<small>${escHTML(x.grife)}${x.codigo ? ' · cód. ' + escHTML(x.codigo) : ''}</small></td>
+        <td class="ee-nome">${escHTML(x.produto)}${plIcones(x)}<small>${escHTML(x.grife)}${x.codigo ? ' · cód. ' + escHTML(x.codigo) : ''}</small></td>
         <td>${escHTML(epLojaCurta(x.loja))}</td>
         <td class="num">${epPc(x.pecas)}</td>${custoOk ? `<td class="num">${epR(x.custo)}</td>` : ''}
         <td class="num">${x.entrada ? x.entrada.toLocaleDateString('pt-BR') + `<small>${x.diasEntrada} d</small>` : '—'}</td>
