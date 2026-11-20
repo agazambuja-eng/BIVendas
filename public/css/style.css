@@ -772,3 +772,10 @@ th.filtrada { color: #5ee7ff !important; }
 .ep-ponto.ep-off { background: #6f78a8; }
 .ep-ponto.ep-erro { background: #ff5c8a; box-shadow: 0 0 8px #ff5c8a; }
 .cx-situacao { font-size: 12.5px; margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
+/* análise IA: lojas das ofertas com link */
+.ai-lojas-of { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-top: 4px; }
+.ai-lojas-of a { font-size: 10.5px; color: #5ee7ff; text-decoration: none; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+.ai-lojas-of a:hover { text-decoration: underline; }
+.ai-lojas-of a em { font-style: normal; color: #8a93c9; }
+.ai-lojas-of a b { color: #3dffa8; font-weight: 600; }
+.ai-mais-of { font-size: 10px; color: #8a93c9; }

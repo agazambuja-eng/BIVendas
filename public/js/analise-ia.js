@@ -180,6 +180,11 @@ function aiAdicionarModelo(m, chaves, ofertas, erro) {
   const mediana = pwMediana(precos);
   const g = m.grife;
   const parado = g.UltimaVenda ? g.DiasSemVender : -1;
+  // lojas das ofertas (mais baratas primeiro), com link; sem link -> pesquisa da loja no Google
+  const lojasOfertas = validas.slice(0, 10).map(o => ({
+    loja: o.loja || 'loja não informada', local: o.local && !/^online$/i.test(o.local) ? o.local : '', tipo: o.tipo || '',
+    preco: o.preco, url: o.url || `https://www.google.com/search?q=${encodeURIComponent(`${o.loja || ''} ${m.termo}`.trim())}`, linkDireto: !!o.url
+  }));
   m.produtos.forEach(p => {
     const pr = ep.precos[epCodigo(p.codigo)] || null;
     const custoUn = p.pecas ? p.custo / p.pecas : 0;
@@ -192,7 +197,7 @@ function aiAdicionarModelo(m, chaves, ofertas, erro) {
       grife: g.Descricao, produto: p.produto, codigo: p.codigo, desc: p.desc, termo: m.termo, chaves,
       lojas, pecas: p.pecas, custoUn, custo: p.custo, venda: pr ? pr.venda : 0, promocao: pr ? pr.promocao : 0, nosso,
       ofertas: precos.length, menor: precos[0] || 0, mediana, maior: precos[precos.length - 1] || 0,
-      sug, contexto, erro, corNome: pr ? pr.cor : '', modeloSavwin: pr ? pr.modelo : ''
+      sug, contexto, erro, corNome: pr ? pr.cor : '', modeloSavwin: pr ? pr.modelo : '', lojasOfertas
     });
   });
 }
@@ -203,6 +208,16 @@ function aiOrdenadas() {
     ((a.sug && a.sug.nivel ? AI_ORDEM_NIVEL[a.sug.nivel.cls] : 9) - (b.sug && b.sug.nivel ? AI_ORDEM_NIVEL[b.sug.nivel.cls] : 9)) || b.custo - a.custo);
 }
 const aiLojaCurta = l => String(l).replace(/\s*-\s*OTIC\w*\s*(VIA\s+VISAO\s*-\s*)?/i, ' ').replace(/\bMACEIO\s*-\s*/i, '').replace(/\s+/g, ' ').trim();
+
+/** As 3 ofertas mais baratas: loja (com link), cidade/bairro e preço. */
+function aiLinksLojas(l) {
+  const of = (l.lojasOfertas || []).slice(0, 3);
+  if (!of.length) return '';
+  return `<div class="ai-lojas-of">${of.map(o => `<a href="${escHTML(o.url)}" target="_blank" rel="noopener noreferrer"
+      title="${escHTML(o.loja)}${o.local ? ' · ' + escHTML(o.local) : ''}${o.linkDireto ? '' : ' (sem link da oferta: abre a pesquisa da loja)'}">
+      ${o.tipo === 'loja física' ? '📍' : '🌐'} ${escHTML(o.loja)}${o.local ? ` <em>${escHTML(o.local)}</em>` : ''} <b>${epR(o.preco)}</b> ↗</a>`).join('')}
+    ${l.lojasOfertas.length > 3 ? `<span class="ai-mais-of">+${l.lojasOfertas.length - 3} na 🔍</span>` : ''}</div>`;
+}
 
 function aiDesenharTabela() {
   const alvo = document.getElementById('aiTabela');
@@ -227,7 +242,7 @@ function aiDesenharTabela() {
           <td class="ee-lojas">${l.lojas.map(x => `<span class="ee-chip ee-chip-parado" title="${escHTML(x.loja)}">${escHTML(aiLojaCurta(x.loja))} · ${epPc(x.pecas)}</span>`).join('')}</td>
           <td class="num">${epR(l.custoUn)}</td>
           <td class="num">${l.nosso ? epR(l.nosso) + (l.promocao > 0 ? '<small>promo</small>' : '') : '—'}</td>
-          <td class="num">${l.erro ? `<span class="ee-enc" title="${escHTML(l.erro)}">erro</span>` : l.ofertas ? `<b>${epR(l.mediana)}</b><small>${l.ofertas} ofertas · ${epR(l.menor)} a ${epR(l.maior)}</small>` : '<span class="ee-sem-giro">sem ofertas</span>'}</td>
+          <td class="num">${l.erro ? `<span class="ee-enc" title="${escHTML(l.erro)}">erro</span>` : l.ofertas ? `<b>${epR(l.mediana)}</b><small>${l.ofertas} ofertas · ${epR(l.menor)} a ${epR(l.maior)}</small>${aiLinksLojas(l)}` : '<span class="ee-sem-giro">sem ofertas</span>'}</td>
           <td>${l.sug && l.sug.nivel ? `<span class="ai-nivel ${l.sug.nivel.cls}" title="${escHTML(l.sug.nivel.txt)}">${escHTML(l.sug.nivel.txt.split(' ')[0] + ' ' + l.sug.nivel.curto)}</span><small class="ai-pos">${l.sug.nivel.pos}% mais baratas</small>` : '—'}</td>
           <td class="num">${r ? `<b class="ai-sug">${epR(r.preco)}</b><small>${escHTML(r.rot)}${r.desconto !== null ? ` · −${Math.max(0, r.desconto).toFixed(0)}%` : ''}</small>` : l.sug ? '<small class="ai-okpreco">preço ok</small>' : '—'}</td>
           <td class="num">${r && r.markup ? `${r.markup.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}×<small>${r.margem.toFixed(0)}%</small>` : '—'}</td>
@@ -274,7 +289,8 @@ function aiTabelaExport() {
   const lojas = ai.lojas.slice().sort();
   const cab = ['Grife', 'Produto', 'Código', 'Peças', ...lojas.map(aiLojaCurta), 'Custo unitário', 'Preço de venda', 'Promoção',
     'Ofertas', 'Menor', 'Mediana', 'Maior', 'Nível', '% ofertas mais baratas', 'Recomendação', 'Preço sugerido', 'Desconto %', 'Markup sugerido', 'Margem %',
-    'Alinhar ao mercado', 'Girar rápido', 'Piso de margem', 'Dias desde última entrada', 'Grife: dias sem vender', 'Observação'];
+    'Alinhar ao mercado', 'Girar rápido', 'Piso de margem', 'Dias desde última entrada', 'Grife: dias sem vender', 'Observação',
+    ...[1, 2, 3].flatMap(i => [`Oferta ${i}: loja`, `Oferta ${i}: local`, `Oferta ${i}: preço`, `Oferta ${i}: link`])];
   const n = v => (v === null || v === undefined || v === '' || !isFinite(v)) ? '' : Math.round(v * 100) / 100;
   const linhas = aiOrdenadas().map(l => {
     const s = l.sug || {};
@@ -286,7 +302,8 @@ function aiTabelaExport() {
       r ? r.rot : (s.nivel ? 'Preço ok' : ''), r ? n(r.preco) : '', r && r.desconto !== null ? n(r.desconto) : '', r && r.markup ? n(r.markup) : '', r && r.margem !== null ? n(r.margem) : '',
       n(op('mediana')), n(op('girar')), n(op('piso')),
       l.contexto.diasEntrada != null ? l.contexto.diasEntrada : '', l.contexto.parado === -1 ? 'sem venda' : (l.contexto.parado != null ? l.contexto.parado : ''),
-      l.erro || (s.texto || '')];
+      l.erro || (s.texto || ''),
+      ...[0, 1, 2].flatMap(i => { const o = (l.lojasOfertas || [])[i]; return o ? [o.loja, o.local || (o.tipo === 'online' ? 'online' : ''), n(o.preco), o.url] : ['', '', '', '']; })];
   });
   return { cab, linhas };
 }
@@ -320,11 +337,20 @@ async function aiExportarExcel() {
   try { XLSX = await aiCarregarXLSX(); } catch (e) { alert(e.message + ' Vou baixar em CSV (abre no Excel).'); return aiExportarCSV(); }
   const { cab, linhas } = aiTabelaExport();
   const ws = XLSX.utils.aoa_to_sheet([cab, ...linhas]);
+  // colunas de link viram hiperlink clicável no Excel
+  cab.forEach((c, ci) => {
+    if (!/: link$/.test(c)) return;
+    for (let r = 1; r <= linhas.length; r++) {
+      const ref = XLSX.utils.encode_cell({ r, c: ci });
+      const cel = ws[ref];
+      if (cel && typeof cel.v === 'string' && /^https?:/.test(cel.v)) { cel.l = { Target: cel.v, Tooltip: 'Abrir a oferta' }; cel.v = 'abrir ↗'; }
+    }
+  });
   ws['!cols'] = cab.map((c, i) => ({ wch: i === 1 ? 38 : i === 0 ? 18 : c.length > 14 ? 16 : 11 }));
   ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: linhas.length, c: cab.length - 1 } }) };
   ws['!freeze'] = { xSplit: 2, ySplit: 1 };
   // formato de moeda nas colunas de preço
-  const moeda = new Set(['Custo unitário', 'Preço de venda', 'Promoção', 'Menor', 'Mediana', 'Maior', 'Preço sugerido', 'Alinhar ao mercado', 'Girar rápido', 'Piso de margem']);
+  const moeda = new Set(['Custo unitário', 'Preço de venda', 'Promoção', 'Menor', 'Mediana', 'Maior', 'Preço sugerido', 'Alinhar ao mercado', 'Girar rápido', 'Piso de margem', 'Oferta 1: preço', 'Oferta 2: preço', 'Oferta 3: preço']);
   cab.forEach((c, ci) => {
     if (!moeda.has(c)) return;
     for (let r = 1; r <= linhas.length; r++) {
