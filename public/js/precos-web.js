@@ -28,8 +28,8 @@ const REGIOES_PW = [
 const CHAVE_REGIAO_PW = 'bi_regiao_precos_ia';
 try { pw.regiao = localStorage.getItem(CHAVE_REGIAO_PW) || ''; } catch { /* sem armazenamento */ }
 
-/* Alcance da pesquisa: tudo, só lojas físicas da região ou só internet; e redes sociais. */
-const ALCANCES_PW = [['todas', 'Tudo'], ['fisicas', '📍 Lojas físicas'], ['internet', '🌐 Internet']];
+/* Alcance da pesquisa: lojas físicas da região, web ou ambas; e redes sociais. */
+const ALCANCES_PW = [['fisicas', '📍 Lojas físicas'], ['internet', '🌐 Web'], ['todas', '🔀 Ambas']];
 pw.alcance = 'todas'; pw.redes = false; pw.regioesExtra = []; pw.mostrarFora = false;
 try {
   pw.alcance = localStorage.getItem('bi_alcance_precos') || 'todas';
@@ -406,7 +406,7 @@ function pwRenderizar() {
       <label class="pw-redes"><input type="checkbox" ${pw.redes ? 'checked' : ''} onchange="pwMudarRedes(this.checked)"> 📱 Incluir Instagram, Facebook e TikTok</label>
       ${pwLinksRedes()}
     </div>
-    ${pw.foraDoAlcance ? `<div class="pw-aviso">${pw.mostrarFora ? 'Mostrando também' : 'Ocultadas'} <b>${pw.foraDoAlcance}</b> oferta(s) fora do filtro (${pw.alcance === 'fisicas' ? `não são lojas físicas${pw.regiao ? ' de ' + escHTML(pwRotuloRegiao(pw.regiao)) : ''}` : 'não são da internet'}). <button type="button" class="tv-link" onclick="pwAlternarFora()">${pw.mostrarFora ? 'ocultar' : 'mostrar'}</button></div>` : ''}
+    ${pw.foraDoAlcance ? `<div class="pw-aviso">${pw.mostrarFora ? 'Mostrando também' : 'Ocultadas'} <b>${pw.foraDoAlcance}</b> oferta(s) fora do filtro (${pw.alcance === 'fisicas' ? `não são lojas físicas${pw.regiao ? ' de ' + escHTML(pwRotuloRegiao(pw.regiao)) : ''}` : 'não são da web'}). <button type="button" class="tv-link" onclick="pwAlternarFora()">${pw.mostrarFora ? 'ocultar' : 'mostrar'}</button></div>` : ''}
     ${pw.alcance === 'fisicas' && !pw.itens.length && !pw.mostrarFora ? `<div class="pw-aviso">Nenhuma loja física${pw.regiao ? ' de ' + escHTML(pwRotuloRegiao(pw.regiao)) : ''} com preço publicado foi encontrada. Lojas físicas raramente publicam preço; tente incluir as redes sociais ou use os atalhos "ver nas redes".</div>` : ''}
     <div class="pw-filtros">
       <div class="ca-alternar">${pw.chaves.modelo ? botao('modelo', 'Mesmo modelo') + (pw.chaves.cor ? botao('cor', 'Modelo e cor') : '') : ''}${botao('todos', 'Todos')}</div>

@@ -311,7 +311,7 @@ function aiDesenharResultado() {
   const quando = ai.quando ? new Date(ai.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
   corpo.innerHTML = `
     <div class="ai-barra">
-      <div class="ai-info">${ai.cancelar && !ai.erroGeral ? '⏹ Análise interrompida · ' : ''}${ai.erroGeral ? `⚠️ ${escHTML(ai.erroGeral)} · ` : ''}Análise de ${quando}${ai.regiao ? ' · região ' + escHTML(pwRotuloRegiao(ai.regiao)) : ' · Brasil'} · ${{ todas: 'lojas físicas e internet', fisicas: 'só lojas físicas', internet: 'só internet' }[ai.alcance || 'todas']}${ai.redes ? ' + redes sociais' : ''}</div>
+      <div class="ai-info">${ai.cancelar && !ai.erroGeral ? '⏹ Análise interrompida · ' : ''}${ai.erroGeral ? `⚠️ ${escHTML(ai.erroGeral)} · ` : ''}Análise de ${quando}${ai.regiao ? ' · região ' + escHTML(pwRotuloRegiao(ai.regiao)) : ' · Brasil'} · ${{ todas: 'lojas físicas e web', fisicas: 'só lojas físicas', internet: 'só web' }[ai.alcance || 'todas']}${ai.redes ? ' + redes sociais' : ''}</div>
       <div class="ai-botoes">
         <button type="button" class="btn-comparar-lojas" onclick="aiExportarExcel()" ${ai.linhas.length ? '' : 'disabled'}>⬇ Excel</button>
         <button type="button" class="tv-link" onclick="aiExportarCSV()" ${ai.linhas.length ? '' : 'disabled'}>⬇ CSV</button>
