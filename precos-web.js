@@ -89,7 +89,27 @@ function jsonDoTexto(texto) {
 }
 
 // ------------------------------------------------------------- IA
-function montarPedido(nome, termo, chaves, regiao) {
+/**
+ * alcance: 'todas' | 'fisicas' (só lojas físicas da região) | 'internet' (só online)
+ * redes: incluir publicações públicas de lojas no Instagram, Facebook e TikTok.
+ */
+function montarPedido(nome, termo, chaves, regiao, alcance = 'todas', redes = false) {
+  const lugar = regiao || 'Brasil';
+  const onde = alcance === 'fisicas'
+    ? [`ONDE PROCURAR: SOMENTE lojas físicas (óticas, relojoarias, lojas de departamento) localizadas em ${lugar}.`,
+       `Para cada uma, informe o nome da loja e o bairro ou endereço em ${lugar}.`,
+       `NÃO inclua lojas só online, marketplaces (Mercado Livre, Amazon, Shopee, Magalu) nem lojas de outras cidades.`,
+       `Se nenhuma loja física de ${lugar} publicar o preço desta peça, devolva "ofertas": [].`]
+    : alcance === 'internet'
+      ? [`ONDE PROCURAR: SOMENTE lojas online e marketplaces (Mercado Livre, Amazon, sites de óticas e da marca)${regiao ? ` que entregam em ${regiao}` : ' do Brasil'}.`,
+         'NÃO inclua lojas físicas sem venda pela internet.']
+      : regiao
+        ? [`Região: ${regiao}. Primeiro procure óticas e lojas físicas dessa cidade que vendam a peça (nome da loja e bairro ou endereço); depois lojas online que entregam lá.`]
+        : ['Considere lojas online do Brasil (Mercado Livre, Amazon, sites de óticas e da marca).'];
+  const sociais = redes
+    ? [`Procure também em publicações e anúncios PÚBLICOS de lojas no Instagram, Facebook e TikTok${regiao ? ` de ${regiao}` : ''} (ex.: pesquise "site:instagram.com ${termo}${regiao ? ' ' + regiao.split(/\s*-\s*/)[0] : ''}").`,
+       'Nesses casos, em "origem" ponha instagram, facebook ou tiktok, e em "url" o link da publicação. Só inclua se o preço aparecer na publicação ou na legenda.']
+    : [];
   const partes = [
     'Você pesquisa preços para uma rede de óticas no Brasil.',
     `Pesquise no Google ofertas ATUAIS da peça: "${nome}".`,
@@ -99,16 +119,15 @@ function montarPedido(nome, termo, chaves, regiao) {
     chaves.corNome ? `Cor: ${chaves.corNome}.` : '',
     chaves.tamanho ? `Aro/tamanho: ${chaves.tamanho}.` : '',
     `Termo de busca sugerido: "${termo}".`,
-    regiao
-      ? `Região: ${regiao}. Primeiro procure óticas e lojas físicas dessa cidade que vendam a peça (nome da loja e bairro ou endereço); depois lojas online que entregam lá.`
-      : 'Considere lojas online do Brasil (Mercado Livre, Amazon, sites de óticas e da marca).',
+    ...onde,
+    ...sociais,
     'Regras:',
     '- Só produto novo e original, do mesmo código de modelo (a cor pode variar, diga qual é).',
     '- NÃO invente preço, loja nem link: inclua apenas ofertas que aparecem nos resultados da pesquisa, com preço em reais.',
     '- "url" deve ser o link da página da oferta. Se não tiver certeza, deixe vazio.',
     '- Se não encontrar nada, devolva "ofertas": [].',
     'Responda SOMENTE com JSON, sem texto fora dele, neste formato:',
-    '{"ofertas":[{"loja":"nome da loja","local":"cidade/bairro ou \\"online\\"","tipo":"online ou loja física","titulo":"nome do produto no anúncio","cor":"cor do anúncio","preco":0,"url":"https://...","observacao":"ex.: à vista, parcelado, frete"}],"resumo":"uma frase sobre os preços encontrados"}',
+    '{"ofertas":[{"loja":"nome da loja","local":"cidade/bairro ou \\"online\\"","tipo":"online ou loja física","origem":"site, marketplace, instagram, facebook ou tiktok","titulo":"nome do produto no anúncio","cor":"cor do anúncio","preco":0,"url":"https://...","observacao":"ex.: à vista, parcelado, frete"}],"resumo":"uma frase sobre os preços encontrados"}',
     'No máximo 12 ofertas, do menor para o maior preço.'
   ];
   return partes.filter(Boolean).join('\n');
@@ -228,22 +247,34 @@ function extrairDaPagina(html, urlBase) {
 }
 
 // ------------------------------------------------------------- pesquisa
-async function pesquisarComIA({ nome, termo, chaves, regiao }) {
+/** De onde veio a oferta: instagram, facebook, tiktok, marketplace ou site (pelo link ou pelo que a IA disse). */
+function origemDaOferta(o) {
+  const u = String(o.url || '').toLowerCase();
+  if (/instagram\.com/.test(u)) return 'instagram';
+  if (/facebook\.com|fb\.com|fb\.watch/.test(u)) return 'facebook';
+  if (/tiktok\.com/.test(u)) return 'tiktok';
+  if (/mercadolivre|mercadolibre|amazon\.|shopee|magazineluiza|magalu|americanas|casasbahia|aliexpress/.test(u)) return 'marketplace';
+  const dito = String(o.origem || '').toLowerCase();
+  return ['instagram', 'facebook', 'tiktok', 'marketplace'].find(x => dito.includes(x)) || 'site';
+}
+
+async function pesquisarComIA({ nome, termo, chaves, regiao, alcance = 'todas', redes = false }) {
   if (!chavesGemini().length) {
     throw Object.assign(new Error('Pesquisa com IA não configurada: falta a variável GEMINI_API_KEY no Render.'), { http: 503 });
   }
-  const k = `${nome.toUpperCase()}|${regiao}|${chaves.corNome || ''}`;
+  const k = `${nome.toUpperCase()}|${regiao}|${chaves.corNome || ''}|${alcance}|${redes ? 'r' : ''}`;
   const c = cache.get(k);
   if (c && Date.now() - c.quando < VALIDADE_MS) return { ...c.resultado, doCache: true, uso: situacaoUso() };
   const u = situacaoUso();
   if (u.usadas >= u.limite) throw Object.assign(new Error(`Limite de ${u.limite} pesquisas com IA neste mês atingido (PRECOS_LIMITE_MES).`), { http: 429 });
-  const { textoResp, fontes, consultas, modelo, chaveN, tentativas } = await perguntarGemini(montarPedido(nome, termo, chaves, regiao));
+  const { textoResp, fontes, consultas, modelo, chaveN, tentativas } = await perguntarGemini(montarPedido(nome, termo, chaves, regiao, alcance, redes));
   uso.pesquisas++;
   const json = jsonDoTexto(textoResp) || { ofertas: [] };
   let ofertas = (Array.isArray(json.ofertas) ? json.ofertas : []).slice(0, 12).map(o => ({
     loja: String(o.loja || '').slice(0, 80),
     local: String(o.local || '').slice(0, 120),
     tipo: /f[ií]sica/i.test(String(o.tipo || '')) ? 'loja física' : 'online',
+    origem: origemDaOferta(o),
     titulo: String(o.titulo || '').slice(0, 200),
     cor: String(o.cor || '').slice(0, 60),
     preco: precoNumero(o.preco),
@@ -270,7 +301,7 @@ async function pesquisarComIA({ nome, termo, chaves, regiao }) {
   }).filter(o => o.preco > 0);
 
   const resultado = {
-    nome, termo, regiao, quando: new Date().toISOString(), modelo, chaveN, tentativas,
+    nome, termo, regiao, alcance, redes, quando: new Date().toISOString(), modelo, chaveN, tentativas,
     resumo: String(json.resumo || '').slice(0, 300), ofertas, fontes: fontes.slice(0, 12), consultas
   };
   cache.set(k, { quando: Date.now(), resultado });
@@ -286,7 +317,8 @@ function registrarRotaPrecos(app, { exigirUsuario }) {
       const nome = limpa(b.nome || b.termo, 150);
       if (nome.length < 3) return res.status(400).json({ error: 'Informe o produto a pesquisar.' });
       const chaves = { modelo: limpa(b.modelo, 30), cor: limpa(b.cor, 30), tamanho: limpa(b.tamanho, 10), corNome: limpa(b.corNome, 40), modeloSavwin: limpa(b.modeloSavwin, 40) };
-      res.json(await pesquisarComIA({ nome, termo: limpa(b.termo || nome, 150), chaves, regiao: limpa(b.regiao, 80) }));
+      const alcance = ['todas', 'fisicas', 'internet'].includes(b.alcance) ? b.alcance : 'todas';
+      res.json(await pesquisarComIA({ nome, termo: limpa(b.termo || nome, 150), chaves, regiao: limpa(b.regiao, 80), alcance, redes: b.redes === true }));
     } catch (err) {
       console.error('Erro na pesquisa de preços com IA:', err.message);
       res.status(err.http || 500).json({ error: err.message });
