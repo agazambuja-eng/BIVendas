@@ -78,7 +78,7 @@ async function obterPerfil() {
 /** Abas do BI (chave usada em usuarios.abas_bloqueadas e em mudarAba). */
 const ABAS_BI = [
   ['dashboard', '🚀 Dashboard Executivo'], ['metas', '🎯 Metas'], ['cards', '📊 Visão Geral & Pagamentos'],
-  ['produtos', '🛍️ Avaliação de Produtos'], ['comparativo', '📈 Comparativo'], ['comissao', '💰 Comissão'],
+  ['produtos', '🛍️ Avaliação de Produtos'], ['comparativo', '📈 Comparativo'], ['comissao', '💰 Comissão'], ['cmv', '🧾 CMV'],
   ['detalhes', '🔍 Detalhes de Vendas (Período)']
 ];
 /** O usuário pode ver a aba? (lista vazia = todas) */

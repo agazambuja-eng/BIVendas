@@ -127,6 +127,45 @@ const HEADERS_SAVWIN = {
   "Identificador": "09983-0000"
 };
 
+// 3b. Contas a pagar (ContasPagarPagasGrid) · aba CMV
+// FILID = lojas do usuário (códigos, como nas outras rotas); vencimento de/até (dd/mm/aaaa).
+const dataParaBR = v => {
+  const t = String(v || '').trim();
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(t) ? t : null;
+};
+app.post("/consulta-contas-pagar", exigirUsuario("acessar_bi"), exigirAba("cmv"), restringirLojas, async (req, res) => {
+  const venc1 = dataParaBR(req.body.VENCIMENTO1), venc2 = dataParaBR(req.body.VENCIMENTO2);
+  if (!venc1 || !venc2) return res.status(400).json({ error: "Informe o período de vencimento." });
+  const body = {
+    FILID: String(req.body.LOJAS || "").split(/[,;\s]+/).map(c => c.replace(/\D/g, "").replace(/^0+/, "")).filter(Boolean).join(","),
+    STATUSRECEBIDO: "TODOS",
+    DUPEMISSAO1: null, DUPEMISSAO2: null,
+    PARVENCIMENTO1: venc1, PARVENCIMENTO2: venc2,
+    RECRECEBIMENTO1: null, RECRECEBIMENTO2: null,
+    PAGAMENTOVENDA1: null, PAGAMENTOVENDA2: null,
+    TIPOPERIODO: "1"
+  };
+  try {
+    const response = await fetch("https://api.savwinweb.com.br/api/APIRelatoriosCR/ContasPagarPagasGrid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...HEADERS_SAVWIN },
+      body: JSON.stringify(body)
+    });
+    const texto = await response.text();
+    if (!response.ok) throw new Error(`Erro na API externa (Contas a pagar): Status ${response.status} ${texto.slice(0, 200)}`);
+    let dados;
+    try { dados = JSON.parse(texto); } catch { throw new Error(`Resposta inesperada da API: ${texto.slice(0, 150)}`); }
+    if (typeof dados === "string") { try { dados = JSON.parse(dados); } catch { dados = []; } }
+    const linhas = Array.isArray(dados) ? dados : (dados && (dados.Resultado || dados.resultado || dados.Dados || dados.data)) || [];
+    res.json({ filtro: { ...body }, linhas: Array.isArray(linhas) ? linhas : [] });
+  } catch (error) {
+    console.error("Erro no servidor (/consulta-contas-pagar):", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 4. Estoque (EstoqueAnaliticoGrid) · módulo Estoque encalhado
 registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavwin: HEADERS_SAVWIN });
 
