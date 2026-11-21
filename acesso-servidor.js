@@ -15,7 +15,7 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || 'https://uumttubexjtgzeualqnz.
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_o177jMO-LmlRF6sY-cx4tA_fv5KIEKa';
 const DOMINIO_LOGIN = 'bivendas.local';
 
-const ABAS_BI = ['dashboard', 'metas', 'cards', 'produtos', 'comparativo', 'comissao', 'detalhes'];
+const ABAS_BI = ['dashboard', 'metas', 'cards', 'produtos', 'comparativo', 'comissao', 'cmv', 'detalhes'];
 
 /** Bloqueia a rota se a aba estiver escondida para o usuário (usar depois de exigirUsuario). */
 function exigirAba(aba) {

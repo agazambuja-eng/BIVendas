@@ -884,3 +884,19 @@ th.filtrada { color: #5ee7ff !important; }
   .cm-tabela th:first-child, .cm-tabela td:first-child { position: sticky; left: 0; z-index: 1; background: #0d1233; }
   .cm-tabela td:first-child { max-width: 170px; white-space: normal; }
 }
+/* grade padrão tipo Excel (aba CMV) */
+.cmv-filtros { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.cmv-filtros label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: bold; }
+.cmv-filtros input[type=date] { width: auto; min-width: 150px; }
+.cmv-filtros .cm-nota { flex: 1 1 100%; }
+.gx-barra { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; font-size: 12px; }
+.gx-contador { color: #8a93c9; flex: 1; }
+.gx-rolagem { max-height: 600px; overflow: auto; border-radius: 8px; border: 1px solid rgba(94,231,255,.15); }
+.gx-tabela { width: 100%; border-collapse: collapse; font-size: 12px; }
+.gx-tabela th, .gx-tabela td { padding: 6px 8px; border-bottom: 1px solid rgba(94,231,255,.08); white-space: nowrap; text-align: left; }
+.gx-tabela thead th { position: sticky; top: 0; z-index: 2; background: #121845; color: #5ee7ff; font-size: 11px; text-transform: uppercase; }
+.gx-tabela tfoot td { position: sticky; bottom: 0; background: #0d1233; font-weight: bold; border-top: 2px solid rgba(94,231,255,.35); }
+.gx-tabela .gx-num { text-align: right; }
+.gx-tabela tbody tr:hover { background: rgba(94,231,255,.05); }
+.gx-mais { text-align: center; margin-top: 8px; }
+.gx-vazio { color: #8a93c9; font-size: 13px; }

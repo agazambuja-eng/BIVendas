@@ -79,6 +79,7 @@
   <button type="button" onclick="mudarAba('produtos')" id="btnAbaProdutos" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🛍️ Avaliação de Produtos</button>
   <button type="button" onclick="mudarAba('comparativo')" id="btnAbaComparativo" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📈 <span id="rotuloAbaComparativo">Comparativo 3 meses</span></button>
   <button type="button" onclick="mudarAba('comissao')" id="btnAbaComissao" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">💰 Comissão</button>
+  <button type="button" onclick="mudarAba('cmv')" id="btnAbaCmv" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🧾 CMV</button>
   <button type="button" onclick="mudarAba('detalhes')" id="btnAbaDetalhes" style="padding: 8px 16px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Detalhes de Vendas (Período)</button>
 </div>
   
@@ -590,6 +591,23 @@
     </div>
   </div>
 
+  <!-- === ABA: CMV (por enquanto, contas a pagar na grade padrão) === -->
+  <div id="conteudoAbaCmv" style="display: none; flex-direction: column; gap: 15px;">
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+      <div class="cm-cab">
+        <h3 style="margin: 0; color: #333; font-size: 16px;">🧾 CMV <small class="arm-sub">contas a pagar do SavWin · lojas da consulta</small></h3>
+      </div>
+      <div class="cmv-filtros">
+        <label>Vencimento de <input type="date" id="cmvVenc1"></label>
+        <label>até <input type="date" id="cmvVenc2"></label>
+        <button type="button" id="cmvBtnConsultar" class="btn-comparar-lojas" onclick="cmvConsultar()">🔄 Reconsultar</button>
+        <small id="cmvInfo" class="cm-nota"></small>
+      </div>
+      <div id="cmvStatus" class="ee-status" style="display: none;"></div>
+      <div id="cmvGrade"><p class="gx-vazio">Clique em <b>Consultar</b> no topo do BI ou em Reconsultar.</p></div>
+    </div>
+  </div>
+
   <!-- === ABA 3: DETALHES DE VENDAS (PERÍODO) / AUDITORIA DE PRODUTOS === -->
   <div id="conteudoAbaDetalhes" style="display: none; flex-direction: column; gap: 15px; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
@@ -884,5 +902,7 @@
   <script src="/js/analise-ia.js"></script>
   <script src="/js/encalhe-loja.js"></script>
   <script src="/js/comissao.js"></script>
+  <script src="/js/grade-excel.js"></script>
+  <script src="/js/cmv.js"></script>
 </body>
 </html>

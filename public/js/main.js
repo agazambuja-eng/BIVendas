@@ -76,7 +76,7 @@ function toggleAcordeon(idUnico) {
 }
 
 // --- ABAS LIBERADAS PARA O USUÁRIO (usuarios.abas_bloqueadas) ---
-const BOTOES_ABAS = { dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', cards: 'btnAbaCards', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', comissao: 'btnAbaComissao', detalhes: 'btnAbaDetalhes' };
+const BOTOES_ABAS = { dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', cards: 'btnAbaCards', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', comissao: 'btnAbaComissao', cmv: 'btnAbaCmv', detalhes: 'btnAbaDetalhes' };
 const abaDoUsuario = aba => typeof abaLiberada !== 'function' || abaLiberada(aba);
 function aplicarAbasDoUsuario() {
   Object.entries(BOTOES_ABAS).forEach(([aba, id]) => {
@@ -112,6 +112,11 @@ function mudarAba(aba) {
   if (conteudoComissao) conteudoComissao.style.display = aba === 'comissao' ? "flex" : "none";
   if (btnComissao) { btnComissao.style.background = aba === 'comissao' ? "#0078d7" : "#e0e0e0"; btnComissao.style.color = aba === 'comissao' ? "#fff" : "#333"; }
   if (aba === 'comissao' && typeof cmAoAbrir === 'function') cmAoAbrir();
+  const btnCmv = document.getElementById("btnAbaCmv");
+  const conteudoCmv = document.getElementById("conteudoAbaCmv");
+  if (conteudoCmv) conteudoCmv.style.display = aba === 'cmv' ? "flex" : "none";
+  if (btnCmv) { btnCmv.style.background = aba === 'cmv' ? "#0078d7" : "#e0e0e0"; btnCmv.style.color = aba === 'cmv' ? "#fff" : "#333"; }
+  if (aba === 'cmv' && typeof cmvAoAbrir === 'function') cmvAoAbrir();
 
   conteudoCards.style.display = "none";
   conteudoDashboard.style.display = "none";
@@ -150,7 +155,7 @@ function mudarAba(aba) {
   }
 
   // Classe da aba ativa (usada pelo tema escuro)
-  const idsBotoes = { cards: 'btnAbaCards', dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', comissao: 'btnAbaComissao', detalhes: 'btnAbaDetalhes' };
+  const idsBotoes = { cards: 'btnAbaCards', dashboard: 'btnAbaDashboard', metas: 'btnAbaMetas', produtos: 'btnAbaProdutos', comparativo: 'btnAbaComparativo', comissao: 'btnAbaComissao', cmv: 'btnAbaCmv', detalhes: 'btnAbaDetalhes' };
   document.querySelectorAll('#biTabsHeader button').forEach(b => b.classList.toggle('aba-ativa', b.id === idsBotoes[aba]));
   // no celular/tablet a barra de abas rola: mantém a aba ativa à vista
   const ativa = document.getElementById(idsBotoes[aba]);
@@ -588,6 +593,8 @@ async function consultar() {
   if (typeof epAutoCarregar === 'function' && abaDoUsuario('produtos')) setTimeout(epAutoCarregar, 0);
   // Comissão: mesmo período e lojas, consulta o relatório de comissão do SavWin em segundo plano
   if (typeof cmAutoCarregar === 'function' && abaDoUsuario('comissao')) setTimeout(cmAutoCarregar, 0);
+  // CMV (contas a pagar): mesmas lojas, vencimento de hoje a 6 meses
+  if (typeof cmvAutoCarregar === 'function' && abaDoUsuario('cmv')) setTimeout(cmvAutoCarregar, 0);
 
   try {
     const [resGrid, resPagamentos] = await Promise.all([
