@@ -56,6 +56,7 @@ async function cmvConsultar() {
     cmvEstado.quando = new Date().toISOString();
     cmvEstado.lojasConsultadas = lojas.join(', ');
     cmvGrade.definir(j.linhas || []);
+    cmvAnaliseDefinir(j.linhas || []);
     const info = document.getElementById('cmvInfo');
     if (info) info.textContent = `Consulta de ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · lojas ${lojas.length ? lojas.join(', ') : 'todas'} · vencimento ${v1.split('-').reverse().join('/')} a ${v2.split('-').reverse().join('/')}`;
     cmvStatus('');
@@ -66,4 +67,153 @@ async function cmvConsultar() {
     cmvEstado.carregando = false;
     if (bt) { bt.disabled = false; bt.textContent = '🔄 Reconsultar'; }
   }
+}
+
+// ================================================================ sub-abas
+function cmvSubaba(s) {
+  document.querySelectorAll('#cmvSubabas button').forEach(b => b.classList.toggle('ativo', b.dataset.s === s));
+  document.getElementById('cmvPainelAnalise').style.display = s === 'analise' ? '' : 'none';
+  document.getElementById('cmvPainelRelatorio').style.display = s === 'relatorio' ? '' : 'none';
+}
+
+// ================================================================ Análise CMV
+/*
+ * Loja × mês de vencimento, somando o valor das parcelas EM ABERTO, só dos planos de contas marcados
+ * (filtro tipo Excel, lembrado no navegador). As colunas da API são reconhecidas pelo nome; se o
+ * nome for outro, dá para escolher em "⚙ Campos".
+ */
+const CMV_CAMPOS = {
+  loja: { rot: 'Loja', padroes: [/^LOJA$/, /^LOJANOME$/, /LOJA/, /FILIAL/, /EMPRESA/, /^FILID$/] },
+  plano: { rot: 'Plano de contas', padroes: [/^PLANOCONTAS$/, /PLANO.*CONTA/, /PLANO/] },
+  venc: { rot: 'Vencimento', padroes: [/^PARVENCIMENTO$/, /PARVENC/, /VENCIMENTO/, /VENC/] },
+  valor: { rot: 'Valor', padroes: [/^PARVALOR$/, /^VALORPARCELA$/, /^PARVALORPARCELA$/, /^VALOR$/, /VALORPARC/, /VALORDOC|VALORTITULO|VALORORIGINAL/, /^(?!.*(PAGO|MULTA|JURO|DESC|ACRES|BAIX)).*VALOR/] },
+  situacao: { rot: 'Situação (aberta/paga)', padroes: [/^STATUS$/, /SITUACAO/, /STATUS/, /^(PAR)?DATAPAGAMENTO$/, /DTPAGAMENTO|DATABAIXA|DATAQUITACAO|PAGAMENTO$/, /VALORPAGO|PAGO$/] }
+};
+const cmvAn = { linhas: [], campos: {}, escolhidos: {}, verCampos: false };
+try { cmvAn.escolhidos = JSON.parse(localStorage.getItem('bi_cmv_campos') || '{}'); } catch { /* sem armazenamento */ }
+
+/** Fonte filtrável (só para o filtro tipo Excel do plano de contas / loja). */
+const cmvFonte = new GradeExcel('cmvAnaliseFonteOculta', {
+  aoFiltrar: g => {
+    try { localStorage.setItem('bi_cmv_filtros', JSON.stringify(Object.fromEntries(Object.entries(g.filtros).map(([k, s]) => [k, [...s]])))); } catch { /* sem armazenamento */ }
+  }
+});
+cmvFonte.renderizar = () => cmvAnaliseRenderizar();
+try { Object.entries(JSON.parse(localStorage.getItem('bi_cmv_filtros') || '{}')).forEach(([k, v]) => { cmvFonte.filtros[k] = new Set(v); }); } catch { /* sem armazenamento */ }
+
+function cmvDetectarCampos(chaves) {
+  const c = {};
+  Object.entries(CMV_CAMPOS).forEach(([id, def]) => {
+    const esc = cmvAn.escolhidos[id];
+    if (esc && chaves.includes(esc)) { c[id] = esc; return; }
+    for (const re of def.padroes) { const k = chaves.find(x => re.test(String(x).toUpperCase())); if (k) { c[id] = k; break; } }
+  });
+  return c;
+}
+
+/** A parcela está em aberto? Pela coluna de situação: texto (ABERTO/PAGO), data de pagamento vazia ou valor pago < valor. */
+function cmvAberta(l, c) {
+  const k = c.situacao;
+  if (!k) return true;
+  const v = l[k];
+  const nome = k.toUpperCase();
+  if (/VALORPAGO|PAGO$/.test(nome)) return (GradeExcel.numeroBR(v) || 0) < (GradeExcel.numeroBR(l[c.valor]) || 0) - 0.005;
+  if (/DATA|DT|PAGAMENTO|BAIXA|QUITA/.test(nome)) return !GradeExcel.dataBR(v);
+  const t = String(v ?? '').toUpperCase();
+  if (/PAGO|PAGA\b|QUITAD|BAIXAD|LIQUIDAD|CANCEL/.test(t) && !/PARCIAL/.test(t)) return false;
+  return true;
+}
+
+function cmvAnaliseDefinir(linhas) {
+  cmvAn.linhas = Array.isArray(linhas) ? linhas : [];
+  const chaves = [];
+  cmvAn.linhas.slice(0, 300).forEach(l => Object.keys(l || {}).forEach(k => { if (!chaves.includes(k)) chaves.push(k); }));
+  cmvAn.chaves = chaves;
+  cmvAn.campos = cmvDetectarCampos(chaves);
+  cmvAnaliseFonte();
+}
+/** Monta a fonte filtrável: só parcelas em aberto. */
+function cmvAnaliseFonte() {
+  const c = cmvAn.campos;
+  const abertas = cmvAn.linhas.filter(l => cmvAberta(l, c));
+  const filtrosGuardados = cmvFonte.filtros;
+  cmvFonte.definir(abertas);            // chama renderizar() = cmvAnaliseRenderizar
+  cmvFonte.filtros = filtrosGuardados;  // definir() descarta filtros de colunas que não existem
+  cmvAnaliseRenderizar();
+}
+
+function cmvEscolherCampo(id, k) {
+  if (k) cmvAn.escolhidos[id] = k; else delete cmvAn.escolhidos[id];
+  try { localStorage.setItem('bi_cmv_campos', JSON.stringify(cmvAn.escolhidos)); } catch { /* sem armazenamento */ }
+  cmvAn.campos = cmvDetectarCampos(cmvAn.chaves || []);
+  cmvAnaliseFonte();
+}
+
+function cmvMes(l) {
+  const d = GradeExcel.dataBR(l[cmvAn.campos.venc]);
+  return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : 'sem data';
+}
+const CMV_MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const cmvRotuloMes = m => m === 'sem data' ? m : `${CMV_MESES[Number(m.slice(5)) - 1]}/${m.slice(2, 4)}`;
+
+function cmvAnaliseRenderizar() {
+  const el = document.getElementById('cmvAnalise');
+  if (!el) return;
+  if (!cmvAn.linhas.length) { el.innerHTML = '<p class="gx-vazio">Nenhuma conta a pagar no período.</p>'; return; }
+  const c = cmvAn.campos;
+  const falta = ['loja', 'venc', 'valor'].filter(k => !c[k]);
+  const plano = c.plano;
+  const rows = cmvFonte.filtradas();
+  const lojas = new Map(), meses = new Set();
+  rows.forEach(l => {
+    const loja = String(l[c.loja] ?? '—').trim() || '—', mes = cmvMes(l), v = GradeExcel.numeroBR(l[c.valor]) || 0;
+    meses.add(mes);
+    if (!lojas.has(loja)) lojas.set(loja, new Map());
+    const m = lojas.get(loja); m.set(mes, (m.get(mes) || 0) + v);
+  });
+  const ms = [...meses].sort();
+  const anos = [];
+  ms.forEach(m => { const a = m.slice(0, 4); const u = anos[anos.length - 1]; if (u && u.ano === a) u.n++; else anos.push({ ano: a, n: 1 }); });
+  const R = v => v ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
+  const totMes = ms.map(m => [...lojas.values()].reduce((t, x) => t + (x.get(m) || 0), 0));
+  const totGeral = totMes.reduce((a, b) => a + b, 0);
+  const nPlanos = plano ? new Set(cmvFonte.linhas.map(l => cmvFonte.texto({ chave: plano, tipo: 'texto' }, l))).size : 0;
+  const desm = plano && cmvFonte.filtros[plano] ? cmvFonte.filtros[plano].size : 0;
+  const btn = (k, rot) => k ? `<button type="button" class="cmv-filtro-btn${cmvFonte.filtros[k] && cmvFonte.filtros[k].size ? ' ativo' : ''}" onclick="cmvFonte.abrirFiltro(event, ${escHTML(JSON.stringify(k))})">${rot} ▾</button>` : '';
+  const ordemLojas = [...lojas.keys()].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+  el.innerHTML = `
+    <div class="cmv-an-barra">
+      ${btn(plano, `📂 Plano de contas ${desm ? `(${nPlanos - desm} de ${nPlanos})` : '(todos)'}`)}
+      ${btn(c.loja, '🏬 Loja')}
+      <span class="gx-contador">${rows.length.toLocaleString('pt-BR')} parcelas em aberto · soma do valor por mês de vencimento</span>
+      <button type="button" class="tv-link" onclick="cmvAn.verCampos = !cmvAn.verCampos; cmvAnaliseRenderizar()">⚙ Campos</button>
+      <span class="ep-exportar">⬇ Exportar <button type="button" class="tv-link" onclick="cmvAnaliseExportar('xlsx')">Excel</button> · <button type="button" class="tv-link" onclick="cmvAnaliseExportar('csv')">CSV</button></span>
+    </div>
+    ${cmvAn.verCampos || falta.length ? `<div class="cmv-campos">${falta.length ? `<b>⚠️ Não reconheci a coluna de ${falta.map(k => CMV_CAMPOS[k].rot.toLowerCase()).join(', ')}: escolha abaixo.</b><br>` : ''}
+      ${Object.entries(CMV_CAMPOS).map(([id, d]) => `<label>${d.rot} <select onchange="cmvEscolherCampo('${id}', this.value)"><option value="">${c[id] && !cmvAn.escolhidos[id] ? `automático (${escHTML(c[id])})` : 'automático'}</option>${(cmvAn.chaves || []).map(k => `<option value="${escHTML(k)}" ${cmvAn.escolhidos[id] === k ? 'selected' : ''}>${escHTML(k)}</option>`).join('')}</select></label>`).join('')}
+      <small>Em aberto: ${c.situacao ? `pela coluna <b>${escHTML(c.situacao)}</b> (texto pago/quitado = paga; data de pagamento preenchida = paga; valor pago ≥ valor = paga)` : 'sem coluna de situação, considera todas'}.</small></div>` : ''}
+    ${falta.length ? '' : `<div class="gx-rolagem">
+      <table class="gx-tabela cmv-pivo">
+        <thead>
+          <tr><th rowspan="2">Loja</th>${anos.map(a => `<th colspan="${a.n}" class="cmv-ano">${a.ano}</th>`).join('')}<th rowspan="2" class="gx-num">Total</th></tr>
+          <tr>${ms.map(m => `<th class="gx-num">${cmvRotuloMes(m)}</th>`).join('')}</tr>
+        </thead>
+        <tbody>${ordemLojas.map(lj => { const m = lojas.get(lj); const t = ms.reduce((s, x) => s + (m.get(x) || 0), 0);
+          return `<tr><td>${escHTML(lj)}</td>${ms.map(x => `<td class="gx-num">${R(m.get(x))}</td>`).join('')}<td class="gx-num"><b>${R(t)}</b></td></tr>`; }).join('')}</tbody>
+        <tfoot><tr><td>Total geral</td>${totMes.map(v => `<td class="gx-num">${R(v)}</td>`).join('')}<td class="gx-num">${R(totGeral)}</td></tr></tfoot>
+      </table>
+    </div>`}`;
+}
+
+function cmvAnaliseExportar(formato) {
+  const c = cmvAn.campos;
+  const rows = cmvFonte.filtradas();
+  const meses = [...new Set(rows.map(cmvMes))].sort();
+  const porLoja = new Map();
+  rows.forEach(l => { const lj = String(l[c.loja] ?? '—').trim() || '—'; if (!porLoja.has(lj)) porLoja.set(lj, {}); const o = porLoja.get(lj); const m = cmvMes(l); o[m] = (o[m] || 0) + (GradeExcel.numeroBR(l[c.valor]) || 0); });
+  const cab = ['Loja', ...meses.map(cmvRotuloMes), 'Total'];
+  const linhas = [...porLoja.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR', { numeric: true }))
+    .map(([lj, o]) => [lj, ...meses.map(m => Math.round((o[m] || 0) * 100) / 100), Math.round(meses.reduce((t, m) => t + (o[m] || 0), 0) * 100) / 100]);
+  linhas.push(['Total geral', ...meses.map(m => Math.round(linhas.reduce((t, l) => t + l[meses.indexOf(m) + 1], 0) * 100) / 100), Math.round(linhas.reduce((t, l) => t + l[l.length - 1], 0) * 100) / 100]);
+  if (typeof epBaixarPlanilha === 'function') epBaixarPlanilha(cab, linhas, 'analise_cmv', formato, cab.slice(1));
 }
