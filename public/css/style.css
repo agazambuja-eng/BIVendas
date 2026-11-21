@@ -900,3 +900,14 @@ th.filtrada { color: #5ee7ff !important; }
 .gx-tabela tbody tr:hover { background: rgba(94,231,255,.05); }
 .gx-mais { text-align: center; margin-top: 8px; }
 .gx-vazio { color: #8a93c9; font-size: 13px; }
+/* CMV: sub-abas e análise */
+.cmv-subabas { margin: 4px 0 12px; }
+.cmv-an-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; font-size: 12px; }
+.cmv-filtro-btn { padding: 6px 12px !important; font-size: 12px !important; background: rgba(94,231,255,.08) !important; border: 1px solid rgba(94,231,255,.3) !important; color: #cfe9ff !important; border-radius: 8px !important; }
+.cmv-filtro-btn.ativo { background: #5ee7ff !important; color: #0a0e26 !important; }
+.cmv-campos { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; padding: 10px; margin-bottom: 10px; border: 1px dashed rgba(94,231,255,.3); border-radius: 8px; font-size: 12px; }
+.cmv-campos label { display: flex; flex-direction: column; gap: 3px; }
+.cmv-campos select { width: auto; min-width: 170px; font-size: 12px; padding: 4px 6px; }
+.cmv-campos small { flex: 1 1 100%; color: #8a93c9; }
+.cmv-pivo th.cmv-ano { text-align: center; }
+.cmv-pivo td:first-child { font-weight: bold; }

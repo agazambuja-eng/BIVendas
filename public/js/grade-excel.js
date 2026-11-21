@@ -139,7 +139,7 @@ class GradeExcel {
         <button type="button" class="pf-ok" onclick="GradeExcel.confirmar()">OK</button>
       </div>`;
     GradeExcel.lista();
-    const r = event.currentTarget.closest('th').getBoundingClientRect();
+    const r = (event.currentTarget.closest('th') || event.currentTarget).getBoundingClientRect();
     p.style.display = 'block';
     p.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - p.offsetWidth - 8)) + 'px';
     p.style.top = (window.scrollY + r.bottom + 4) + 'px';
@@ -173,12 +173,14 @@ class GradeExcel {
     const ok = b ? new Set(GradeExcel.visiveisFiltro().filter(v => a.marcados.has(v))) : a.marcados;
     const desm = new Set(a.valores.filter(v => !ok.has(v)));
     if (desm.size) a.grade.filtros[a.chave] = desm; else delete a.grade.filtros[a.chave];
-    GradeExcel.fechar(); a.grade.mostrar = a.grade.op.porPagina; a.grade.renderizar();
+    GradeExcel.fechar(); a.grade.mostrar = a.grade.op.porPagina; a.grade.aoFiltrar(); a.grade.renderizar();
   }
-  static limparColuna() { const a = GradeExcel.aberta; if (!a) return; delete a.grade.filtros[a.chave]; GradeExcel.fechar(); a.grade.renderizar(); }
+  static limparColuna() { const a = GradeExcel.aberta; if (!a) return; delete a.grade.filtros[a.chave]; GradeExcel.fechar(); a.grade.aoFiltrar(); a.grade.renderizar(); }
   static ordenar(dir) { const a = GradeExcel.aberta; if (!a) return; a.grade.ordem = { chave: a.chave, dir }; GradeExcel.fechar(); a.grade.renderizar(); }
   static fechar() { GradeExcel.aberta = null; const p = document.getElementById('popupGradeExcel'); if (p) p.style.display = 'none'; }
-  limparTudo() { this.filtros = {}; this.ordem = null; GradeExcel.fechar(); this.renderizar(); }
+  limparTudo() { this.filtros = {}; this.ordem = null; GradeExcel.fechar(); this.aoFiltrar(); this.renderizar(); }
+  /** Gancho chamado quando os filtros mudam (para guardar ou reagir). */
+  aoFiltrar() { if (typeof this.op.aoFiltrar === 'function') this.op.aoFiltrar(this); }
 
   // ------------------------------------------------------------ exportar
   exportar(formato) {

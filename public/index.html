@@ -604,7 +604,16 @@
         <small id="cmvInfo" class="cm-nota"></small>
       </div>
       <div id="cmvStatus" class="ee-status" style="display: none;"></div>
-      <div id="cmvGrade"><p class="gx-vazio">Clique em <b>Consultar</b> no topo do BI ou em Reconsultar.</p></div>
+      <div class="ca-alternar cmv-subabas" id="cmvSubabas">
+        <button type="button" data-s="analise" class="ativo" onclick="cmvSubaba('analise')">📊 Análise CMV</button>
+        <button type="button" data-s="relatorio" onclick="cmvSubaba('relatorio')">📋 Relatório contas a pagar</button>
+      </div>
+      <div id="cmvPainelAnalise">
+        <div id="cmvAnalise"><p class="gx-vazio">Clique em <b>Consultar</b> no topo do BI ou em Reconsultar.</p></div>
+      </div>
+      <div id="cmvPainelRelatorio" style="display: none;">
+        <div id="cmvGrade"><p class="gx-vazio">Clique em <b>Consultar</b> no topo do BI ou em Reconsultar.</p></div>
+      </div>
     </div>
   </div>
 
