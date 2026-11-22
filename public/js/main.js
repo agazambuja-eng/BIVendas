@@ -26,6 +26,7 @@ window.onload = async () => {
   await exigirLogin('acessar_bi');
   montarBarraUsuario(document.getElementById('barraUsuarioBI'));
   aplicarAbasDoUsuario();
+  carregarAcessoIA();
 
   // ⚙ de metas só aparece para quem pode incluir, alterar ou excluir metas
   const podeMetas = ['criar_metas', 'alterar_metas', 'excluir_metas'].some(p => temPermissao(p));
@@ -73,6 +74,19 @@ function toggleAcordeon(idUnico) {
       if (seta) seta.style.transform = "rotate(0deg)";
     }
   }
+}
+
+// --- IA LIBERADA PARA O USUÁRIO (Configuração do BI › 🤖 IA) ---
+window.iaAcesso = null;   // { bloqueado, relatorios: { precos, encalhados, compras }, regioes }
+const iaLiberada = rel => !window.iaAcesso || window.iaAcesso.relatorios[rel] !== false;
+async function carregarAcessoIA() {
+  try {
+    const r = await fetchAutenticado('/ia/acesso');
+    if (r.ok) window.iaAcesso = await r.json();
+  } catch (e) { /* sem resposta: deixa liberado; o servidor confere de novo */ }
+  const btn = document.querySelector('.ai-acoes button');
+  if (btn) btn.style.display = iaLiberada('encalhados') ? '' : 'none';
+  if (window.iaAcesso && window.iaAcesso.regioes && window.iaAcesso.regioes.precos && typeof pw !== 'undefined' && !pw.regiao) pw.regiao = window.iaAcesso.regioes.precos;
 }
 
 // --- ABAS LIBERADAS PARA O USUÁRIO (usuarios.abas_bloqueadas) ---

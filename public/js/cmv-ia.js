@@ -303,7 +303,7 @@ function cmvIaRenderizar() {
       <label title="Parte da entrada que fica guardada (imprevistos, sazonalidade).">Reserva de caixa (%) <input type="number" min="0" max="100" step="1" value="${p.reserva}" onchange="cmvIaParam('reserva', this.value)"></label>
       <label title="Meses de venda que o estoque de cada grife deve cobrir depois da compra.">Cobertura alvo (meses) <input type="number" min="1" max="12" step="1" value="${p.cobertura}" onchange="cmvIaParam('cobertura', this.value)"></label>
       <button type="button" class="tv-link" onclick="cmvIaGuardarMarcacao(); cmvIa.verConfig = !cmvIa.verConfig; cmvIaRenderizar()">⚙ Configurar compras</button>
-      <button type="button" id="cmvIaBtn" class="btn-comparar-lojas" onclick="cmvIaAnalisar()" ${cmvIa.carregando ? 'disabled' : ''}>${cmvIa.carregando ? '⏳ A IA está analisando…' : '🤖 Analisar com IA'}</button>
+      ${typeof iaLiberada === 'function' && !iaLiberada('compras') ? '<small class="cm-nota">🤖 IA não liberada para você (Configuração do BI › IA). As grades abaixo continuam valendo.</small>' : `<button type="button" id="cmvIaBtn" class="btn-comparar-lojas" onclick="cmvIaAnalisar()" ${cmvIa.carregando ? 'disabled' : ''}>${cmvIa.carregando ? '⏳ A IA está analisando…' : '🤖 Analisar com IA'}</button>`}
     </div>
     <div class="cmv-cfg-resumo">🛒 Compra de mercadoria: <b>${k.linhasCompra.length ? k.linhasCompra.map(escHTML).join(', ') : 'todas as linhas'}</b> · contas de mercadoria pelo <b>${escHTML(k.fonteMercadoria)}</b>${cmvIa.configErro ? ` · <span class="cmv-cfg-msg">${escHTML(cmvIa.configErro)}</span>` : ''}</div>
     ${cmvIa.verConfig ? cmvIaPainelConfig(k) : ''}

@@ -206,7 +206,7 @@ async function aiIniciar() {
       try {
         const resp = await fetchAutenticado('/precos/pesquisar', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome: rep.desc, termo: m.termo, modelo: chaves.modelo, cor: chaves.cor, tamanho: chaves.tamanho, regiao, corNome: pr.cor || '', modeloSavwin: pr.modelo || '', alcance, redes })
+          body: JSON.stringify({ nome: rep.desc, termo: m.termo, modelo: chaves.modelo, cor: chaves.cor, tamanho: chaves.tamanho, regiao, corNome: pr.cor || '', modeloSavwin: pr.modelo || '', alcance, redes, origem: 'encalhados' })
         });
         const j = await resp.json().catch(() => ({}));
         if (!resp.ok) {

@@ -453,3 +453,8 @@ html:has(body.compras-escuro) { background: #080b1f; }
 .cfgbi-usuario { display: flex; flex-direction: column; align-items: flex-start; text-align: left; border: 0; border-bottom: 1px solid #eef1f5; background: none; padding: 8px 6px; cursor: pointer; }
 .cfgbi-usuario small { color: var(--texto-suave); }
 .cfgbi-usuario.ativo { background: #eaf3ff; border-left: 3px solid var(--azul); }
+.cfgbi-tres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 14px 0; }
+@media (max-width: 1000px) { .cfgbi-tres { grid-template-columns: minmax(0, 1fr); } }
+.cfgbi-bloco label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.cfgbi-bloco label.check { flex-direction: row; align-items: center; font-weight: normal; }
+.cfgbi-bloco textarea, .cfgbi-bloco input[type=text], .cfgbi-bloco input[type=number] { font: inherit; font-weight: normal; padding: 7px 9px; border: 1px solid #ccd3dd; border-radius: 6px; resize: vertical; }

@@ -20,6 +20,7 @@ function cfgAba(a) {
   $c('abaPlanos').style.display = a === 'planos' ? '' : 'none';
   $c('abaUsuarios').style.display = a === 'usuarios' ? '' : 'none';
   $c('abaSavwin').style.display = a === 'savwin' ? '' : 'none';
+  $c('abaIa').style.display = a === 'ia' ? '' : 'none';
   cfgMsg('');
 }
 
@@ -27,13 +28,14 @@ function cfgAba(a) {
 async function cfgCarregar() {
   try {
     const { data, error } = await supabaseBI.from('configuracoes_bi').select('chave, valor')
-      .in('chave', ['cmv_compras', 'catalogo_planos_contas', 'catalogo_linhas_produto', 'cmv_planos_por_usuario']);
+      .in('chave', ['cmv_compras', 'catalogo_planos_contas', 'catalogo_linhas_produto', 'cmv_planos_por_usuario', 'ia']);
     if (error) throw error;
     (data || []).forEach(r => {
       if (r.chave === 'cmv_compras') cfg.compras = { ...CFG_PADRAO, ...(r.valor || {}) };
       if (r.chave === 'catalogo_planos_contas') cfg.catalogo.planos = (r.valor && r.valor.nomes) || [];
       if (r.chave === 'catalogo_linhas_produto') cfg.catalogo.linhas = (r.valor && r.valor.nomes) || [];
       if (r.chave === 'cmv_planos_por_usuario') cfg.porUsuario = r.valor || {};
+      if (r.chave === 'ia') cfg.ia = r.valor || {};
     });
   } catch (e) {
     cfg.erroTabela = /configuracoes_bi|relation|schema cache|does not exist/i.test(e.message || '')
@@ -260,6 +262,56 @@ async function cfgRemoverSavwin() {
   } catch (e) { $c('svMsg').className = 'acesso-msg erro'; $c('svMsg').textContent = e.message; }
 }
 
+// ------------------------------------------------------------------ 4. parâmetros da IA
+const RELATORIOS_IA = [
+  ['precos', '🤖 Preço na web', 'Modal de preço de cada produto (lupa 🤖).', true],
+  ['encalhados', '📦 Análise de encalhados', 'Botão "Analisar com IA" do Estoque encalhado (em lote).', true],
+  ['compras', '🛒 Compras (CMV)', 'CMV › Compras com IA: comprar ou não, quanto e de quais grifes.', false]
+];
+function cfgDesenharIa() {
+  const ia = cfg.ia || {}, rel = ia.relatorios || {};
+  $c('iaContexto').value = ia.contexto || '';
+  $c('iaModelo').value = ia.modelo || '';
+  $c('iaLimite').value = ia.limiteMes || '';
+  $c('iaRelatorios').innerHTML = RELATORIOS_IA.map(([k, t, d, temRegiao]) => {
+    const r = rel[k] || {};
+    return `<div class="tabela-card cfgbi-bloco">
+      <div class="cfgbi-ferr"><h3>${t}</h3><label class="check"><input type="checkbox" id="iaAtivo_${k}" ${r.ativo === false ? '' : 'checked'}> ligado</label></div>
+      <small class="acesso-ajuda" style="margin:0">${d}</small>
+      ${temRegiao ? `<label>Região padrão <input type="text" id="iaRegiao_${k}" maxlength="80" value="${escHTML(r.regiao || '')}" placeholder="ex.: Maceió - AL (vazio = Brasil)"></label>` : ''}
+      <label>Instruções extras <textarea id="iaInstr_${k}" rows="3" maxlength="1000" placeholder="${k === 'compras' ? 'ex.: priorizar grifes de giro rápido; não sugerir compra acima de R$ 50 mil/mês' : 'ex.: comparar só com óticas e marketplaces oficiais; ignorar usados'}">${escHTML(r.instrucoes || '')}</textarea></label>
+    </div>`;
+  }).join('');
+  const bloqueados = new Set(ia.usuariosBloqueados || []);
+  $c('iaUsuarios').innerHTML = cfg.usuarios.map(u => `<label class="check"><input type="checkbox" value="${u.id}" ${bloqueados.has(u.id) ? '' : 'checked'}> ${escHTML(u.nome)} <small>(${escHTML(u.login)})</small></label>`).join('')
+    || '<p class="acesso-ajuda">Nenhum usuário.</p>';
+  $c('iaUsoInfo').textContent = 'O contador do mês fica no servidor; ao atingir o limite, as análises param até o mês seguinte.';
+}
+function cfgIaMarcarUsuarios(m) { document.querySelectorAll('#iaUsuarios input').forEach(i => { i.checked = m; }); }
+async function cfgSalvarIa() {
+  const relatorios = {};
+  RELATORIOS_IA.forEach(([k, , , temRegiao]) => {
+    relatorios[k] = { ativo: $c('iaAtivo_' + k).checked, instrucoes: $c('iaInstr_' + k).value.trim() };
+    if (temRegiao) relatorios[k].regiao = $c('iaRegiao_' + k).value.trim();
+  });
+  const valor = {
+    contexto: $c('iaContexto').value.trim(),
+    modelo: $c('iaModelo').value.trim(),
+    limiteMes: Math.max(0, Number($c('iaLimite').value) || 0),
+    usuariosBloqueados: [...document.querySelectorAll('#iaUsuarios input')].filter(i => !i.checked).map(i => i.value),
+    relatorios
+  };
+  const bt = $c('btnSalvarIa'); bt.disabled = true;
+  try {
+    const { error } = await supabaseBI.from('configuracoes_bi').upsert({ chave: 'ia', valor }, { onConflict: 'chave' });
+    if (error) throw error;
+    cfg.ia = valor;
+    cfgMsg('✅ Parâmetros da IA salvos. Valem em até 1 minuto.', 'ok');
+  } catch (e) {
+    cfgMsg(/configuracoes_bi|relation|schema cache|does not exist/i.test(e.message || '') ? 'Rode no Supabase o arquivo database/13_configuracoes_bi.sql e tente de novo.' : `Não foi possível salvar: ${e.message}`, 'erro');
+  } finally { bt.disabled = false; }
+}
+
 // ------------------------------------------------------------------ início
 (async () => {
   await exigirLogin();
@@ -267,10 +319,10 @@ async function cfgRemoverSavwin() {
   if (typeof montarSubmenuConfig === 'function') montarSubmenuConfig(document.getElementById('submenuConfig'), 'bi');
   if (!podeConfigBI()) { location.replace('/inicio.html?semAcesso=gerenciar_usuarios'); return; }
   if (!ehAdmin()) {   // quem só aprova compras: só a aba de planos
-    document.querySelectorAll('#cfgbiAbas button[data-a="usuarios"], #cfgbiAbas button[data-a="savwin"]').forEach(b => { b.style.display = 'none'; });
+    document.querySelectorAll('#cfgbiAbas button[data-a="usuarios"], #cfgbiAbas button[data-a="savwin"], #cfgbiAbas button[data-a="ia"]').forEach(b => { b.style.display = 'none'; });
   }
   await cfgCarregar();
   cfgDesenharListas();
-  if (ehAdmin()) { cfgListaUsuarios(); cfgDesenharSavwin(); }
+  if (ehAdmin()) { cfgListaUsuarios(); cfgDesenharSavwin(); cfgDesenharIa(); }
   $c('modalSavwin').addEventListener('click', e => { if (e.target.id === 'modalSavwin') e.target.style.display = 'none'; });
 })();
