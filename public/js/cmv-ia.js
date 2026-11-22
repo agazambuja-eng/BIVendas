@@ -16,7 +16,7 @@ try { const l = JSON.parse(localStorage.getItem('bi_cmv_ia_params') || 'null'); 
  * planos: planos de contas que são compra de mercadoria (vazio = usa o filtro da Análise CMV)
  * cmvAlvo, reserva, cobertura: parâmetros padrão */
 const CMV_CONFIG_PADRAO = { linhas: ['ARMACAO RX', 'ARMACAO SUN', 'ARMACAO CLIPON'], planos: [], cmvAlvo: 40, reserva: 10, cobertura: 3 };
-const cmvIaPodeConfigurar = () => typeof temPermissao === 'function' && (temPermissao('gerenciar_usuarios') || temPermissao('aprovar_compras'));
+const cmvIaPodeConfigurar = () => typeof temPermissao === 'function' && (temPermissao('gerenciar_usuarios') || temPermissao('configurar_bi'));
 /* ---------- catálogo de nomes já vistos (planos de contas e linhas), gravado no banco sem duplicar ---------- */
 cmvIa.catalogo = { planos: [], linhas: [] };
 const cmvIaJaRegistrado = new Set();
@@ -101,7 +101,7 @@ function cmvIaPainelConfig(k) {
     <div class="cmv-cfg-rodape">${pode ? `<small>Os parâmetros atuais (CMV alvo ${cmvIa.params.cmvAlvo}%, reserva ${cmvIa.params.reserva}%, cobertura ${cmvIa.params.cobertura} meses) também viram o padrão da empresa.</small>
       <span id="cmvCfgMsg" class="cmv-cfg-msg">${escHTML(cmvIa.msgImport || '')}</span>
       <button type="button" class="tv-link" onclick="cmvIaExportarCfg()">⬇ Exportar lista (CSV)</button>
-      <button type="button" class="btn-comparar-lojas" onclick="cmvIaSalvarConfig()">💾 Salvar para todos</button>` : '<small>Só o administrador ou quem aprova compras altera esta configuração.</small>'}</div>
+      <button type="button" class="btn-comparar-lojas" onclick="cmvIaSalvarConfig()">💾 Salvar para todos</button>` : '<small>Só o administrador ou quem tem "Configuração do BI" altera esta configuração.</small>'}</div>
   </div>`;
 }
 /** Guarda o que está marcado na tela (para não perder ao redesenhar). */
