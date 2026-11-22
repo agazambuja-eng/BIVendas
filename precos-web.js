@@ -372,6 +372,8 @@ Como pensar (como um planejador de compras do varejo):
 - Grifes: priorize as que vendem (giro alto, cobertura de estoque baixa, boa participação nas vendas). Não recomende comprar grife com cobertura alta (> 6 meses) ou sem venda; nesses casos sugira girar o estoque (promoção, remanejar entre lojas).
 - Prazo: compras novas costumam vencer em 30/60/90 dias; considere os meses mais apertados ao sugerir quando comprar.
 - Seja objetivo, use números dos dados, não invente dados que não estão aqui. Se faltar informação (ex.: estoque não carregado), diga isso nos alertas.
+- Leia "qualidadeDosDados" e "estoque" ANTES de concluir: o estoque é o TOTAL de cada grife (não só o encalhado), das lojas indicadas. Se houver aviso (ex.: contas de mercadoria não separadas das despesas, estoque de outra loja), NÃO trate o número afetado como certo: explique o impacto nos alertas e seja conservador nessa conclusão.
+- Grife "GERAL" ou parecida é cadastro genérico, não é marca: não recomende compra para ela; sugira corrigir o cadastro.
 
 Responda APENAS com um JSON neste formato:
 {"decisao":"comprar"|"comprar com cautela"|"segurar compras",
