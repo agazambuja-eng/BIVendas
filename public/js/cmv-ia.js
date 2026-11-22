@@ -171,16 +171,41 @@ function cmvIaCalcular() {
       const alvo = o.giro * p.cobertura;
       pecas = Math.max(0, Math.ceil(alvo - o.estoque));
       acao = !o.giro ? 'não comprar (sem giro)' : o.cobertura > 6 ? 'não comprar (estoque alto)' : o.cobertura < p.cobertura ? 'repor' : 'manter';
-    } else if (temEstoque) acao = 'sem estoque no painel';
+    } else if (/^(GERAL|DIVERSOS|SEM GRIFE|-)$/.test(o.grife)) acao = 'genérico (sem grife no cadastro)';
+    else if (temEstoque) acao = 'sem estoque no painel';
     return { 'Grife': o.grife, 'Linha': o.linha, 'Vendas no período': cmvIaArred(o.vendas), 'Participação %': cmvIaArred(o.vendas / totVendas * 100),
       'Peças vendidas no período': o.pecasVendidas, 'Estoque (peças)': o.estoque ?? '', 'Giro mensal (peças)': o.giro !== undefined ? cmvIaArred(o.giro) : '',
       'Cobertura (meses)': o.cobertura !== null && o.cobertura !== undefined ? cmvIaArred(o.cobertura) : '', 'Ação sugerida': acao,
       'Peças para cobertura alvo': pecas ?? '', 'Valor de compra (custo)': pecas && custoMedio ? cmvIaArred(pecas * custoMedio) : '' };
   }).sort((a, b) => b['Vendas no período'] - a['Vendas no período']);
 
+  // ---------- de onde vem o estoque e o que pode deixar a análise errada
+  const lojasCmv = typeof cmvLojas === 'function' ? cmvLojas() : [];
+  const avisos = [];
+  let estoque = null;
+  if (temEstoque) {
+    const R = ep.dados.Resumo || {};
+    const lojasEst = String(typeof epLojasPedido === 'function' ? epLojasPedido() : '').split(',').map(x => x.replace(/\D/g, '')).filter(Boolean);
+    const somaGrifes = ep.dados.Cobertura.reduce((t, e) => t + (Number(e.Qtde) || 0), 0);
+    estoque = {
+      origem: 'painel de estoque do SavWin (estoque TOTAL de cada grife, não só o encalhado)',
+      lojas: ep.loja ? [ep.loja] : lojasEst, giroUltimosMeses: ep.meses || 12, painelDe: ep.dados.quando || '',
+      pecasTotal: Math.round(Number(R.Pecas) || somaGrifes), custoTotal: Math.round(Number(R.Custo) || 0),
+      grifesNoPainel: ep.dados.Cobertura.length, pecasSemCusto: Math.round(Number(R.PecasSemCusto) || 0)
+    };
+    if (ep.loja) avisos.push(`O estoque carregado é só da loja ${ep.loja} (filtro do Estoque encalhado), mas vendas e contas são de ${lojasCmv.length || 'todas as'} loja(s). Volte o filtro para "Todas" e recarregue.`);
+    else if (lojasCmv.length && lojasEst.length && lojasCmv.some(l => !lojasEst.includes(l))) avisos.push(`As lojas do estoque (${lojasEst.join(', ')}) não são as mesmas da consulta (${lojasCmv.join(', ')}).`);
+    if (estoque.pecasSemCusto) avisos.push(`${estoque.pecasSemCusto.toLocaleString('pt-BR')} peças estão sem custo no SavWin: o valor de estoque e de compra sugerida fica menor que o real.`);
+  } else avisos.push('Estoque não carregado: carregue o Estoque encalhado (Avaliação de Produtos) para ter estoque, giro e cobertura por grife.');
+  if (!planosCfg.size && !(typeof cmvFonte !== 'undefined' && c.plano && cmvFonte.filtros[c.plano] && cmvFonte.filtros[c.plano].size)) {
+    avisos.push('Nenhum plano de contas de mercadoria configurado: TODAS as contas em aberto (aluguel, folha, impostos…) entram como compra de mercadoria, e o orçamento de compra sai menor que o real. Marque os planos em Configuração do BI.');
+  }
+  const semEstoque = grifes.filter(g => g['Ação sugerida'] === 'sem estoque no painel').map(g => g['Grife']);
+  if (temEstoque && semEstoque.length) avisos.push(`${semEstoque.length} grife(s) vendida(s) não aparecem no painel de estoque (nome diferente no cadastro ou sem estoque): ${semEstoque.slice(0, 8).join(', ')}${semEstoque.length > 8 ? '…' : ''}.`);
+
   cmvIa.calc = { dias, recebido, vendasLiq, entradaMensal, formas, parcelasFuturas, linhasMes, planos, fornecedores, totalAberto,
     totalMercadoria: mercadoria.reduce((t, l) => t + val(l), 0), grifes, temEstoque, qtdAbertas: abertas.length,
-    fonteMercadoria, linhasCompra: [...linhasCfg] };
+    fonteMercadoria, linhasCompra: [...linhasCfg], estoque, avisos };
 }
 
 // ------------------------------------------------------------------ tela
@@ -209,6 +234,8 @@ function cmvIaRenderizar() {
 
       ${typeof iaLiberada === 'function' && !iaLiberada('compras') ? '<small class="cm-nota">🤖 IA não liberada para você (Configuração do BI › IA). As grades abaixo continuam valendo.</small>' : `<button type="button" id="cmvIaBtn" class="btn-comparar-lojas" onclick="cmvIaAnalisar()" ${cmvIa.carregando ? 'disabled' : ''}>${cmvIa.carregando ? '⏳ A IA está analisando…' : '🤖 Analisar com IA'}</button>`}
     </div>
+    <div class="cmv-cfg-resumo">📦 Estoque: ${k.estoque ? `painel do SavWin (estoque <b>total</b> de cada grife, não só o encalhado) · ${k.estoque.lojas.length ? 'lojas ' + escHTML(k.estoque.lojas.join(', ')) : 'todas as suas lojas'} · ${k.estoque.pecasTotal.toLocaleString('pt-BR')} peças · giro dos últimos ${k.estoque.giroUltimosMeses} meses` : '<b>não carregado</b>'}</div>
+    ${k.avisos.length ? `<div class="cmv-ia-lista cmv-ia-alertas cmv-ia-dados"><b>⚠️ Antes de confiar na análise</b><ul>${k.avisos.map(a => `<li>${escHTML(a)}</li>`).join('')}</ul></div>` : ''}
     <div class="cmv-cfg-resumo">🛒 Compra de mercadoria: <b>${k.linhasCompra.length ? k.linhasCompra.map(escHTML).join(', ') : 'todas as linhas'}</b> · contas de mercadoria pelo <b>${escHTML(k.fonteMercadoria)}</b>${cmvIa.configErro ? ` · <span class="cmv-cfg-msg">${escHTML(cmvIa.configErro)}</span>` : ''}${typeof podeConfigBI === 'function' && podeConfigBI() ? ' · <a class="tv-link" href="/configuracao-bi.html" target="_blank" rel="noopener">alterar em Configuração do BI ↗</a>' : ''}</div>
 
     <div class="cm-cards">
@@ -250,7 +277,7 @@ function cmvIaResumo() {
     contasAbertasTotal: Math.round(k.totalAberto), mercadoriaAbertaTotal: Math.round(k.totalMercadoria),
     porPlanoDeContas: k.planos.slice(0, 20).map(([p, v]) => ({ plano: p, valor: Math.round(v) })),
     porFornecedor: k.fornecedores.slice(0, 20).map(([f, v]) => ({ fornecedor: f, valor: Math.round(v) })),
-    estoqueCarregado: k.temEstoque,
+    estoqueCarregado: k.temEstoque, estoque: k.estoque, qualidadeDosDados: k.avisos,
     linhasDeProdutoCompradasParaEstoque: k.linhasCompra, observacao: 'Lentes não entram na compra para estoque: são compradas quando o óculos é feito.',
     grifes: k.grifes.slice(0, 40).map(g => ({ grife: g['Grife'], linha: g['Linha'], vendasPeriodo: Math.round(g['Vendas no período']), participacaoPct: g['Participação %'],
       estoquePecas: g['Estoque (peças)'], giroMensalPecas: g['Giro mensal (peças)'], coberturaMeses: g['Cobertura (meses)'], acaoCalculada: g['Ação sugerida'],

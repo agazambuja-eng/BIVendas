@@ -945,3 +945,4 @@ th.filtrada { color: #5ee7ff !important; }
 .cmv-cfg-imp { cursor: pointer; position: relative; }
 .cmv-cfg-imp input[type=file] { display: none; }
 .cmv-cfg-lista label[hidden] { display: none; }
+.cmv-ia-dados { border: 1px dashed rgba(255,200,70,.45); border-radius: 10px; padding: 8px 12px; margin: 4px 0 10px; }
