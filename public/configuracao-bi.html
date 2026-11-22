@@ -19,6 +19,7 @@
       <button type="button" data-a="planos" class="ativo" onclick="cfgAba('planos')">📂 Planos de contas</button>
       <button type="button" data-a="usuarios" onclick="cfgAba('usuarios')">🔒 Planos por usuário</button>
       <button type="button" data-a="savwin" onclick="cfgAba('savwin')">🔌 Conexão SavWin por usuário</button>
+      <button type="button" data-a="ia" onclick="cfgAba('ia')">🤖 IA</button>
     </div>
     <div id="cfgbiMsg" class="acesso-msg"></div>
 
@@ -93,6 +94,34 @@
           <thead><tr><th>Usuário</th><th>Identificador</th><th>Login SavWin</th><th>Situação</th><th>Ações</th></tr></thead>
           <tbody id="corpoSavwin"><tr><td colspan="5">Carregando...</td></tr></tbody>
         </table>
+      </div>
+    </section>
+    <!-- 4. Parâmetros da IA -->
+    <section id="abaIa" class="cfgbi-aba" style="display: none;">
+      <p class="acesso-ajuda">Parâmetros das análises com IA (Gemini). As <b>chaves da API</b> continuam guardadas no Render, fora do banco. O servidor confere tudo a cada pedido; mudanças valem em até 1 minuto.</p>
+      <div class="tabela-card cfgbi-bloco">
+        <h3>Contexto da empresa</h3>
+        <small class="acesso-ajuda" style="margin:0">Vai junto em todas as análises. Ex.: "Rede de óticas em Alagoas, público classe B, foco em armações de grife; fornecedores com prazo 30/60/90; evitamos estoque acima de 4 meses."</small>
+        <textarea id="iaContexto" rows="4" maxlength="1500" placeholder="Descreva a empresa, o público, as regras de compra e de preço…"></textarea>
+      </div>
+      <div class="cfgbi-tres" id="iaRelatorios"></div>
+      <div class="cfgbi-duas">
+        <div class="tabela-card cfgbi-bloco">
+          <h3>Modelo e limite</h3>
+          <label>Modelo preferido (opcional) <input type="text" id="iaModelo" maxlength="60" placeholder="vazio = a ordem do Render (GEMINI_MODELS)"></label>
+          <label>Limite de pesquisas com IA por mês <input type="number" id="iaLimite" min="0" step="10" placeholder="0 = o do Render (PRECOS_LIMITE_MES)"></label>
+          <small class="acesso-ajuda" style="margin:0" id="iaUsoInfo"></small>
+        </div>
+        <div class="tabela-card cfgbi-bloco">
+          <div class="cfgbi-ferr"><h3>Quem pode usar a IA</h3>
+            <button type="button" class="acesso-btn-sec" onclick="cfgIaMarcarUsuarios(true)">Marcar todos</button>
+            <button type="button" class="acesso-btn-sec" onclick="cfgIaMarcarUsuarios(false)">Desmarcar todos</button></div>
+          <div class="cfgbi-lista" id="iaUsuarios"></div>
+          <small class="acesso-ajuda" style="margin:0">Desmarcado = o usuário não vê os botões de IA e o servidor recusa.</small>
+        </div>
+      </div>
+      <div class="acesso-botoes cfgbi-rodape">
+        <button type="button" class="acesso-btn" id="btnSalvarIa" onclick="cfgSalvarIa()">💾 Salvar parâmetros da IA</button>
       </div>
     </section>
   </main>

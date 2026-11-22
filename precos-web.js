@@ -33,7 +33,50 @@ function chavesGemini() {
 function modelosGemini() {
   const txt = process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || '';
   const lista = txt.split(/[,;\s]+/).map(m => m.trim()).filter(Boolean);
-  return lista.length ? [...new Set(lista)] : MODELOS_PADRAO;
+  const base = lista.length ? [...new Set(lista)] : MODELOS_PADRAO;
+  const pref = String((cacheIA.valor && cacheIA.valor.modelo) || '').trim();   // modelo preferido (Configuração do BI › IA)
+  return pref ? [pref, ...base.filter(m => m !== pref)] : base;
+}
+
+// ------------------------------------------------------------- parâmetros da IA (Configuração do BI › 🤖 IA)
+/*
+ * configuracoes_bi, chave 'ia' = {
+ *   contexto: "texto sobre a empresa, vai em todas as análises",
+ *   modelo: "modelo preferido (opcional)", limiteMes: 0 (0 = o do Render),
+ *   usuariosBloqueados: [ids de usuários que não usam IA],
+ *   relatorios: { precos: { ativo, regiao, instrucoes }, encalhados: { ... }, compras: { ativo, instrucoes } }
+ * }  — as CHAVES da API continuam só nas variáveis do Render.
+ */
+const RELATORIOS_IA = { precos: 'Preço na web', encalhados: 'Análise de encalhados', compras: 'Compras (CMV)' };
+let lerSupabase = null;
+let cacheIA = { quando: 0, valor: {} };
+async function configIA() {
+  if (lerSupabase && Date.now() - cacheIA.quando > 60 * 1000) {
+    try {
+      const r = await lerSupabase('/rest/v1/configuracoes_bi?chave=eq.ia&select=valor', { method: 'GET' });
+      cacheIA = { quando: Date.now(), valor: (Array.isArray(r) && r[0] && r[0].valor) || {} };
+    } catch (e) { cacheIA = { quando: Date.now(), valor: {} }; }
+  }
+  return cacheIA.valor || {};
+}
+/** Usuário pode usar a IA neste relatório? Senão, erro 403 com o motivo. */
+async function exigirIA(perfil, relatorio) {
+  const c = await configIA();
+  const id = perfil && perfil.id;
+  if (id && Array.isArray(c.usuariosBloqueados) && c.usuariosBloqueados.includes(id)) {
+    throw Object.assign(new Error('Seu usuário não tem acesso à IA. Fale com o administrador.'), { http: 403 });
+  }
+  const r = (c.relatorios || {})[relatorio] || {};
+  if (r.ativo === false) throw Object.assign(new Error(`A IA está desligada para "${RELATORIOS_IA[relatorio] || relatorio}" (Configuração do BI › IA).`), { http: 403 });
+  return { c, r };
+}
+/** Contexto da empresa + instruções do relatório, para juntar ao pedido. */
+function textoExtraIA(c, r) {
+  const limpa = (t, n) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, n);
+  const partes = [];
+  if (limpa(c.contexto)) partes.push(`CONTEXTO DA EMPRESA (considere nas recomendações): ${limpa(c.contexto, 1500)}`);
+  if (limpa(r.instrucoes)) partes.push(`INSTRUÇÕES DA EMPRESA PARA ESTE RELATÓRIO: ${limpa(r.instrucoes, 1000)}`);
+  return partes.join('\n');
 }
 function combinacoesGemini() {
   const chaves = chavesGemini();
@@ -62,7 +105,11 @@ function precoNumero(v) {
 }
 
 function mesAtual() { return new Date().toISOString().slice(0, 7); }
-function limiteMes() { const n = Number(process.env.PRECOS_LIMITE_MES); return n > 0 ? n : 500; }
+function limiteMes() {
+  const cfg = Number(cacheIA.valor && cacheIA.valor.limiteMes);
+  if (cfg > 0) return cfg;
+  const n = Number(process.env.PRECOS_LIMITE_MES); return n > 0 ? n : 500;
+}
 function situacaoUso() {
   if (uso.mes !== mesAtual()) { uso.mes = mesAtual(); uso.pesquisas = 0; }
   return { usadas: uso.pesquisas, limite: limiteMes() };
@@ -258,16 +305,16 @@ function origemDaOferta(o) {
   return ['instagram', 'facebook', 'tiktok', 'marketplace'].find(x => dito.includes(x)) || 'site';
 }
 
-async function pesquisarComIA({ nome, termo, chaves, regiao, alcance = 'todas', redes = false }) {
+async function pesquisarComIA({ nome, termo, chaves, regiao, alcance = 'todas', redes = false, extra = '' }) {
   if (!chavesGemini().length) {
     throw Object.assign(new Error('Pesquisa com IA não configurada: falta a variável GEMINI_API_KEY no Render.'), { http: 503 });
   }
-  const k = `${nome.toUpperCase()}|${regiao}|${chaves.corNome || ''}|${alcance}|${redes ? 'r' : ''}`;
+  const k = `${nome.toUpperCase()}|${regiao}|${chaves.corNome || ''}|${alcance}|${redes ? 'r' : ''}|${extra.length}:${extra.slice(0, 40)}`;
   const c = cache.get(k);
   if (c && Date.now() - c.quando < VALIDADE_MS) return { ...c.resultado, doCache: true, uso: situacaoUso() };
   const u = situacaoUso();
   if (u.usadas >= u.limite) throw Object.assign(new Error(`Limite de ${u.limite} pesquisas com IA neste mês atingido (PRECOS_LIMITE_MES).`), { http: 429 });
-  const { textoResp, fontes, consultas, modelo, chaveN, tentativas } = await perguntarGemini(montarPedido(nome, termo, chaves, regiao, alcance, redes));
+  const { textoResp, fontes, consultas, modelo, chaveN, tentativas } = await perguntarGemini(montarPedido(nome, termo, chaves, regiao, alcance, redes) + (extra ? `\n\n${extra}` : ''));
   uso.pesquisas++;
   const json = jsonDoTexto(textoResp) || { ofertas: [] };
   let ofertas = (Array.isArray(json.ofertas) ? json.ofertas : []).slice(0, 12).map(o => ({
@@ -338,16 +385,26 @@ DADOS:
 ${JSON.stringify(resumo)}`;
 }
 
-function registrarRotaPrecos(app, { exigirUsuario, exigirAba = () => (q, r, n) => n() }) {
+function registrarRotaPrecos(app, { exigirUsuario, exigirAba = () => (q, r, n) => n(), chamarSupabaseAdmin }) {
+  if (typeof chamarSupabaseAdmin === 'function') lerSupabase = chamarSupabaseAdmin;
+  /** O que o usuário logado pode usar de IA (para o BI esconder os botões). */
+  app.get('/ia/acesso', exigirUsuario('acessar_bi'), async (req, res) => {
+    const c = await configIA();
+    const bloqueado = Array.isArray(c.usuariosBloqueados) && c.usuariosBloqueados.includes(req.usuario && req.usuario.id);
+    const rel = Object.fromEntries(Object.keys(RELATORIOS_IA).map(k => [k, !bloqueado && ((c.relatorios || {})[k] || {}).ativo !== false]));
+    res.json({ bloqueado, relatorios: rel, regioes: Object.fromEntries(Object.keys(RELATORIOS_IA).map(k => [k, ((c.relatorios || {})[k] || {}).regiao || ''])) });
+  });
   app.post('/ia/compras', exigirUsuario('acessar_bi'), exigirAba('cmv'), async (req, res) => {
     try {
+      const { c: cIA, r: rIA } = await exigirIA(req.usuario, 'compras');
       const resumo = req.body && req.body.resumo;
       if (!resumo || typeof resumo !== 'object') return res.status(400).json({ error: 'Faltou o resumo para a análise.' });
       const texto = JSON.stringify(resumo);
       if (texto.length > 120000) return res.status(413).json({ error: 'Resumo grande demais para a IA (reduza o período ou as grifes).' });
       const u = situacaoUso();
       if (u.usadas >= u.limite) return res.status(429).json({ error: `Limite de ${u.limite} pesquisas com IA no mês atingido.` });
-      const r = await perguntarGemini(montarPedidoCompras(resumo), { pesquisa: false });
+      const extra = textoExtraIA(cIA, rIA);
+      const r = await perguntarGemini(montarPedidoCompras(resumo) + (extra ? `\n\n${extra}` : ''), { pesquisa: false });
       uso.pesquisas++;
       const j = jsonDoTexto(r.textoResp);
       if (!j) throw Object.assign(new Error('A IA não devolveu uma resposta válida. Tente de novo.'), { http: 502 });
@@ -366,7 +423,10 @@ function registrarRotaPrecos(app, { exigirUsuario, exigirAba = () => (q, r, n) =
       if (nome.length < 3) return res.status(400).json({ error: 'Informe o produto a pesquisar.' });
       const chaves = { modelo: limpa(b.modelo, 30), cor: limpa(b.cor, 30), tamanho: limpa(b.tamanho, 10), corNome: limpa(b.corNome, 40), modeloSavwin: limpa(b.modeloSavwin, 40) };
       const alcance = ['todas', 'fisicas', 'internet'].includes(b.alcance) ? b.alcance : 'todas';
-      res.json(await pesquisarComIA({ nome, termo: limpa(b.termo || nome, 150), chaves, regiao: limpa(b.regiao, 80), alcance, redes: b.redes === true }));
+      const relatorio = b.origem === 'encalhados' ? 'encalhados' : 'precos';
+      const { c: cIA, r: rIA } = await exigirIA(req.usuario, relatorio);
+      const regiao = limpa(b.regiao, 80) || limpa(rIA.regiao, 80);     // sem região escolhida: a padrão do relatório
+      res.json(await pesquisarComIA({ nome, termo: limpa(b.termo || nome, 150), chaves, regiao, alcance, redes: b.redes === true, extra: textoExtraIA(cIA, rIA) }));
     } catch (err) {
       console.error('Erro na pesquisa de preços com IA:', err.message);
       res.status(err.http || 500).json({ error: err.message });

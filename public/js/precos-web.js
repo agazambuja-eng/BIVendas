@@ -439,6 +439,7 @@ function pwRenderizar() {
 
 /** Botão 🛒 que abre o modal (para pôr ao lado da lupa). */
 function botaoPrecoWeb(p, ref) {
+  if (typeof iaLiberada === 'function' && !iaLiberada('precos')) return '';
   const termo = typeof termoBuscaProduto === 'function' ? termoBuscaProduto(p) : String(p.descricao || '');
   if (!termo) return '';
   const refs = [].concat(ref || []).filter(r => r && r.valor > 0);
