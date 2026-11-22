@@ -43,7 +43,7 @@ const ee = {
 // ---------------------------------------------------------------- utilidades
 const fmtPc = n => (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 const fmtR = n => formatarMoedaBR(Number(n) || 0);
-const fmtRc = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+const fmtRc = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtCob = c => c === Infinity ? '<span class="ee-sem-giro" title="Sem venda no período do giro">sem giro</span>'
   : !isFinite(c) ? '—' : c.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 const normDesc = s => String(s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
