@@ -127,6 +127,22 @@ const HEADERS_SAVWIN = {
   "Identificador": "09983-0000"
 };
 
+// Planos de contas liberados por usuário (configuracoes_bi, chave cmv_planos_por_usuario); 60 s em memória
+let cachePlanosUsuario = { quando: 0, valor: null };
+async function planosDoUsuario(perfil) {
+  if (!perfil || !perfil.id) return null;
+  if (Date.now() - cachePlanosUsuario.quando > 60 * 1000) {
+    try {
+      const r = await chamarSupabaseAdmin('/rest/v1/configuracoes_bi?chave=eq.cmv_planos_por_usuario&select=valor', { method: 'GET' });
+      cachePlanosUsuario = { quando: Date.now(), valor: (Array.isArray(r) && r[0] && r[0].valor) || {} };
+    } catch (e) {
+      cachePlanosUsuario = { quando: Date.now(), valor: {} };   // tabela ainda não criada: sem restrição
+    }
+  }
+  const lista = cachePlanosUsuario.valor[perfil.id];
+  return Array.isArray(lista) && lista.length ? lista : null;
+}
+
 // 3b. Contas a pagar (ContasPagarPagasGrid) · aba CMV
 // FILID = lojas do usuário (códigos, como nas outras rotas); vencimento de/até (dd/mm/aaaa).
 const dataParaBR = v => {
@@ -158,8 +174,21 @@ app.post("/consulta-contas-pagar", exigirUsuario("acessar_bi"), exigirAba("cmv")
     let dados;
     try { dados = JSON.parse(texto); } catch { throw new Error(`Resposta inesperada da API: ${texto.slice(0, 150)}`); }
     if (typeof dados === "string") { try { dados = JSON.parse(dados); } catch { dados = []; } }
-    const linhas = Array.isArray(dados) ? dados : (dados && (dados.Resultado || dados.resultado || dados.Dados || dados.data)) || [];
-    res.json({ filtro: { ...body }, linhas: Array.isArray(linhas) ? linhas : [] });
+    let linhas = Array.isArray(dados) ? dados : (dados && (dados.Resultado || dados.resultado || dados.Dados || dados.data)) || [];
+    if (!Array.isArray(linhas)) linhas = [];
+    // planos de contas liberados para o usuário (Configuração do BI › Planos por usuário); vazio = todos
+    const liberados = await planosDoUsuario(req.usuario);
+    let ocultas = 0;
+    if (liberados && linhas.length) {
+      const campo = Object.keys(linhas[0]).find(k => /^PLANOCONTAS$/i.test(k)) || Object.keys(linhas[0]).find(k => /PLANO/i.test(k));
+      if (campo) {
+        const ok = new Set(liberados.map(p => String(p).trim().toUpperCase()));
+        const antes = linhas.length;
+        linhas = linhas.filter(l => ok.has(String(l[campo] ?? '').trim().toUpperCase()));
+        ocultas = antes - linhas.length;
+      }
+    }
+    res.json({ filtro: { ...body }, linhas, planosRestritos: !!liberados, ocultas });
   } catch (error) {
     console.error("Erro no servidor (/consulta-contas-pagar):", error.message);
     res.status(500).json({ error: error.message });

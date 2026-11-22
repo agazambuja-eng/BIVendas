@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuração do BI · BI Vendas</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Configurações<span>configuração do BI</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+  <nav class="submenu-config so-logado" id="submenuConfig"></nav>
+
+  <main class="acesso-conteudo so-logado cfgbi">
+    <div class="cfgbi-abas" id="cfgbiAbas">
+      <button type="button" data-a="planos" class="ativo" onclick="cfgAba('planos')">📂 Planos de contas</button>
+      <button type="button" data-a="usuarios" onclick="cfgAba('usuarios')">🔒 Planos por usuário</button>
+      <button type="button" data-a="savwin" onclick="cfgAba('savwin')">🔌 Conexão SavWin por usuário</button>
+    </div>
+    <div id="cfgbiMsg" class="acesso-msg"></div>
+
+    <!-- 1. Planos de contas e linhas de produto -->
+    <section id="abaPlanos" class="cfgbi-aba">
+      <p class="acesso-ajuda">Os nomes aparecem sozinhos a cada consulta do CMV (gravados sem duplicar). Aqui você marca quais planos são <b>compra de mercadoria</b> e quais linhas de produto são <b>compradas para estoque</b>, importa de CSV/Excel ou inclui à mão.</p>
+      <div class="cfgbi-duas">
+        <div class="tabela-card cfgbi-bloco">
+          <div class="cfgbi-ferr">
+            <h3>Planos de contas</h3>
+            <input type="search" placeholder="filtrar…" oninput="cfgFiltrar('planos', this.value)">
+            <button type="button" class="acesso-btn-sec" onclick="cfgMarcarVisiveis('planos', true)">Marcar visíveis</button>
+            <button type="button" class="acesso-btn-sec" onclick="cfgMarcarVisiveis('planos', false)">Desmarcar visíveis</button>
+          </div>
+          <div class="cfgbi-ferr">
+            <input type="text" id="novoPlano" placeholder="novo plano de contas" maxlength="120" onkeydown="if (event.key === 'Enter') cfgIncluir('planos')">
+            <button type="button" class="acesso-btn-sec" onclick="cfgIncluir('planos')">＋ Incluir</button>
+            <label class="acesso-btn-sec cfgbi-arq" title="CSV ou Excel: 1ª coluna = nome; 2ª coluna (opcional) = S/N para mercadoria">📥 Importar CSV/Excel<input type="file" accept=".csv,.txt,.xlsx,.xls" onchange="cfgImportar('planos', this)"></label>
+          </div>
+          <div class="cfgbi-lista" id="listaPlanos"></div>
+          <small class="acesso-ajuda" id="contaPlanos"></small>
+        </div>
+        <div class="tabela-card cfgbi-bloco">
+          <div class="cfgbi-ferr">
+            <h3>Linhas de produto compradas para estoque</h3>
+            <input type="search" placeholder="filtrar…" oninput="cfgFiltrar('linhas', this.value)">
+          </div>
+          <div class="cfgbi-ferr">
+            <input type="text" id="novaLinha" placeholder="nova linha (ex.: ARMACAO RX)" maxlength="80" onkeydown="if (event.key === 'Enter') cfgIncluir('linhas')">
+            <button type="button" class="acesso-btn-sec" onclick="cfgIncluir('linhas')">＋ Incluir</button>
+            <label class="acesso-btn-sec cfgbi-arq">📥 Importar CSV/Excel<input type="file" accept=".csv,.txt,.xlsx,.xls" onchange="cfgImportar('linhas', this)"></label>
+          </div>
+          <div class="cfgbi-lista" id="listaLinhas"></div>
+          <small class="acesso-ajuda">Lentes normalmente ficam desmarcadas: só se compra quando o óculos é feito.</small>
+        </div>
+      </div>
+      <div class="acesso-botoes cfgbi-rodape">
+        <button type="button" class="acesso-btn-sec" onclick="cfgExportarPlanos()">⬇ Exportar lista (CSV)</button>
+        <button type="button" class="acesso-btn" id="btnSalvarPlanos" onclick="cfgSalvarPlanos()">💾 Salvar</button>
+      </div>
+    </section>
+
+    <!-- 2. Planos de contas por usuário -->
+    <section id="abaUsuarios" class="cfgbi-aba" style="display: none;">
+      <p class="acesso-ajuda">Escolha o usuário e os planos de contas que ele pode ver na aba CMV (contas a pagar, análise e compras com IA). <b>Nenhum marcado = vê todos.</b> O servidor também aplica o filtro.</p>
+      <div class="cfgbi-duas">
+        <div class="tabela-card cfgbi-bloco">
+          <h3>Usuários</h3>
+          <input type="search" placeholder="buscar usuário…" oninput="cfgListaUsuarios(this.value)">
+          <div class="cfgbi-lista" id="listaUsuariosPlanos"></div>
+        </div>
+        <div class="tabela-card cfgbi-bloco">
+          <div class="cfgbi-ferr">
+            <h3 id="tituloPlanosUsuario">Selecione um usuário</h3>
+            <input type="search" placeholder="filtrar…" oninput="cfgFiltrar('planosUsuario', this.value)">
+            <button type="button" class="acesso-btn-sec" onclick="cfgMarcarVisiveis('planosUsuario', true)">Marcar visíveis</button>
+            <button type="button" class="acesso-btn-sec" onclick="cfgMarcarVisiveis('planosUsuario', false)">Desmarcar visíveis</button>
+          </div>
+          <div class="cfgbi-lista" id="listaPlanosUsuario"></div>
+          <div class="acesso-botoes">
+            <button type="button" class="acesso-btn" id="btnSalvarPlanosUsuario" onclick="cfgSalvarPlanosUsuario()" disabled>💾 Salvar para este usuário</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Conexão SavWin de cada usuário -->
+    <section id="abaSavwin" class="cfgbi-aba" style="display: none;">
+      <p class="acesso-ajuda">Acesso ao SavWin usado no Estoque encalhado e na Comissão. O BI testa o login antes de gravar; a senha fica cifrada e nunca aparece de volta. Cada usuário também pode cadastrar o próprio em "🔌 Conexão SavWin".</p>
+      <div class="tabela-card">
+        <table class="tabela-usuarios">
+          <thead><tr><th>Usuário</th><th>Identificador</th><th>Login SavWin</th><th>Situação</th><th>Ações</th></tr></thead>
+          <tbody id="corpoSavwin"><tr><td colspan="5">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="modalSavwin" class="acesso-modal-fundo">
+    <form class="acesso-modal" autocomplete="off" onsubmit="return cfgSalvarSavwin(event)">
+      <h3 id="tituloSavwin">Conexão SavWin</h3>
+      <label>Identificador <input type="text" id="svIdent" required placeholder="ex.: 09983-ONE" autocomplete="off"></label>
+      <label>Login <input type="text" id="svLogin" required autocomplete="off"></label>
+      <label>Senha <input type="password" id="svSenha" autocomplete="new-password"></label>
+      <div id="svMsg" class="acesso-msg"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" id="svRemover" onclick="cfgRemoverSavwin()">Remover acesso</button>
+        <button type="button" class="acesso-btn-sec" onclick="document.getElementById('modalSavwin').style.display = 'none'">Cancelar</button>
+        <button type="submit" class="acesso-btn" id="svSalvar">Testar e salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/configuracao-bi.js"></script>
+</body>
+</html>

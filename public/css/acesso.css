@@ -433,3 +433,23 @@ html:has(body.compras-escuro) { background: #080b1f; }
 .compras-escuro { background-color: #080b1f; background-attachment: scroll; }
 .lista-abas-usuario { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 @media (max-width: 560px) { .lista-abas-usuario { grid-template-columns: 1fr; } }
+
+/* Configuração do BI */
+.cfgbi-abas { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 12px; }
+.cfgbi-abas button { border: 1px solid #d0d7e2; background: #fff; color: #333; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.cfgbi-abas button.ativo { background: var(--azul); border-color: var(--azul); color: #fff; }
+.cfgbi-duas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) { .cfgbi-duas { grid-template-columns: minmax(0, 1fr); } }
+.cfgbi-bloco { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.cfgbi-bloco h3 { margin: 0; font-size: 15px; flex: 1 1 100%; }
+.cfgbi-ferr { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cfgbi-ferr input[type=search], .cfgbi-ferr input[type=text] { flex: 1; min-width: 150px; padding: 6px 9px; border: 1px solid #ccd3dd; border-radius: 6px; }
+.cfgbi-ferr .acesso-btn-sec { padding: 6px 10px; font-size: 12px; }
+.cfgbi-arq { cursor: pointer; display: inline-flex; align-items: center; }
+.cfgbi-arq input[type=file] { display: none; }
+.cfgbi-lista { max-height: 380px; overflow-y: auto; border: 1px solid #e3e8ef; border-radius: 8px; padding: 4px 8px; display: flex; flex-direction: column; }
+.cfgbi-lista label[hidden] { display: none; }
+.cfgbi-rodape { margin-top: 12px; }
+.cfgbi-usuario { display: flex; flex-direction: column; align-items: flex-start; text-align: left; border: 0; border-bottom: 1px solid #eef1f5; background: none; padding: 8px 6px; cursor: pointer; }
+.cfgbi-usuario small { color: var(--texto-suave); }
+.cfgbi-usuario.ativo { background: #eaf3ff; border-left: 3px solid var(--azul); }

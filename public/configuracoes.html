@@ -26,6 +26,11 @@
         <h2>Cadastro de vendedores</h2>
         <p>Código do ERP, loja e turno da meta (☀️ manhã ou 🌙 tarde). Importa direto do ERP.</p>
       </a>
+      <a class="inicio-opcao config" id="opcaoConfigBI" href="/configuracao-bi.html" style="display: none;">
+        <div class="icone">📊</div>
+        <h2>Configuração do BI</h2>
+        <p>Planos de contas (importar e classificar), planos por usuário e conexão SavWin de cada usuário.</p>
+      </a>
     </div>
     <p class="acesso-ajuda" style="margin-top: 18px;">As metas por loja continuam no ⚙ dentro do BI.</p>
   </main>
@@ -39,6 +44,7 @@
       if (!podeAlgumaConfig()) { location.replace('/inicio.html?semAcesso=gerenciar_usuarios'); return; }
       document.getElementById('opcaoUsuarios').style.display = podeConfigUsuarios() ? '' : 'none';
       document.getElementById('opcaoVendedores').style.display = podeConfigVendedores() ? '' : 'none';
+      document.getElementById('opcaoConfigBI').style.display = podeConfigBI() ? '' : 'none';
     })();
   </script>
 </body>

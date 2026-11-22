@@ -343,6 +343,40 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, exigi
     }
   });
 
+  /** Administrador cadastra / troca / remove o acesso SavWin de OUTRO usuário (testa o login antes de gravar). */
+  app.post('/savwin/conexao-usuario', exigirUsuario('gerenciar_usuarios'), async (req, res) => {
+    try {
+      if (typeof chamarSupabaseAdmin !== 'function') throw new Error('Servidor sem acesso de gravação ao Supabase.');
+      const b = req.body || {};
+      const alvo = String(b.usuarioId || '');
+      if (!/^[0-9a-f-]{36}$/i.test(alvo)) throw new Error('Usuário inválido.');
+      let campos;
+      if (b.remover === true) {
+        campos = { identificadorsav: null, loginsav: null, senhasav: null };
+      } else {
+        const identificador = String(b.identificador || '').trim();
+        const login = String(b.login || '').trim();
+        let senha = String(b.senha || '');
+        if (!identificador || !login) throw new Error('Preencha identificador e login.');
+        if (!senha) {
+          const atual = await chamarSupabaseAdmin(`/rest/v1/usuarios?id=eq.${encodeURIComponent(alvo)}&select=senhasav`, { method: 'GET' });
+          const cif = Array.isArray(atual) && atual[0] ? atual[0].senhasav : '';
+          if (!cif) throw new Error('Informe a senha do SavWin.');
+          senha = decifrar(cif);
+        }
+        await conectar({ identificador, login, senha });                      // testa antes de gravar
+        campos = { identificadorsav: identificador, loginsav: login, senhasav: cifrar(senha) };
+      }
+      await chamarSupabaseAdmin(`/rest/v1/usuarios?id=eq.${encodeURIComponent(alvo)}`, { method: 'PATCH', body: campos, prefer: 'return=minimal' });
+      sessoes.delete(alvo);                                                    // o usuário reconecta com o acesso novo
+      if (cachePerfis && cachePerfis.clear) cachePerfis.clear();
+      res.json({ ok: true, configurado: !!campos.loginsav, identificador: campos.identificadorsav, usuarioSavwin: campos.loginsav });
+    } catch (err) {
+      console.error('Falha ao salvar a conexão SavWin de outro usuário:', err.message);
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   app.post('/savwin/estoque', exigirUsuario('acessar_bi'), exigirAba('produtos'), restringirLojas, async (req, res) => {
     try {
       const s = await obterSessao(req);
