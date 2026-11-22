@@ -60,7 +60,7 @@ async function cmvConsultar() {
     if (typeof cmvIaRegistrarDaConsulta === 'function') { if (!cmvIa.configCarregada) cmvIaCarregarConfig().then(cmvIaRegistrarDaConsulta); else cmvIaRegistrarDaConsulta(); }
     if (typeof cmvIaAoAbrir === 'function' && document.getElementById('cmvPainelIa')?.style.display !== 'none') cmvIaAoAbrir();
     const info = document.getElementById('cmvInfo');
-    if (info) info.textContent = `Consulta de ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · lojas ${lojas.length ? lojas.join(', ') : 'todas'} · vencimento ${v1.split('-').reverse().join('/')} a ${v2.split('-').reverse().join('/')}`;
+    if (info) info.textContent = (j.planosRestritos ? '🔒 Só os planos de contas liberados para você · ' : '') + `Consulta de ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · lojas ${lojas.length ? lojas.join(', ') : 'todas'} · vencimento ${v1.split('-').reverse().join('/')} a ${v2.split('-').reverse().join('/')}`;
     cmvStatus('');
   } catch (e) {
     cmvStatus(`⚠️ ${escHTML(e.message)}`);

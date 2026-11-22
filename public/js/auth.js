@@ -226,14 +226,16 @@ function podeConfigVendedores() {
   return temPermissao('acessar_bi') && ['criar_metas', 'alterar_metas', 'excluir_metas'].some(p => temPermissao(p));
 }
 function podeCompras() { return temPermissao('solicitar_compras') || temPermissao('aprovar_compras'); }
-function podeAlgumaConfig() { return podeConfigUsuarios() || podeConfigVendedores(); }
+function podeConfigBI() { return temPermissao('gerenciar_usuarios') || temPermissao('aprovar_compras'); }
+function podeAlgumaConfig() { return podeConfigUsuarios() || podeConfigVendedores() || podeConfigBI(); }
 
 /** Abas "⚙ Configurações › Usuários | Vendedores" no topo das páginas de configuração. */
 function montarSubmenuConfig(elemento, ativo) {
   if (!elemento) return;
   const itens = [
     { id: 'usuarios', href: '/usuarios.html', texto: '👤 Usuários', pode: podeConfigUsuarios() },
-    { id: 'vendedores', href: '/vendedores.html', texto: '👥 Vendedores', pode: podeConfigVendedores() }
+    { id: 'vendedores', href: '/vendedores.html', texto: '👥 Vendedores', pode: podeConfigVendedores() },
+    { id: 'bi', href: '/configuracao-bi.html', texto: '📊 Configuração do BI', pode: podeConfigBI() }
   ].filter(i => i.pode);
   elemento.innerHTML = `<a href="/configuracoes.html" class="submenu-raiz">⚙️ Configurações</a><span class="submenu-sep">›</span>` +
     itens.map(i => `<a href="${i.href}" class="submenu-item ${i.id === ativo ? 'ativo' : ''}">${i.texto}</a>`).join('');
