@@ -8,7 +8,7 @@
  * O BI calcula tudo (grades) e a IA (Gemini) lê o resumo e recomenda: comprar ou não, quanto e de quais grifes.
  */
 const cmvIa = { params: { cmvAlvo: 40, reserva: 10, cobertura: 3 }, calc: null, ia: null, carregando: false,
-  config: null, configCarregada: false, configErro: '', verConfig: false, paramsLocais: false };
+  config: null, configCarregada: false, configErro: '', paramsLocais: false };
 try { const l = JSON.parse(localStorage.getItem('bi_cmv_ia_params') || 'null'); if (l) { Object.assign(cmvIa.params, l); cmvIa.paramsLocais = true; } } catch { /* sem armazenamento */ }
 
 /* ---------- configuração da empresa (tabela configuracoes_bi, chave cmv_compras) ----------
@@ -63,102 +63,6 @@ async function cmvIaCarregarConfig() {
   }
   if (!cmvIa.paramsLocais) ['cmvAlvo', 'reserva', 'cobertura'].forEach(k => { if (cmvIa.config[k] !== undefined) cmvIa.params[k] = Number(cmvIa.config[k]); });
 }
-async function cmvIaSalvarConfig() {
-  const marcados = cls => [...document.querySelectorAll(`.${cls} input:checked`)].map(i => i.value);
-  const valor = { linhas: marcados('cmv-cfg-linhas'), planos: marcados('cmv-cfg-planos'), cmvAlvo: cmvIa.params.cmvAlvo, reserva: cmvIa.params.reserva, cobertura: cmvIa.params.cobertura };
-  const msg = document.getElementById('cmvCfgMsg');
-  if (!valor.linhas.length) { if (msg) msg.textContent = 'Marque pelo menos uma linha de produto.'; return; }
-  try {
-    const { error } = await supabaseBI.from('configuracoes_bi').upsert({ chave: 'cmv_compras', valor }, { onConflict: 'chave' });
-    if (error) throw error;
-    cmvIa.config = { ...CMV_CONFIG_PADRAO, ...valor };
-    cmvIa.configQuando = new Date().toISOString();
-    cmvIa.configErro = ''; cmvIa.verConfig = false; cmvIa.marcacao = null; cmvIa.importado = null; cmvIa.msgImport = '';
-    try { localStorage.removeItem('bi_cmv_ia_params'); } catch { /* sem armazenamento */ }
-    cmvIa.paramsLocais = false;
-    cmvIaCalcular(); cmvIaRenderizar();
-  } catch (e) {
-    if (msg) msg.textContent = /configuracoes_bi|relation|schema cache|does not exist/i.test(e.message || '') ? 'Rode no Supabase o arquivo database/13_configuracoes_bi.sql e tente de novo.' : `Não foi possível salvar: ${e.message}`;
-  }
-}
-function cmvIaPainelConfig(k) {
-  const cfg = cmvIa.config || CMV_CONFIG_PADRAO, pode = cmvIaPodeConfigurar();
-  const itens = typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : [];
-  const imp = cmvIa.importado || { linhas: [], planos: [] };
-  const linhas = [...new Set([...cfg.linhas, ...cmvIa.catalogo.linhas, ...imp.linhas, ...itens.map(i => String(i.LINHA || '').trim().toUpperCase()).filter(Boolean)])].sort();
-  const planos = [...new Set([...(cfg.planos || []), ...cmvIa.catalogo.planos, ...imp.planos, ...k.planos.map(([p]) => p)])].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const marcLinhas = cmvIa.marcacao ? cmvIa.marcacao.linhas : cfg.linhas, marcPlanos = cmvIa.marcacao ? cmvIa.marcacao.planos : (cfg.planos || []);
-  const ferramentas = tipo => pode ? `<div class="cmv-cfg-ferr">
-      <input type="search" placeholder="filtrar…" oninput="cmvIaFiltrarCfg('${tipo}', this.value)">
-      <button type="button" class="tv-link" onclick="cmvIaMarcarCfg('${tipo}', true)">marcar visíveis</button>
-      <button type="button" class="tv-link" onclick="cmvIaMarcarCfg('${tipo}', false)">desmarcar visíveis</button>
-      <label class="tv-link cmv-cfg-imp" title="Arquivo CSV ou Excel: 1ª coluna = nome; 2ª coluna (opcional) = S/N para marcar. Sem 2ª coluna, tudo do arquivo fica marcado.">📥 Importar CSV/Excel<input type="file" accept=".csv,.txt,.xlsx,.xls" onchange="cmvIaImportar('${tipo}', this)"></label>
-    </div>` : '';
-  const caixa = (cls, lista, marcados) => `<div class="cmv-cfg-lista ${cls}">${lista.map(v => `<label class="pf-item"><input type="checkbox" value="${escHTML(v)}" ${marcados.includes(v) ? 'checked' : ''} ${pode ? '' : 'disabled'}><span>${escHTML(v)}</span></label>`).join('') || '<small>Sem valores: consulte o BI e as contas a pagar.</small>'}</div>`;
-  return `<div class="cmv-cfg">
-    <div class="cmv-cfg-col"><b>Linhas de produto que se compra para estoque</b><small>Lentes ficam de fora: só se compra quando o óculos é feito.</small>${ferramentas('linhas')}${caixa('cmv-cfg-linhas', linhas, marcLinhas)}</div>
-    <div class="cmv-cfg-col"><b>Planos de contas que são compra de mercadoria</b><small>Nenhum marcado = usa o filtro de plano de contas da Análise CMV.</small>${ferramentas('planos')}${caixa('cmv-cfg-planos', planos, marcPlanos)}</div>
-    <div class="cmv-cfg-rodape">${pode ? `<small>Os parâmetros atuais (CMV alvo ${cmvIa.params.cmvAlvo}%, reserva ${cmvIa.params.reserva}%, cobertura ${cmvIa.params.cobertura} meses) também viram o padrão da empresa.</small>
-      <span id="cmvCfgMsg" class="cmv-cfg-msg">${escHTML(cmvIa.msgImport || '')}</span>
-      <button type="button" class="tv-link" onclick="cmvIaExportarCfg()">⬇ Exportar lista (CSV)</button>
-      <button type="button" class="btn-comparar-lojas" onclick="cmvIaSalvarConfig()">💾 Salvar para todos</button>` : '<small>Só o administrador ou quem tem "Configuração do BI" altera esta configuração.</small>'}</div>
-  </div>`;
-}
-/** Guarda o que está marcado na tela (para não perder ao redesenhar). */
-function cmvIaGuardarMarcacao() {
-  const m = cls => [...document.querySelectorAll(`.${cls} input:checked`)].map(i => i.value);
-  if (document.querySelector('.cmv-cfg-linhas')) cmvIa.marcacao = { linhas: m('cmv-cfg-linhas'), planos: m('cmv-cfg-planos') };
-}
-function cmvIaFiltrarCfg(tipo, txt) {
-  const t = String(txt || '').trim().toUpperCase();
-  document.querySelectorAll(`.cmv-cfg-${tipo} label`).forEach(l => { l.hidden = !!t && !l.textContent.toUpperCase().includes(t); });
-}
-function cmvIaMarcarCfg(tipo, marcar) {
-  document.querySelectorAll(`.cmv-cfg-${tipo} label:not([hidden]) input`).forEach(i => { i.checked = marcar; });
-}
-/** Lê CSV (; , ou tab) ou Excel: 1ª coluna nome, 2ª coluna opcional S/N. */
-async function cmvIaImportar(tipo, input) {
-  const arq = input.files && input.files[0];
-  input.value = '';
-  if (!arq) return;
-  let linhas = [];
-  try {
-    if (/\.xlsx?$/i.test(arq.name)) {
-      if (typeof aiCarregarXLSX !== 'function') throw new Error('leitor de Excel indisponível; salve como CSV');
-      const XLSX = await aiCarregarXLSX();
-      const wb = XLSX.read(await arq.arrayBuffer(), { type: 'array' });
-      linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false });
-    } else {
-      const txt = await arq.text();
-      const sep = (txt.split(/\r?\n/)[0].match(/;|\t|,/) || [';'])[0];
-      linhas = txt.split(/\r?\n/).map(l => l.split(sep).map(x => x.replace(/^"|"$/g, '').trim()));
-    }
-  } catch (e) { cmvIa.msgImport = `Não consegui ler o arquivo: ${e.message}`; cmvIaRenderizar(); return; }
-  linhas = linhas.filter(l => l && String(l[0] || '').trim());
-  if (linhas.length && /^(nome|plano|linha|descri)/i.test(String(linhas[0][0]))) linhas.shift();   // cabeçalho
-  const temMarca = linhas.some(l => l[1] !== undefined && String(l[1]).trim() !== '');
-  const norm = n => tipo === 'linhas' ? String(n).trim().toUpperCase() : String(n).trim();
-  const nomes = linhas.map(l => norm(l[0]));
-  const marcar = linhas.filter(l => !temMarca || /^(s|sim|x|1|true|y|yes)$/i.test(String(l[1] || '').trim())).map(l => norm(l[0]));
-  cmvIaGuardarMarcacao();
-  const cfg = cmvIa.config || CMV_CONFIG_PADRAO;
-  const atual = cmvIa.marcacao || { linhas: [...cfg.linhas], planos: [...(cfg.planos || [])] };
-  cmvIa.importado = cmvIa.importado || { linhas: [], planos: [] };
-  cmvIa.importado[tipo] = [...new Set([...cmvIa.importado[tipo], ...nomes])];
-  const desmarcar = temMarca ? new Set(nomes.filter(n => !marcar.includes(n))) : new Set();
-  atual[tipo] = [...new Set([...atual[tipo].filter(n => !desmarcar.has(n)), ...marcar])];
-  cmvIa.marcacao = atual;
-  cmvIa.msgImport = `${nomes.length} nome(s) lido(s), ${marcar.length} marcado(s). Confira e clique em Salvar para todos.`;
-  cmvIaRegistrarCatalogo(tipo, nomes);
-  cmvIaRenderizar();
-}
-function cmvIaExportarCfg() {
-  cmvIaGuardarMarcacao();
-  const lista = (cls, tipo) => [...document.querySelectorAll(`.${cls} input`)].map(i => [tipo, i.value, i.checked ? 'S' : 'N']);
-  const linhas = [...lista('cmv-cfg-linhas', 'linha de produto'), ...lista('cmv-cfg-planos', 'plano de contas')];
-  if (typeof epBaixarPlanilha === 'function') epBaixarPlanilha(['Tipo', 'Nome', 'Marcado (S/N)'], linhas, 'configuracao_compras_cmv', 'csv');
-}
-
 const cmvIaGradeMeses = new GradeExcel('cmvIaMeses', { nomeArquivo: 'fluxo_compras_mes', porPagina: 50 });
 const cmvIaGradeGrifes = new GradeExcel('cmvIaGrifes', { nomeArquivo: 'grifes_compra', porPagina: 100 });
 const cmvIaGradePlanos = new GradeExcel('cmvIaPlanos', { nomeArquivo: 'contas_abertas_plano', porPagina: 50 });
@@ -302,11 +206,11 @@ function cmvIaRenderizar() {
       <label title="Quanto da venda pode virar compra de mercadoria (custo). Ótica costuma ficar entre 30% e 45%.">CMV alvo (% da venda) <input type="number" min="0" max="100" step="1" value="${p.cmvAlvo}" onchange="cmvIaParam('cmvAlvo', this.value)"></label>
       <label title="Parte da entrada que fica guardada (imprevistos, sazonalidade).">Reserva de caixa (%) <input type="number" min="0" max="100" step="1" value="${p.reserva}" onchange="cmvIaParam('reserva', this.value)"></label>
       <label title="Meses de venda que o estoque de cada grife deve cobrir depois da compra.">Cobertura alvo (meses) <input type="number" min="1" max="12" step="1" value="${p.cobertura}" onchange="cmvIaParam('cobertura', this.value)"></label>
-      <button type="button" class="tv-link" onclick="cmvIaGuardarMarcacao(); cmvIa.verConfig = !cmvIa.verConfig; cmvIaRenderizar()">⚙ Configurar compras</button>
+
       ${typeof iaLiberada === 'function' && !iaLiberada('compras') ? '<small class="cm-nota">🤖 IA não liberada para você (Configuração do BI › IA). As grades abaixo continuam valendo.</small>' : `<button type="button" id="cmvIaBtn" class="btn-comparar-lojas" onclick="cmvIaAnalisar()" ${cmvIa.carregando ? 'disabled' : ''}>${cmvIa.carregando ? '⏳ A IA está analisando…' : '🤖 Analisar com IA'}</button>`}
     </div>
-    <div class="cmv-cfg-resumo">🛒 Compra de mercadoria: <b>${k.linhasCompra.length ? k.linhasCompra.map(escHTML).join(', ') : 'todas as linhas'}</b> · contas de mercadoria pelo <b>${escHTML(k.fonteMercadoria)}</b>${cmvIa.configErro ? ` · <span class="cmv-cfg-msg">${escHTML(cmvIa.configErro)}</span>` : ''}</div>
-    ${cmvIa.verConfig ? cmvIaPainelConfig(k) : ''}
+    <div class="cmv-cfg-resumo">🛒 Compra de mercadoria: <b>${k.linhasCompra.length ? k.linhasCompra.map(escHTML).join(', ') : 'todas as linhas'}</b> · contas de mercadoria pelo <b>${escHTML(k.fonteMercadoria)}</b>${cmvIa.configErro ? ` · <span class="cmv-cfg-msg">${escHTML(cmvIa.configErro)}</span>` : ''}${typeof podeConfigBI === 'function' && podeConfigBI() ? ' · <a class="tv-link" href="/configuracao-bi.html" target="_blank" rel="noopener">alterar em Configuração do BI ↗</a>' : ''}</div>
+
     <div class="cm-cards">
       <div class="cm-card"><span>Entrada estimada / mês</span><b>${cmvIaR(k.entradaMensal)}</b><small>${k.recebido ? 'recebimentos' : 'vendas líquidas'} de ${k.dias} dias no BI, em ritmo de 30 dias</small></div>
       <div class="cm-card"><span>Contas em aberto</span><b>${cmvIaR(k.totalAberto)}</b><small>${k.qtdAbertas.toLocaleString('pt-BR')} parcelas · mercadoria ${cmvIaR(k.totalMercadoria)}</small></div>
