@@ -7,8 +7,158 @@
  *  - grifes: vendas do período no BI + estoque/giro do painel SavWin (Estoque encalhado), se carregado.
  * O BI calcula tudo (grades) e a IA (Gemini) lê o resumo e recomenda: comprar ou não, quanto e de quais grifes.
  */
-const cmvIa = { params: { cmvAlvo: 40, reserva: 10, cobertura: 3 }, calc: null, ia: null, carregando: false };
-try { Object.assign(cmvIa.params, JSON.parse(localStorage.getItem('bi_cmv_ia_params') || '{}')); } catch { /* sem armazenamento */ }
+const cmvIa = { params: { cmvAlvo: 40, reserva: 10, cobertura: 3 }, calc: null, ia: null, carregando: false,
+  config: null, configCarregada: false, configErro: '', verConfig: false, paramsLocais: false };
+try { const l = JSON.parse(localStorage.getItem('bi_cmv_ia_params') || 'null'); if (l) { Object.assign(cmvIa.params, l); cmvIa.paramsLocais = true; } } catch { /* sem armazenamento */ }
+
+/* ---------- configuração da empresa (tabela configuracoes_bi, chave cmv_compras) ----------
+ * linhas: linhas de produto que se compra para estoque (padrão: armações RX, SUN e CLIPON)
+ * planos: planos de contas que são compra de mercadoria (vazio = usa o filtro da Análise CMV)
+ * cmvAlvo, reserva, cobertura: parâmetros padrão */
+const CMV_CONFIG_PADRAO = { linhas: ['ARMACAO RX', 'ARMACAO SUN', 'ARMACAO CLIPON'], planos: [], cmvAlvo: 40, reserva: 10, cobertura: 3 };
+const cmvIaPodeConfigurar = () => typeof temPermissao === 'function' && (temPermissao('gerenciar_usuarios') || temPermissao('aprovar_compras'));
+/* ---------- catálogo de nomes já vistos (planos de contas e linhas), gravado no banco sem duplicar ---------- */
+cmvIa.catalogo = { planos: [], linhas: [] };
+const cmvIaJaRegistrado = new Set();
+async function cmvIaRegistrarCatalogo(tipo, nomes) {
+  const chave = tipo === 'planos' ? 'catalogo_planos_contas' : 'catalogo_linhas_produto';
+  const lista = [...new Set((nomes || []).map(n => String(n || '').trim()).filter(Boolean).map(n => tipo === 'linhas' ? n.toUpperCase() : n))]
+    .filter(n => !cmvIa.catalogo[tipo].includes(n) && !cmvIaJaRegistrado.has(tipo + '|' + n));
+  if (!lista.length || typeof supabaseBI === 'undefined') return;
+  lista.forEach(n => cmvIaJaRegistrado.add(tipo + '|' + n));
+  try {
+    const { error } = await supabaseBI.rpc('registrar_catalogo_bi', { p_chave: chave, p_nomes: lista });
+    if (error) throw error;
+    cmvIa.catalogo[tipo] = [...new Set([...cmvIa.catalogo[tipo], ...lista])];
+  } catch (e) { /* sem o SQL 13 o catálogo só não é gravado; a tela segue com os nomes da consulta */ }
+}
+async function cmvIaCarregarCatalogo() {
+  try {
+    const { data, error } = await supabaseBI.from('configuracoes_bi').select('chave, valor').in('chave', ['catalogo_planos_contas', 'catalogo_linhas_produto']);
+    if (error) throw error;
+    (data || []).forEach(r => { const t = r.chave === 'catalogo_planos_contas' ? 'planos' : 'linhas'; cmvIa.catalogo[t] = Array.isArray(r.valor && r.valor.nomes) ? r.valor.nomes : []; });
+  } catch (e) { /* sem tabela ainda */ }
+}
+/** Grava os nomes que vieram nesta consulta (chamado ao carregar contas a pagar e vendas). */
+function cmvIaRegistrarDaConsulta() {
+  const c = (typeof cmvAn !== 'undefined' && cmvAn.campos) || {};
+  if (c.plano) cmvIaRegistrarCatalogo('planos', (cmvAn.linhas || []).map(l => l[c.plano]));
+  const itens = typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : [];
+  cmvIaRegistrarCatalogo('linhas', itens.map(i => i.LINHA));
+}
+
+async function cmvIaCarregarConfig() {
+  cmvIa.configCarregada = true;
+  await cmvIaCarregarCatalogo();
+  try {
+    const { data, error } = await supabaseBI.from('configuracoes_bi').select('valor, atualizado_em').eq('chave', 'cmv_compras');
+    if (error) throw error;
+    const linha = Array.isArray(data) ? data[0] : null;
+    cmvIa.config = { ...CMV_CONFIG_PADRAO, ...((linha && linha.valor) || {}) };
+    cmvIa.configQuando = linha ? linha.atualizado_em : null;
+    cmvIa.configErro = '';
+  } catch (e) {
+    cmvIa.config = { ...CMV_CONFIG_PADRAO };
+    cmvIa.configErro = /configuracoes_bi|relation|schema cache|does not exist/i.test(e.message || '') ? 'Para gravar a configuração, rode no Supabase o arquivo database/13_configuracoes_bi.sql. Por enquanto vale o padrão (armações).' : `Não foi possível ler a configuração: ${e.message}`;
+  }
+  if (!cmvIa.paramsLocais) ['cmvAlvo', 'reserva', 'cobertura'].forEach(k => { if (cmvIa.config[k] !== undefined) cmvIa.params[k] = Number(cmvIa.config[k]); });
+}
+async function cmvIaSalvarConfig() {
+  const marcados = cls => [...document.querySelectorAll(`.${cls} input:checked`)].map(i => i.value);
+  const valor = { linhas: marcados('cmv-cfg-linhas'), planos: marcados('cmv-cfg-planos'), cmvAlvo: cmvIa.params.cmvAlvo, reserva: cmvIa.params.reserva, cobertura: cmvIa.params.cobertura };
+  const msg = document.getElementById('cmvCfgMsg');
+  if (!valor.linhas.length) { if (msg) msg.textContent = 'Marque pelo menos uma linha de produto.'; return; }
+  try {
+    const { error } = await supabaseBI.from('configuracoes_bi').upsert({ chave: 'cmv_compras', valor }, { onConflict: 'chave' });
+    if (error) throw error;
+    cmvIa.config = { ...CMV_CONFIG_PADRAO, ...valor };
+    cmvIa.configQuando = new Date().toISOString();
+    cmvIa.configErro = ''; cmvIa.verConfig = false; cmvIa.marcacao = null; cmvIa.importado = null; cmvIa.msgImport = '';
+    try { localStorage.removeItem('bi_cmv_ia_params'); } catch { /* sem armazenamento */ }
+    cmvIa.paramsLocais = false;
+    cmvIaCalcular(); cmvIaRenderizar();
+  } catch (e) {
+    if (msg) msg.textContent = /configuracoes_bi|relation|schema cache|does not exist/i.test(e.message || '') ? 'Rode no Supabase o arquivo database/13_configuracoes_bi.sql e tente de novo.' : `Não foi possível salvar: ${e.message}`;
+  }
+}
+function cmvIaPainelConfig(k) {
+  const cfg = cmvIa.config || CMV_CONFIG_PADRAO, pode = cmvIaPodeConfigurar();
+  const itens = typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : [];
+  const imp = cmvIa.importado || { linhas: [], planos: [] };
+  const linhas = [...new Set([...cfg.linhas, ...cmvIa.catalogo.linhas, ...imp.linhas, ...itens.map(i => String(i.LINHA || '').trim().toUpperCase()).filter(Boolean)])].sort();
+  const planos = [...new Set([...(cfg.planos || []), ...cmvIa.catalogo.planos, ...imp.planos, ...k.planos.map(([p]) => p)])].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const marcLinhas = cmvIa.marcacao ? cmvIa.marcacao.linhas : cfg.linhas, marcPlanos = cmvIa.marcacao ? cmvIa.marcacao.planos : (cfg.planos || []);
+  const ferramentas = tipo => pode ? `<div class="cmv-cfg-ferr">
+      <input type="search" placeholder="filtrar…" oninput="cmvIaFiltrarCfg('${tipo}', this.value)">
+      <button type="button" class="tv-link" onclick="cmvIaMarcarCfg('${tipo}', true)">marcar visíveis</button>
+      <button type="button" class="tv-link" onclick="cmvIaMarcarCfg('${tipo}', false)">desmarcar visíveis</button>
+      <label class="tv-link cmv-cfg-imp" title="Arquivo CSV ou Excel: 1ª coluna = nome; 2ª coluna (opcional) = S/N para marcar. Sem 2ª coluna, tudo do arquivo fica marcado.">📥 Importar CSV/Excel<input type="file" accept=".csv,.txt,.xlsx,.xls" onchange="cmvIaImportar('${tipo}', this)"></label>
+    </div>` : '';
+  const caixa = (cls, lista, marcados) => `<div class="cmv-cfg-lista ${cls}">${lista.map(v => `<label class="pf-item"><input type="checkbox" value="${escHTML(v)}" ${marcados.includes(v) ? 'checked' : ''} ${pode ? '' : 'disabled'}><span>${escHTML(v)}</span></label>`).join('') || '<small>Sem valores: consulte o BI e as contas a pagar.</small>'}</div>`;
+  return `<div class="cmv-cfg">
+    <div class="cmv-cfg-col"><b>Linhas de produto que se compra para estoque</b><small>Lentes ficam de fora: só se compra quando o óculos é feito.</small>${ferramentas('linhas')}${caixa('cmv-cfg-linhas', linhas, marcLinhas)}</div>
+    <div class="cmv-cfg-col"><b>Planos de contas que são compra de mercadoria</b><small>Nenhum marcado = usa o filtro de plano de contas da Análise CMV.</small>${ferramentas('planos')}${caixa('cmv-cfg-planos', planos, marcPlanos)}</div>
+    <div class="cmv-cfg-rodape">${pode ? `<small>Os parâmetros atuais (CMV alvo ${cmvIa.params.cmvAlvo}%, reserva ${cmvIa.params.reserva}%, cobertura ${cmvIa.params.cobertura} meses) também viram o padrão da empresa.</small>
+      <span id="cmvCfgMsg" class="cmv-cfg-msg">${escHTML(cmvIa.msgImport || '')}</span>
+      <button type="button" class="tv-link" onclick="cmvIaExportarCfg()">⬇ Exportar lista (CSV)</button>
+      <button type="button" class="btn-comparar-lojas" onclick="cmvIaSalvarConfig()">💾 Salvar para todos</button>` : '<small>Só o administrador ou quem aprova compras altera esta configuração.</small>'}</div>
+  </div>`;
+}
+/** Guarda o que está marcado na tela (para não perder ao redesenhar). */
+function cmvIaGuardarMarcacao() {
+  const m = cls => [...document.querySelectorAll(`.${cls} input:checked`)].map(i => i.value);
+  if (document.querySelector('.cmv-cfg-linhas')) cmvIa.marcacao = { linhas: m('cmv-cfg-linhas'), planos: m('cmv-cfg-planos') };
+}
+function cmvIaFiltrarCfg(tipo, txt) {
+  const t = String(txt || '').trim().toUpperCase();
+  document.querySelectorAll(`.cmv-cfg-${tipo} label`).forEach(l => { l.hidden = !!t && !l.textContent.toUpperCase().includes(t); });
+}
+function cmvIaMarcarCfg(tipo, marcar) {
+  document.querySelectorAll(`.cmv-cfg-${tipo} label:not([hidden]) input`).forEach(i => { i.checked = marcar; });
+}
+/** Lê CSV (; , ou tab) ou Excel: 1ª coluna nome, 2ª coluna opcional S/N. */
+async function cmvIaImportar(tipo, input) {
+  const arq = input.files && input.files[0];
+  input.value = '';
+  if (!arq) return;
+  let linhas = [];
+  try {
+    if (/\.xlsx?$/i.test(arq.name)) {
+      if (typeof aiCarregarXLSX !== 'function') throw new Error('leitor de Excel indisponível; salve como CSV');
+      const XLSX = await aiCarregarXLSX();
+      const wb = XLSX.read(await arq.arrayBuffer(), { type: 'array' });
+      linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false });
+    } else {
+      const txt = await arq.text();
+      const sep = (txt.split(/\r?\n/)[0].match(/;|\t|,/) || [';'])[0];
+      linhas = txt.split(/\r?\n/).map(l => l.split(sep).map(x => x.replace(/^"|"$/g, '').trim()));
+    }
+  } catch (e) { cmvIa.msgImport = `Não consegui ler o arquivo: ${e.message}`; cmvIaRenderizar(); return; }
+  linhas = linhas.filter(l => l && String(l[0] || '').trim());
+  if (linhas.length && /^(nome|plano|linha|descri)/i.test(String(linhas[0][0]))) linhas.shift();   // cabeçalho
+  const temMarca = linhas.some(l => l[1] !== undefined && String(l[1]).trim() !== '');
+  const norm = n => tipo === 'linhas' ? String(n).trim().toUpperCase() : String(n).trim();
+  const nomes = linhas.map(l => norm(l[0]));
+  const marcar = linhas.filter(l => !temMarca || /^(s|sim|x|1|true|y|yes)$/i.test(String(l[1] || '').trim())).map(l => norm(l[0]));
+  cmvIaGuardarMarcacao();
+  const cfg = cmvIa.config || CMV_CONFIG_PADRAO;
+  const atual = cmvIa.marcacao || { linhas: [...cfg.linhas], planos: [...(cfg.planos || [])] };
+  cmvIa.importado = cmvIa.importado || { linhas: [], planos: [] };
+  cmvIa.importado[tipo] = [...new Set([...cmvIa.importado[tipo], ...nomes])];
+  const desmarcar = temMarca ? new Set(nomes.filter(n => !marcar.includes(n))) : new Set();
+  atual[tipo] = [...new Set([...atual[tipo].filter(n => !desmarcar.has(n)), ...marcar])];
+  cmvIa.marcacao = atual;
+  cmvIa.msgImport = `${nomes.length} nome(s) lido(s), ${marcar.length} marcado(s). Confira e clique em Salvar para todos.`;
+  cmvIaRegistrarCatalogo(tipo, nomes);
+  cmvIaRenderizar();
+}
+function cmvIaExportarCfg() {
+  cmvIaGuardarMarcacao();
+  const lista = (cls, tipo) => [...document.querySelectorAll(`.${cls} input`)].map(i => [tipo, i.value, i.checked ? 'S' : 'N']);
+  const linhas = [...lista('cmv-cfg-linhas', 'linha de produto'), ...lista('cmv-cfg-planos', 'plano de contas')];
+  if (typeof epBaixarPlanilha === 'function') epBaixarPlanilha(['Tipo', 'Nome', 'Marcado (S/N)'], linhas, 'configuracao_compras_cmv', 'csv');
+}
+
 const cmvIaGradeMeses = new GradeExcel('cmvIaMeses', { nomeArquivo: 'fluxo_compras_mes', porPagina: 50 });
 const cmvIaGradeGrifes = new GradeExcel('cmvIaGrifes', { nomeArquivo: 'grifes_compra', porPagina: 100 });
 const cmvIaGradePlanos = new GradeExcel('cmvIaPlanos', { nomeArquivo: 'contas_abertas_plano', porPagina: 50 });
@@ -36,6 +186,7 @@ function cmvIaCampoFornecedor() {
 // ------------------------------------------------------------------ cálculo
 function cmvIaCalcular() {
   const p = cmvIa.params, c = cmvAn.campos || {};
+  const cfg = cmvIa.config || CMV_CONFIG_PADRAO;
   const consulta = typeof ultimaConsultaBI !== 'undefined' ? ultimaConsultaBI : null;
   const dIni = consulta ? new Date(consulta.inicioISO + 'T00:00') : null, dFim = consulta ? new Date(consulta.fimISO + 'T00:00') : null;
   const dias = dIni && dFim ? Math.max(1, Math.round((dFim - dIni) / 86400000) + 1) : 30;
@@ -52,14 +203,20 @@ function cmvIaCalcular() {
     formas.push({ forma: `${g.meioPagamento} (${g.nParcelas})`, valor: v, parcelas: n });
     if (n > 1 && fimMes) for (let i = 1; i < n; i++) { const m = cmvIaAddMes(fimMes, i); parcelasFuturas[m] = (parcelasFuturas[m] || 0) + v / n; }
   });
-  const itens = typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : [];
+  const itensTodos = typeof dadosBrutosGlobaisParaGrafico !== 'undefined' ? dadosBrutosGlobaisParaGrafico : [];
+  const linhasCfg = new Set((cfg.linhas || []).map(x => String(x).trim().toUpperCase()));
+  const itens = itensTodos;                     // entradas: toda a venda
+  const itensCompra = linhasCfg.size ? itensTodos.filter(i => linhasCfg.has(String(i.LINHA || '').trim().toUpperCase())) : itensTodos;
   const vendasLiq = itens.reduce((t, i) => t + cmvIaNum(i.LIQUIDOPRODUTO), 0);
   const base = recebido || vendasLiq;
   const entradaMensal = base * 30 / dias;
 
   // saídas: contas a pagar em aberto (todas) e mercadoria (planos marcados na Análise CMV)
   const abertas = (cmvAn.linhas || []).filter(l => cmvAberta(l, c));
-  const mercadoria = typeof cmvFonte !== 'undefined' ? cmvFonte.filtradas() : abertas;
+  const planosCfg = new Set((cfg.planos || []).map(x => String(x).trim()));
+  const mercadoria = planosCfg.size && c.plano ? abertas.filter(l => planosCfg.has(String(l[c.plano] ?? '').trim()))
+    : (typeof cmvFonte !== 'undefined' ? cmvFonte.filtradas() : abertas);
+  const fonteMercadoria = planosCfg.size && c.plano ? `${planosCfg.size} plano(s) configurado(s)` : 'filtro da Análise CMV';
   const val = l => GradeExcel.numeroBR(l[c.valor]) || 0;
   const porMes = (lista) => { const o = {}; lista.forEach(l => { const m = cmvMes(l); o[m] = (o[m] || 0) + val(l); }); return o; };
   const cMes = porMes(abertas), mMes = porMes(mercadoria);
@@ -84,14 +241,19 @@ function cmvIaCalcular() {
   // grifes: vendas do BI + estoque/giro do painel SavWin
   const gm = new Map();
   const nome = t => String(t || '').trim().toUpperCase();
-  itens.forEach(i => {
+  itensCompra.forEach(i => {
     const g = nome(i.GRIFE); if (!g) return;
     const o = gm.get(g) || { grife: g, linha: String(i.LINHA || '').trim(), vendas: 0, pecasVendidas: 0 };
     o.vendas += cmvIaNum(i.LIQUIDOPRODUTO); o.pecasVendidas += cmvIaNum(i.QUANTIDADE) || 1; gm.set(g, o);
   });
   const temEstoque = typeof ep !== 'undefined' && ep.dados && Array.isArray(ep.dados.Cobertura);
+  // estoque do painel: só grifes de armação (tipo A no SavWin) quando as linhas de compra são armações
+  const soArmacao = [...linhasCfg].length && [...linhasCfg].every(l => /ARMA/.test(l));
+  const chavesArmacao = temEstoque && Array.isArray(ep.dados.TipoGrife)
+    ? new Set(ep.dados.TipoGrife.map(t => String(t.Chave || '')).filter(t => t.startsWith('A|')).map(t => t.slice(2))) : null;
   if (temEstoque) ep.dados.Cobertura.forEach(e => {
     const g = nome(e.Descricao); if (!g) return;
+    if (soArmacao && chavesArmacao && chavesArmacao.size && !chavesArmacao.has(String(e.Chave)) && !gm.has(g)) return;
     const o = gm.get(g) || { grife: g, linha: '', vendas: 0, pecasVendidas: 0 };
     Object.assign(o, { estoque: Number(e.Qtde) || 0, custoEstoque: Number(e.Custo) || 0, giro: Number(e.GiroMensal) || 0,
       cobertura: e.GiroMensal ? (Number(e.Qtde) || 0) / Number(e.GiroMensal) : null, vendido12: Number(e.Vendido) || 0, diasSemVender: e.UltimaVenda ? Number(e.DiasSemVender) : null });
@@ -113,11 +275,17 @@ function cmvIaCalcular() {
   }).sort((a, b) => b['Vendas no período'] - a['Vendas no período']);
 
   cmvIa.calc = { dias, recebido, vendasLiq, entradaMensal, formas, parcelasFuturas, linhasMes, planos, fornecedores, totalAberto,
-    totalMercadoria: mercadoria.reduce((t, l) => t + val(l), 0), grifes, temEstoque, qtdAbertas: abertas.length };
+    totalMercadoria: mercadoria.reduce((t, l) => t + val(l), 0), grifes, temEstoque, qtdAbertas: abertas.length,
+    fonteMercadoria, linhasCompra: [...linhasCfg] };
 }
 
 // ------------------------------------------------------------------ tela
-function cmvIaAoAbrir() { if (!cmvIa.carregando) { cmvIaCalcular(); cmvIaRenderizar(); } }
+async function cmvIaAoAbrir() {
+  if (cmvIa.carregando) return;
+  if (!cmvIa.configCarregada) await cmvIaCarregarConfig();
+  cmvIaRegistrarDaConsulta();
+  cmvIaCalcular(); cmvIaRenderizar();
+}
 
 function cmvIaRenderizar() {
   const el = document.getElementById('cmvIa');
@@ -134,8 +302,11 @@ function cmvIaRenderizar() {
       <label title="Quanto da venda pode virar compra de mercadoria (custo). Ótica costuma ficar entre 30% e 45%.">CMV alvo (% da venda) <input type="number" min="0" max="100" step="1" value="${p.cmvAlvo}" onchange="cmvIaParam('cmvAlvo', this.value)"></label>
       <label title="Parte da entrada que fica guardada (imprevistos, sazonalidade).">Reserva de caixa (%) <input type="number" min="0" max="100" step="1" value="${p.reserva}" onchange="cmvIaParam('reserva', this.value)"></label>
       <label title="Meses de venda que o estoque de cada grife deve cobrir depois da compra.">Cobertura alvo (meses) <input type="number" min="1" max="12" step="1" value="${p.cobertura}" onchange="cmvIaParam('cobertura', this.value)"></label>
+      <button type="button" class="tv-link" onclick="cmvIaGuardarMarcacao(); cmvIa.verConfig = !cmvIa.verConfig; cmvIaRenderizar()">⚙ Configurar compras</button>
       <button type="button" id="cmvIaBtn" class="btn-comparar-lojas" onclick="cmvIaAnalisar()" ${cmvIa.carregando ? 'disabled' : ''}>${cmvIa.carregando ? '⏳ A IA está analisando…' : '🤖 Analisar com IA'}</button>
     </div>
+    <div class="cmv-cfg-resumo">🛒 Compra de mercadoria: <b>${k.linhasCompra.length ? k.linhasCompra.map(escHTML).join(', ') : 'todas as linhas'}</b> · contas de mercadoria pelo <b>${escHTML(k.fonteMercadoria)}</b>${cmvIa.configErro ? ` · <span class="cmv-cfg-msg">${escHTML(cmvIa.configErro)}</span>` : ''}</div>
+    ${cmvIa.verConfig ? cmvIaPainelConfig(k) : ''}
     <div class="cm-cards">
       <div class="cm-card"><span>Entrada estimada / mês</span><b>${cmvIaR(k.entradaMensal)}</b><small>${k.recebido ? 'recebimentos' : 'vendas líquidas'} de ${k.dias} dias no BI, em ritmo de 30 dias</small></div>
       <div class="cm-card"><span>Contas em aberto</span><b>${cmvIaR(k.totalAberto)}</b><small>${k.qtdAbertas.toLocaleString('pt-BR')} parcelas · mercadoria ${cmvIaR(k.totalMercadoria)}</small></div>
@@ -152,7 +323,7 @@ function cmvIaRenderizar() {
       <h4 class="cmv-ia-h">Grifes · recomendação da IA</h4><div id="cmvIaRecom"></div>
     </div>` : '<p class="cmv-ia-dica">O BI já calculou as grades abaixo. Clique em <b>🤖 Analisar com IA</b> para a recomendação: comprar ou não, quanto por mês e de quais grifes.</p>'}
     <h4 class="cmv-ia-h">Fluxo por mês · entradas × contas em aberto × orçamento de compra</h4><div id="cmvIaMeses"></div>
-    <h4 class="cmv-ia-h">Grifes · vendas do período × estoque e giro${k.temEstoque ? '' : ' <small class="cm-nota">(carregue o Estoque encalhado em Avaliação de Produtos para ver estoque, giro e cobertura)</small>'}</h4><div id="cmvIaGrifes"></div>
+    <h4 class="cmv-ia-h">Grifes de ${k.linhasCompra.length ? k.linhasCompra.map(escHTML).join(', ').toLowerCase() : 'todas as linhas'} · vendas do período × estoque e giro${k.temEstoque ? '' : ' <small class="cm-nota">(carregue o Estoque encalhado em Avaliação de Produtos para ver estoque, giro e cobertura)</small>'}</h4><div id="cmvIaGrifes"></div>
     <h4 class="cmv-ia-h">Contas em aberto por plano de contas</h4><div id="cmvIaPlanos"></div>`;
   cmvIaGradeMeses.definir(k.linhasMes.map(({ mesISO, ...r }) => r));
   cmvIaGradeGrifes.definir(k.grifes);
@@ -176,6 +347,7 @@ function cmvIaResumo() {
     porPlanoDeContas: k.planos.slice(0, 20).map(([p, v]) => ({ plano: p, valor: Math.round(v) })),
     porFornecedor: k.fornecedores.slice(0, 20).map(([f, v]) => ({ fornecedor: f, valor: Math.round(v) })),
     estoqueCarregado: k.temEstoque,
+    linhasDeProdutoCompradasParaEstoque: k.linhasCompra, observacao: 'Lentes não entram na compra para estoque: são compradas quando o óculos é feito.',
     grifes: k.grifes.slice(0, 40).map(g => ({ grife: g['Grife'], linha: g['Linha'], vendasPeriodo: Math.round(g['Vendas no período']), participacaoPct: g['Participação %'],
       estoquePecas: g['Estoque (peças)'], giroMensalPecas: g['Giro mensal (peças)'], coberturaMeses: g['Cobertura (meses)'], acaoCalculada: g['Ação sugerida'],
       pecasParaCoberturaAlvo: g['Peças para cobertura alvo'], valorCompraCusto: g['Valor de compra (custo)'] }))

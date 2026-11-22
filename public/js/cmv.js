@@ -57,6 +57,7 @@ async function cmvConsultar() {
     cmvEstado.lojasConsultadas = lojas.join(', ');
     cmvGrade.definir(j.linhas || []);
     cmvAnaliseDefinir(j.linhas || []);
+    if (typeof cmvIaRegistrarDaConsulta === 'function') { if (!cmvIa.configCarregada) cmvIaCarregarConfig().then(cmvIaRegistrarDaConsulta); else cmvIaRegistrarDaConsulta(); }
     if (typeof cmvIaAoAbrir === 'function' && document.getElementById('cmvPainelIa')?.style.display !== 'none') cmvIaAoAbrir();
     const info = document.getElementById('cmvInfo');
     if (info) info.textContent = `Consulta de ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · lojas ${lojas.length ? lojas.join(', ') : 'todas'} · vencimento ${v1.split('-').reverse().join('/')} a ${v2.split('-').reverse().join('/')}`;

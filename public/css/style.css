@@ -930,3 +930,18 @@ th.filtrada { color: #5ee7ff !important; }
 .cmv-ia-lista { font-size: 13px; margin: 8px 0; } .cmv-ia-lista ul { margin: 4px 0 0 18px; padding: 0; } .cmv-ia-lista li { margin: 3px 0; }
 .cmv-ia-alertas b { color: #ffd36e; }
 .cmv-ia-orc { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.cmv-cfg-resumo { font-size: 12px; color: #cfd6ff; margin: 0 0 10px; }
+.cmv-cfg-msg { color: #ffd36e; }
+.cmv-cfg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px; margin-bottom: 12px; border: 1px dashed rgba(94,231,255,.35); border-radius: 10px; }
+.cmv-cfg-col { display: flex; flex-direction: column; gap: 4px; font-size: 12px; min-width: 0; }
+.cmv-cfg-col small { color: #8a93c9; }
+.cmv-cfg-lista { max-height: 230px; overflow-y: auto; border: 1px solid rgba(94,231,255,.15); border-radius: 8px; padding: 4px; }
+.cmv-cfg-lista input { width: auto; margin: 0; }
+.cmv-cfg-rodape { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cmv-cfg-rodape small { flex: 1; color: #8a93c9; }
+@media (max-width: 700px) { .cmv-cfg { grid-template-columns: minmax(0, 1fr); } }
+.cmv-cfg-ferr { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cmv-cfg-ferr input[type=search] { width: 150px; padding: 4px 8px; font-size: 12px; }
+.cmv-cfg-imp { cursor: pointer; position: relative; }
+.cmv-cfg-imp input[type=file] { display: none; }
+.cmv-cfg-lista label[hidden] { display: none; }
