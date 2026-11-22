@@ -32,7 +32,12 @@
       <a class="inicio-opcao config" id="opcaoConfig" href="/configuracoes.html" style="display: none;">
         <div class="icone">⚙️</div>
         <h2>Configurações</h2>
-        <p id="descConfig">Usuários e acessos · cadastro de vendedores · configuração do BI.</p>
+        <p id="descConfig">Usuários e acessos · cadastro de vendedores.</p>
+      </a>
+      <a class="inicio-opcao configbi" id="opcaoConfigBI" href="/configuracao-bi.html" style="display: none;">
+        <div class="icone">🛠️</div>
+        <h2>Configuração do BI</h2>
+        <p>Planos de contas, planos por usuário, conexão SavWin de cada usuário e parâmetros da IA.</p>
       </a>
     </div>
   </main>
@@ -53,9 +58,10 @@
       const podeConfig = podeAlgumaConfig();
       document.getElementById('opcaoCompras').style.display = podeCompras() ? '' : 'none';
       document.getElementById('opcaoBI').style.display = podeBI ? '' : 'none';
-      document.getElementById('opcaoConfig').style.display = podeConfig ? '' : 'none';
+      document.getElementById('opcaoConfig').style.display = podeConfigUsuarios() || podeConfigVendedores() ? '' : 'none';
+      document.getElementById('opcaoConfigBI').style.display = podeConfigBI() ? '' : 'none';
       document.getElementById('descConfig').textContent = [
-        podeConfigUsuarios() ? 'Usuários e acessos' : '', podeConfigVendedores() ? 'cadastro de vendedores' : '', podeConfigBI() ? 'configuração do BI' : ''
+        podeConfigUsuarios() ? 'Usuários e acessos' : '', podeConfigVendedores() ? 'cadastro de vendedores' : ''
       ].filter(Boolean).join(' · ');
 
       const aviso = document.getElementById('avisoInicio');

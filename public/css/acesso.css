@@ -458,3 +458,4 @@ html:has(body.compras-escuro) { background: #080b1f; }
 .cfgbi-bloco label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
 .cfgbi-bloco label.check { flex-direction: row; align-items: center; font-weight: normal; }
 .cfgbi-bloco textarea, .cfgbi-bloco input[type=text], .cfgbi-bloco input[type=number] { font: inherit; font-weight: normal; padding: 7px 9px; border: 1px solid #ccd3dd; border-radius: 6px; resize: vertical; }
+.inicio-opcao.configbi { border-left-color: #00a3c4; }
