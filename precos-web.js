@@ -134,7 +134,7 @@ function montarPedido(nome, termo, chaves, regiao, alcance = 'todas', redes = fa
 }
 
 /** Uma chamada ao Gemini com uma chave e um modelo. Lança erro com "motivo" curto. */
-async function chamarGemini(texto, { chave, modelo }, limiteMs) {
+async function chamarGemini(texto, { chave, modelo }, limiteMs, { pesquisa = true } = {}) {
   let resp;
   try {
     resp = await fetch(URL_GEMINI(modelo), {
@@ -142,8 +142,8 @@ async function chamarGemini(texto, { chave, modelo }, limiteMs) {
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: texto }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: { temperature: 0.2 }
+        ...(pesquisa ? { tools: [{ google_search: {} }] } : {}),
+        generationConfig: pesquisa ? { temperature: 0.2 } : { temperature: 0.3, responseMimeType: 'application/json' }
       }),
       signal: AbortSignal.timeout(limiteMs)
     });
@@ -166,7 +166,7 @@ async function chamarGemini(texto, { chave, modelo }, limiteMs) {
 }
 
 /** Tenta as combinações chave × modelo em rodízio até uma responder. */
-async function perguntarGemini(texto) {
+async function perguntarGemini(texto, opcoes = {}) {
   const combos = combinacoesGemini();
   if (!combos.length) throw Object.assign(new Error('Pesquisa com IA não configurada: falta a variável GEMINI_API_KEY no Render.'), { http: 503 });
   const inicio = Date.now();
@@ -183,7 +183,7 @@ async function perguntarGemini(texto) {
     const resta = LIMITE_TOTAL_MS - (Date.now() - inicio);
     if (resta < 8000) { falhas.push('tempo esgotado'); break; }
     try {
-      const r = await chamarGemini(texto, c, Math.min(60000, resta));
+      const r = await chamarGemini(texto, c, Math.min(opcoes.pesquisa === false ? 90000 : 60000, resta), opcoes);
       if (falhas.length) console.log(`Gemini: respondeu com chave ${c.n} · ${c.modelo} depois de ${falhas.length} falha(s)`);
       return { ...r, modelo: c.modelo, chaveN: c.n, tentativas: falhas.length + 1 };
     } catch (e) {
@@ -309,7 +309,55 @@ async function pesquisarComIA({ nome, termo, chaves, regiao, alcance = 'todas', 
   return { ...resultado, uso: situacaoUso() };
 }
 
-function registrarRotaPrecos(app, { exigirUsuario }) {
+// ------------------------------------------------------------- análise de compras (aba CMV)
+/**
+ * Recebe o RESUMO montado no BI (números já agregados: entradas, contas a pagar em aberto por mês,
+ * plano de contas e fornecedor, vendas e estoque por grife) e pede ao Gemini uma recomendação de
+ * compra no formato JSON. Sem pesquisa na web: só os números da empresa.
+ */
+function montarPedidoCompras(resumo) {
+  return `Você é um analista sênior de planejamento financeiro e de compras (open-to-buy) de uma rede de óticas no Brasil.
+Analise SOMENTE os dados abaixo (JSON, valores em R$) e recomende se a empresa deve comprar mercadoria nos próximos meses, quanto e de quais grifes.
+
+Como pensar (como um planejador de compras do varejo):
+- Caixa: compare a entrada estimada de cada mês (ritmo de vendas/recebimentos atual + parcelas de cartão já vendidas) com as contas a pagar em aberto do mês. Comprometimento acima de ~70% da entrada é alerta; acima de 90% é crítico.
+- Orçamento de compra (OTB): use o "otbCalculado" de cada mês como referência; pode ajustar com justificativa, nunca ultrapassar a folga de caixa do mês.
+- Grifes: priorize as que vendem (giro alto, cobertura de estoque baixa, boa participação nas vendas). Não recomende comprar grife com cobertura alta (> 6 meses) ou sem venda; nesses casos sugira girar o estoque (promoção, remanejar entre lojas).
+- Prazo: compras novas costumam vencer em 30/60/90 dias; considere os meses mais apertados ao sugerir quando comprar.
+- Seja objetivo, use números dos dados, não invente dados que não estão aqui. Se faltar informação (ex.: estoque não carregado), diga isso nos alertas.
+
+Responda APENAS com um JSON neste formato:
+{"decisao":"comprar"|"comprar com cautela"|"segurar compras",
+ "resumo":"3 a 5 frases para o diretor",
+ "orcamento":[{"mes":"AAAA-MM","valor":0,"comentario":""}],
+ "grifes":[{"grife":"","acao":"comprar"|"comprar pouco"|"não comprar"|"girar estoque","prioridade":1,"valorSugerido":0,"motivo":""}],
+ "alertas":["..."],
+ "proximosPassos":["..."]}
+
+DADOS:
+${JSON.stringify(resumo)}`;
+}
+
+function registrarRotaPrecos(app, { exigirUsuario, exigirAba = () => (q, r, n) => n() }) {
+  app.post('/ia/compras', exigirUsuario('acessar_bi'), exigirAba('cmv'), async (req, res) => {
+    try {
+      const resumo = req.body && req.body.resumo;
+      if (!resumo || typeof resumo !== 'object') return res.status(400).json({ error: 'Faltou o resumo para a análise.' });
+      const texto = JSON.stringify(resumo);
+      if (texto.length > 120000) return res.status(413).json({ error: 'Resumo grande demais para a IA (reduza o período ou as grifes).' });
+      const u = situacaoUso();
+      if (u.usadas >= u.limite) return res.status(429).json({ error: `Limite de ${u.limite} pesquisas com IA no mês atingido.` });
+      const r = await perguntarGemini(montarPedidoCompras(resumo), { pesquisa: false });
+      uso.pesquisas++;
+      const j = jsonDoTexto(r.textoResp);
+      if (!j) throw Object.assign(new Error('A IA não devolveu uma resposta válida. Tente de novo.'), { http: 502 });
+      res.json({ ...j, modelo: r.modelo, quando: new Date().toISOString(), uso: situacaoUso() });
+    } catch (err) {
+      console.error('Erro na análise de compras com IA:', err.message);
+      res.status(err.http || 500).json({ error: err.message });
+    }
+  });
+
   app.post('/precos/pesquisar', exigirUsuario('acessar_bi'), async (req, res) => {
     try {
       const b = req.body || {};
@@ -326,4 +374,4 @@ function registrarRotaPrecos(app, { exigirUsuario }) {
   });
 }
 
-module.exports = { registrarRotaPrecos, combinacoesGemini, precoNumero, jsonDoTexto, urlSegura, montarPedido, extrairDaPagina };
+module.exports = { registrarRotaPrecos, montarPedidoCompras, combinacoesGemini, precoNumero, jsonDoTexto, urlSegura, montarPedido, extrairDaPagina };

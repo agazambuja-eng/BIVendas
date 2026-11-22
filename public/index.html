@@ -607,9 +607,13 @@
       <div class="ca-alternar cmv-subabas" id="cmvSubabas">
         <button type="button" data-s="analise" class="ativo" onclick="cmvSubaba('analise')">📊 Análise CMV</button>
         <button type="button" data-s="relatorio" onclick="cmvSubaba('relatorio')">📋 Relatório contas a pagar</button>
+        <button type="button" data-s="ia" onclick="cmvSubaba('ia')">🤖 Compras com IA</button>
       </div>
       <div id="cmvPainelAnalise">
         <div id="cmvAnalise"><p class="gx-vazio">Clique em <b>Consultar</b> no topo do BI ou em Reconsultar.</p></div>
+      </div>
+      <div id="cmvPainelIa" style="display: none;">
+        <div id="cmvIa"></div>
       </div>
       <div id="cmvPainelRelatorio" style="display: none;">
         <div id="cmvGrade"><p class="gx-vazio">Clique em <b>Consultar</b> no topo do BI ou em Reconsultar.</p></div>
@@ -913,5 +917,6 @@
   <script src="/js/comissao.js"></script>
   <script src="/js/grade-excel.js"></script>
   <script src="/js/cmv.js"></script>
+  <script src="/js/cmv-ia.js"></script>
 </body>
 </html>

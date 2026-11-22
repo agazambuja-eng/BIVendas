@@ -911,3 +911,22 @@ th.filtrada { color: #5ee7ff !important; }
 .cmv-campos small { flex: 1 1 100%; color: #8a93c9; }
 .cmv-pivo th.cmv-ano { text-align: center; }
 .cmv-pivo td:first-child { font-weight: bold; }
+/* CMV › Compras com IA */
+.cmv-ia-params { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.cmv-ia-params label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: bold; }
+.cmv-ia-params input { width: 110px; }
+.cm-card.cmv-atencao { border-color: rgba(255,200,70,.55); } .cm-card.cmv-atencao b { color: #ffd36e; }
+.cm-card.cmv-alerta { border-color: rgba(255,92,140,.6); } .cm-card.cmv-alerta b { color: #ff7aa2; }
+.cmv-ia-h { margin: 18px 0 8px; font-size: 14px; color: #cfe9ff; }
+.cmv-ia-dica { color: #8a93c9; font-size: 13px; }
+.cmv-ia-resultado { border: 1px solid rgba(160,120,255,.45); background: rgba(120,80,255,.07); border-radius: 12px; padding: 14px 16px; margin: 6px 0 10px; }
+.cmv-ia-topo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cmv-ia-topo small { color: #8a93c9; }
+.cmv-dec { font-weight: 800; letter-spacing: .04em; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+.cmv-dec-comprar { background: rgba(70,230,160,.15); color: #46e6a0; border: 1px solid rgba(70,230,160,.5); }
+.cmv-dec-cautela { background: rgba(255,200,70,.12); color: #ffd36e; border: 1px solid rgba(255,200,70,.5); }
+.cmv-dec-segurar { background: rgba(255,92,140,.12); color: #ff7aa2; border: 1px solid rgba(255,92,140,.5); }
+.cmv-ia-texto { font-size: 14px; line-height: 1.55; margin: 10px 0; }
+.cmv-ia-lista { font-size: 13px; margin: 8px 0; } .cmv-ia-lista ul { margin: 4px 0 0 18px; padding: 0; } .cmv-ia-lista li { margin: 3px 0; }
+.cmv-ia-alertas b { color: #ffd36e; }
+.cmv-ia-orc { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
