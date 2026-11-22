@@ -35,13 +35,15 @@ class GradeExcel {
     this.linhas.slice(0, 500).forEach(l => Object.keys(l || {}).forEach(k => { if (!chaves.includes(k)) chaves.push(k); }));
     this.colunas = chaves.map(k => {
       const vals = this.linhas.map(l => l[k]).filter(v => v !== null && v !== undefined && String(v).trim() !== '' && typeof v !== 'object');
-      let tipo = 'texto';
+      let tipo = 'texto', inteiro = false;
       if (vals.length && vals.every(v => /^-?\d{1,3}(\.\d{3})*(,\d+)?$|^-?\d+([.,]\d+)?$/.test(String(v).trim()))) {
-        // código (só dígitos, sem decimais, nome de id/código) fica como texto
-        const pareceId = /(^ID|ID$|SEQ|CODIGO|NUMERO|CNPJ|CPF|^FIL|DOC|NF)/i.test(k) && vals.every(v => /^\d+$/.test(String(v).trim()));
-        tipo = pareceId ? 'texto' : 'num';
+        // só inteiros e nome que não é de valor/quantidade (loja, nº de nota, duplicata, código...) = texto, sem centavos
+        const inteiros = vals.every(v => /^-?\d+$/.test(String(v).trim()));
+        const eValor = /VALOR|VLR|TOTAL|SALDO|PRECO|CUSTO|MULTA|JURO|DESC|ACRESC|TAXA|QT|QUANT|PECAS|DIAS|PERC|%/i.test(k);
+        tipo = inteiros && !eValor ? 'texto' : 'num';
+        inteiro = inteiros;
       } else if (vals.length && vals.every(v => GradeExcel.dataBR(v))) tipo = 'data';
-      return { chave: k, titulo: k, tipo };
+      return { chave: k, titulo: k, tipo, inteiro };
     });
     Object.keys(this.filtros).forEach(k => { if (!chaves.includes(k)) delete this.filtros[k]; });
     this.mostrar = this.op.porPagina;
@@ -50,7 +52,7 @@ class GradeExcel {
   texto(col, l) {
     const v = l[col.chave];
     if (v === null || v === undefined || typeof v === 'object') return '';
-    if (col.tipo === 'num') { const n = GradeExcel.numeroBR(v); return n === null ? '' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    if (col.tipo === 'num') { const n = GradeExcel.numeroBR(v); return n === null ? '' : n.toLocaleString('pt-BR', col.inteiro ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     if (col.tipo === 'data') { const d = GradeExcel.dataBR(v); return d ? d.toLocaleDateString('pt-BR') : String(v); }
     return String(v).trim();
   }
@@ -98,7 +100,7 @@ class GradeExcel {
         <table class="gx-tabela">
           <thead><tr>${cab}</tr></thead>
           <tbody>${mostrar.map(l => `<tr>${this.colunas.map(c => `<td class="${c.tipo === 'num' ? 'gx-num' : ''}">${escHTML(this.texto(c, l))}</td>`).join('')}</tr>`).join('')}</tbody>
-          <tfoot><tr>${this.colunas.map((c, i) => `<td class="${c.tipo === 'num' ? 'gx-num' : ''}">${i === 0 ? `TOTAL · ${vis.length.toLocaleString('pt-BR')}` : c.tipo === 'num' ? totais[c.chave].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>`).join('')}</tr></tfoot>
+          <tfoot><tr>${this.colunas.map((c, i) => `<td class="${c.tipo === 'num' ? 'gx-num' : ''}">${i === 0 ? `TOTAL · ${vis.length.toLocaleString('pt-BR')}` : c.tipo === 'num' ? totais[c.chave].toLocaleString('pt-BR', c.inteiro ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>`).join('')}</tr></tfoot>
         </table>
       </div>
       ${vis.length > mostrar.length ? `<div class="gx-mais"><button type="button" class="btn-secundario cfg-btn-pequeno" onclick="${me}.mostrar += ${this.op.porPagina}; ${me}.renderizar()">Mostrar mais ${Math.min(this.op.porPagina, vis.length - mostrar.length)} (de ${(vis.length - mostrar.length).toLocaleString('pt-BR')} restantes)</button></div>` : ''}`;
