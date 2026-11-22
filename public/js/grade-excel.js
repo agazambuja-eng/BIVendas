@@ -36,14 +36,17 @@ class GradeExcel {
     this.colunas = chaves.map(k => {
       const vals = this.linhas.map(l => l[k]).filter(v => v !== null && v !== undefined && String(v).trim() !== '' && typeof v !== 'object');
       let tipo = 'texto', inteiro = false;
-      if (vals.length && vals.every(v => /^-?\d{1,3}(\.\d{3})*(,\d+)?$|^-?\d+([.,]\d+)?$/.test(String(v).trim()))) {
+      if (vals.length && vals.every(v => typeof v === 'number')) { tipo = 'num'; inteiro = vals.every(v => Number.isInteger(v)); }
+      else if (vals.length && vals.every(v => /^-?\d{1,3}(\.\d{3})*(,\d+)?$|^-?\d+([.,]\d+)?$/.test(String(v).trim()))) {
         // só inteiros e nome que não é de valor/quantidade (loja, nº de nota, duplicata, código...) = texto, sem centavos
         const inteiros = vals.every(v => /^-?\d+$/.test(String(v).trim()));
-        const eValor = /VALOR|VLR|TOTAL|SALDO|PRECO|CUSTO|MULTA|JURO|DESC|ACRESC|TAXA|QT|QUANT|PECAS|DIAS|PERC|%/i.test(k);
+        const eValor = /VALOR|VLR|TOTAL|SALDO|PRE[CÇ]O|CUSTO|MULTA|JURO|DESC|ACRESC|TAXA|QT|QUANT|PE[CÇ]AS|DIAS|MESES|GIRO|PERC|ENTRADA|FOLGA|OR[CÇ]AMENTO|COMPROM|VEND|ESTOQUE|%|R\$/i.test(k);
         tipo = inteiros && !eValor ? 'texto' : 'num';
         inteiro = inteiros;
       } else if (vals.length && vals.every(v => GradeExcel.dataBR(v))) tipo = 'data';
-      return { chave: k, titulo: k, tipo, inteiro };
+      // percentuais, giro, cobertura, prazo: somar não faz sentido
+      const semTotal = /%|PERC|COBERTURA|GIRO|PRAZO|DIAS|PRIORIDADE|M[EÉ]DI/i.test(k);
+      return { chave: k, titulo: k, tipo, inteiro, semTotal };
     });
     Object.keys(this.filtros).forEach(k => { if (!chaves.includes(k)) delete this.filtros[k]; });
     this.mostrar = this.op.porPagina;
@@ -100,7 +103,7 @@ class GradeExcel {
         <table class="gx-tabela">
           <thead><tr>${cab}</tr></thead>
           <tbody>${mostrar.map(l => `<tr>${this.colunas.map(c => `<td class="${c.tipo === 'num' ? 'gx-num' : ''}">${escHTML(this.texto(c, l))}</td>`).join('')}</tr>`).join('')}</tbody>
-          <tfoot><tr>${this.colunas.map((c, i) => `<td class="${c.tipo === 'num' ? 'gx-num' : ''}">${i === 0 ? `TOTAL · ${vis.length.toLocaleString('pt-BR')}` : c.tipo === 'num' ? totais[c.chave].toLocaleString('pt-BR', c.inteiro ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>`).join('')}</tr></tfoot>
+          <tfoot><tr>${this.colunas.map((c, i) => `<td class="${c.tipo === 'num' ? 'gx-num' : ''}">${i === 0 ? `TOTAL · ${vis.length.toLocaleString('pt-BR')}` : c.tipo === 'num' && !c.semTotal ? totais[c.chave].toLocaleString('pt-BR', c.inteiro ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>`).join('')}</tr></tfoot>
         </table>
       </div>
       ${vis.length > mostrar.length ? `<div class="gx-mais"><button type="button" class="btn-secundario cfg-btn-pequeno" onclick="${me}.mostrar += ${this.op.porPagina}; ${me}.renderizar()">Mostrar mais ${Math.min(this.op.porPagina, vis.length - mostrar.length)} (de ${(vis.length - mostrar.length).toLocaleString('pt-BR')} restantes)</button></div>` : ''}`;

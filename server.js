@@ -173,7 +173,7 @@ registrarRotaEstoque(app, { exigirUsuario, restringirLojas, headersSavwin: HEADE
 registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, exigirAba, chamarSupabaseAdmin, cachePerfis });
 
 // 6. Preço da mesma peça na web com IA (Gemini + pesquisa Google; variável GEMINI_API_KEY)
-registrarRotaPrecos(app, { exigirUsuario });
+registrarRotaPrecos(app, { exigirUsuario, exigirAba });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

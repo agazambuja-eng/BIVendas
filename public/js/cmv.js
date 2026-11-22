@@ -57,6 +57,7 @@ async function cmvConsultar() {
     cmvEstado.lojasConsultadas = lojas.join(', ');
     cmvGrade.definir(j.linhas || []);
     cmvAnaliseDefinir(j.linhas || []);
+    if (typeof cmvIaAoAbrir === 'function' && document.getElementById('cmvPainelIa')?.style.display !== 'none') cmvIaAoAbrir();
     const info = document.getElementById('cmvInfo');
     if (info) info.textContent = `Consulta de ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · lojas ${lojas.length ? lojas.join(', ') : 'todas'} · vencimento ${v1.split('-').reverse().join('/')} a ${v2.split('-').reverse().join('/')}`;
     cmvStatus('');
@@ -74,6 +75,9 @@ function cmvSubaba(s) {
   document.querySelectorAll('#cmvSubabas button').forEach(b => b.classList.toggle('ativo', b.dataset.s === s));
   document.getElementById('cmvPainelAnalise').style.display = s === 'analise' ? '' : 'none';
   document.getElementById('cmvPainelRelatorio').style.display = s === 'relatorio' ? '' : 'none';
+  const ia = document.getElementById('cmvPainelIa');
+  if (ia) ia.style.display = s === 'ia' ? '' : 'none';
+  if (s === 'ia' && typeof cmvIaAoAbrir === 'function') cmvIaAoAbrir();
 }
 
 // ================================================================ Análise CMV
