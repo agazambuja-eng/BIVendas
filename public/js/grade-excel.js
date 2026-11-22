@@ -36,13 +36,15 @@ class GradeExcel {
     this.colunas = chaves.map(k => {
       const vals = this.linhas.map(l => l[k]).filter(v => v !== null && v !== undefined && String(v).trim() !== '' && typeof v !== 'object');
       let tipo = 'texto', inteiro = false;
-      if (vals.length && vals.every(v => typeof v === 'number')) { tipo = 'num'; inteiro = vals.every(v => Number.isInteger(v)); }
+      // sem casas decimais só quantidades/contagens; valor em dinheiro sempre com centavos
+      const eQuantidade = /^QT|QTDE|QUANT|PE[CÇ]AS|^DIAS|DIAS\b|MESES|PRIORIDADE|^OS$|PARCELAS$|REGISTROS/i.test(k) && !/VALOR|R\$|CART[AÃ]O A RECEBER/i.test(k);
+      if (vals.length && vals.every(v => typeof v === 'number')) { tipo = 'num'; inteiro = eQuantidade && vals.every(v => Number.isInteger(v)); }
       else if (vals.length && vals.every(v => /^-?\d{1,3}(\.\d{3})*(,\d+)?$|^-?\d+([.,]\d+)?$/.test(String(v).trim()))) {
         // só inteiros e nome que não é de valor/quantidade (loja, nº de nota, duplicata, código...) = texto, sem centavos
         const inteiros = vals.every(v => /^-?\d+$/.test(String(v).trim()));
         const eValor = /VALOR|VLR|TOTAL|SALDO|PRE[CÇ]O|CUSTO|MULTA|JURO|DESC|ACRESC|TAXA|QT|QUANT|PE[CÇ]AS|DIAS|MESES|GIRO|PERC|ENTRADA|FOLGA|OR[CÇ]AMENTO|COMPROM|VEND|ESTOQUE|%|R\$/i.test(k);
         tipo = inteiros && !eValor ? 'texto' : 'num';
-        inteiro = inteiros;
+        inteiro = inteiros && eQuantidade;
       } else if (vals.length && vals.every(v => GradeExcel.dataBR(v))) tipo = 'data';
       // percentuais, giro, cobertura, prazo: somar não faz sentido
       const semTotal = /%|PERC|COBERTURA|GIRO|PRAZO|DIAS|PRIORIDADE|M[EÉ]DI/i.test(k);

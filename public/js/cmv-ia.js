@@ -68,7 +68,7 @@ const cmvIaGradeGrifes = new GradeExcel('cmvIaGrifes', { nomeArquivo: 'grifes_co
 const cmvIaGradePlanos = new GradeExcel('cmvIaPlanos', { nomeArquivo: 'contas_abertas_plano', porPagina: 50 });
 const cmvIaGradeRecom = new GradeExcel('cmvIaRecom', { nomeArquivo: 'recomendacao_ia_grifes', porPagina: 100 });
 
-const cmvIaR = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const cmvIaR = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const cmvIaNum = v => (typeof parseNumeroBR === 'function' ? parseNumeroBR(v) : GradeExcel.numeroBR(v)) || 0;
 const cmvIaArred = v => Math.round((Number(v) || 0) * 100) / 100;
 const cmvIaMesTxt = m => (typeof cmvRotuloMes === 'function' ? cmvRotuloMes(m) : m);
