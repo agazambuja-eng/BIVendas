@@ -6,7 +6,9 @@
  *    chave secreta do Supabase.
  */
 
-const PERMS = ['acessar_bi', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras', 'gerenciar_usuarios'];
+const PERMS_TODAS = ['acessar_bi', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras', 'configurar_bi', 'gerenciar_usuarios'];
+/** "Configuração do BI" só existe depois do 14_permissao_configurar_bi.sql (coluna pode_configurar_bi). */
+let PERMS = PERMS_TODAS.filter(p => p !== 'configurar_bi');
 const CHIPS = {
   acessar_bi: '📊 BI',
   criar_metas: '➕ Metas',
@@ -14,6 +16,7 @@ const CHIPS = {
   excluir_metas: '🗑️ Metas',
   solicitar_compras: '🛒 Solicita',
   aprovar_compras: '✅ Aprova compras',
+  configurar_bi: '🛠️ Config. BI',
   gerenciar_usuarios: '⚙️ Administrador'
 };
 
@@ -70,6 +73,10 @@ async function carregarUsuarios() {
     mensagem('msgUsuarios', 'Lojas por usuário indisponíveis. Rode database/06_lojas_por_usuario.sql no Supabase.', 'erro');
   }
   usuarios = resUsu.data || [];
+  const temColunaConfigBI = usuarios.some(u => Object.prototype.hasOwnProperty.call(u, 'pode_configurar_bi'));
+  PERMS = PERMS_TODAS.filter(p => p !== 'configurar_bi' || temColunaConfigBI);
+  const chk = $('perm_configurar_bi');
+  if (chk) chk.closest('label').style.display = temColunaConfigBI ? '' : 'none';
   lojasPorUsuario = {};
   (resLojasUsu.data || []).forEach(r => {
     (lojasPorUsuario[r.usuario_id] = lojasPorUsuario[r.usuario_id] || []).push(Number(r.loja_codigo));

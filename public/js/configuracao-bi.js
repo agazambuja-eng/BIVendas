@@ -298,7 +298,7 @@ async function cfgSalvarIa() {
     contexto: $c('iaContexto').value.trim(),
     modelo: $c('iaModelo').value.trim(),
     limiteMes: Math.max(0, Number($c('iaLimite').value) || 0),
-    usuariosBloqueados: [...document.querySelectorAll('#iaUsuarios input')].filter(i => !i.checked).map(i => i.value),
+    usuariosBloqueados: ehAdmin() ? [...document.querySelectorAll('#iaUsuarios input')].filter(i => !i.checked).map(i => i.value) : ((cfg.ia || {}).usuariosBloqueados || []),
     relatorios
   };
   const bt = $c('btnSalvarIa'); bt.disabled = true;
@@ -319,10 +319,14 @@ async function cfgSalvarIa() {
   if (typeof montarSubmenuConfig === 'function') montarSubmenuConfig(document.getElementById('submenuConfig'), 'bi');
   if (!podeConfigBI()) { location.replace('/inicio.html?semAcesso=gerenciar_usuarios'); return; }
   if (!ehAdmin()) {   // quem só aprova compras: só a aba de planos
-    document.querySelectorAll('#cfgbiAbas button[data-a="usuarios"], #cfgbiAbas button[data-a="savwin"], #cfgbiAbas button[data-a="ia"]').forEach(b => { b.style.display = 'none'; });
+    // quem tem só "Configuração do BI": planos de contas e parâmetros da IA (sem a lista de usuários)
+    document.querySelectorAll('#cfgbiAbas button[data-a="usuarios"], #cfgbiAbas button[data-a="savwin"]').forEach(b => { b.style.display = 'none'; });
+    const blocoUsuariosIa = $c('iaUsuarios') && $c('iaUsuarios').closest('.cfgbi-bloco');
+    if (blocoUsuariosIa) blocoUsuariosIa.style.display = 'none';
   }
   await cfgCarregar();
   cfgDesenharListas();
-  if (ehAdmin()) { cfgListaUsuarios(); cfgDesenharSavwin(); cfgDesenharIa(); }
+  if (ehAdmin()) { cfgListaUsuarios(); cfgDesenharSavwin(); }
+  cfgDesenharIa();
   $c('modalSavwin').addEventListener('click', e => { if (e.target.id === 'modalSavwin') e.target.style.display = 'none'; });
 })();
