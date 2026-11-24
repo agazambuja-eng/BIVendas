@@ -37,6 +37,15 @@ function salvarTiposDesmarcados() {
   try { localStorage.setItem(CHAVE_TIPOS_DESMARCADOS, JSON.stringify([...tiposVendaDesmarcados])); } catch { /* sem armazenamento */ }
 }
 
+/**
+ * Linha de DEVOLUÇÃO (valores negativos, vinda junto do /consulta com DEVOLUCOES: true).
+ * Abate valor, peças e custo, mas NÃO conta como uma venda (OS) nem entra no ticket médio.
+ * Trocas não são devolução aqui: o crédito delas já vem como desconto na OS da troca.
+ */
+function ehLinhaDevolucao(item) {
+  return !!item && (item.ORIGEMLINHA === 'DEVOLUCAO' || normalizarTipoVenda(item.TIPOVENDA) === 'DEVOLUCAO');
+}
+
 /** true = a venda entra no BI */
 function tipoVendaPermitido(item) {
   return !tiposVendaDesmarcados.has(normalizarTipoVenda(item && item.TIPOVENDA));

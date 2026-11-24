@@ -140,7 +140,7 @@ function renderizarProdutos() {
     if (!porProduto[chave]) porProduto[chave] = { codigo: cod, descricao: desc, grife, linha, qtd: 0, bruto: 0, desconto: 0, liquido: 0, os: new Set(), lojas: new Set() };
     const p = porProduto[chave];
     p.qtd += qtd; p.bruto += bruto; p.desconto += descV; p.liquido += liq;
-    if (os) p.os.add(os);
+    if (os && !(typeof ehLinhaDevolucao === 'function' && ehLinhaDevolucao(item))) p.os.add(os);
     if (loja) p.lojas.add(loja[1]);
 
     for (const [mapa, nome] of [[porGrife, grife], [porLinha, linha]]) {

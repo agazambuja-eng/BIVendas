@@ -11,7 +11,8 @@ let meuGraficoPagamentos = null;
 let meuGraficoLojaVendedor = null;      
 let dadosPagamentosPorLojaGlobal = {}; 
 let dadosBrutosGlobaisParaGrafico = []; 
-let ultimaConsultaBI = null;            // filtros da última consulta (aba Comparativo)
+let ultimaConsultaBI = null;
+let devolucoesStatus = '';               // X-Devolucoes da última consulta: nº de linhas ou "erro"            // filtros da última consulta (aba Comparativo)
 let meuGraficoZoomPagamento = null;    
 let meuGraficoZoomQuantidade = null;   
 
@@ -385,7 +386,7 @@ function abrirModalZoomLojaUnica(idLoja) {
       vendasVendedores[vendedor] = { valor: 0, qtd: 0, osMap: {} };
     }
     vendasVendedores[vendedor].valor += liquido;
-    if (os) {
+    if (os && !(typeof ehLinhaDevolucao === 'function' && ehLinhaDevolucao(item))) {
       vendasVendedores[vendedor].osMap[os] = true;
       osUnicasLoja.add(os);
     }
@@ -615,7 +616,7 @@ async function consultar() {
       fetchAutenticado("/consulta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyReq)
+        body: JSON.stringify({ ...bodyReq, DEVOLUCOES: true })   // devoluções abatem o líquido, como no SavWin
       }),
       fetchAutenticado("/consultapagamentos", {
         method: "POST",
@@ -630,6 +631,7 @@ async function consultar() {
     }
     
     const dadosBrutos = await resGrid.json();
+    devolucoesStatus = resGrid.headers.get('X-Devolucoes') || '';
     let dadosPagamentos = [];
 
     if (resPagamentos.ok) {
@@ -884,7 +886,13 @@ function processarDadosBI(dados, dadosPagamentos) {
   
   document.getElementById("cardValorBruto").innerHTML = `${htmlBrutoPorLoja}<hr style="border:0; border-top:1px solid #ddd; margin: 8px 0;"><div style="font-size: 15px; font-weight: bold;">${formatarMoedaBR(totalBrutoGeral)}</div>`;
   document.getElementById("cardDesconto").innerHTML = `${htmlDescontoPorLoja}<hr style="border:0; border-top:1px solid #ddd; margin: 8px 0;"><div style="font-size: 15px; font-weight: bold; color: #d9534f;;">${formatarMoedaBR(totalDescontoGeral)}</div>`;
-  document.getElementById("cardValorLiquido").innerHTML = `${htmlLiquidoPorLoja}<hr style="border:0; border-top:1px solid #ddd; margin: 8px 0;"><div style="font-size: 15px; font-weight: bold;">${formatarMoedaBR(totalLiquidoGeral)}</div>`;
+  const linhasDev = dadosFiltrados.filter(i => typeof ehLinhaDevolucao === 'function' && ehLinhaDevolucao(i));
+  const valorDev = linhasDev.reduce((t, i) => t + parseNumeroBR(i.LIQUIDOPRODUTO), 0);
+  const osDev = new Set(linhasDev.map(i => String(i.LOJA || '') + '|' + String(i.OS || ''))).size;
+  const htmlDev = devolucoesStatus === 'erro'
+    ? `<div class="card-devolucao erro" title="A consulta de devoluções falhou: o líquido está sem abater devoluções.">⚠️ devoluções não carregadas</div>`
+    : (linhasDev.length ? `<div class="card-devolucao" title="Devoluções do período (tipo DEVOLUCAO), já abatidas do líquido. Trocas não entram aqui: o crédito delas já é desconto na OS da troca.">↩️ inclui devoluções: ${formatarMoedaBR(valorDev)} (${osDev} OS)</div>` : '');
+  document.getElementById("cardValorLiquido").innerHTML = `${htmlLiquidoPorLoja}<hr style="border:0; border-top:1px solid #ddd; margin: 8px 0;"><div style="font-size: 15px; font-weight: bold;">${formatarMoedaBR(totalLiquidoGeral)}</div>${htmlDev}`;
   
   const cardQtdeVendasEl = document.getElementById("cardQtdeVendas");
   if (cardQtdeVendasEl) {
@@ -949,7 +957,7 @@ function processarDadosBI(dados, dadosPagamentos) {
       }
       agrupadoPorLoja[idLoja].vendedores[nomeVendedor].osPorVendedor[numeroOS] += bruto;
 
-      agrupadoPorLoja[idLoja].osUnicasLoja.add(numeroOS);
+      if (!(typeof ehLinhaDevolucao === 'function' && ehLinhaDevolucao(item))) agrupadoPorLoja[idLoja].osUnicasLoja.add(numeroOS);
     }
 
     agrupadoPorLoja[idLoja].totalValorLiquido += liquido;
