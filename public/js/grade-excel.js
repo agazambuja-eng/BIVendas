@@ -33,12 +33,19 @@ class GradeExcel {
     this.linhas = Array.isArray(linhas) ? linhas : [];
     const chaves = [];
     this.linhas.slice(0, 500).forEach(l => Object.keys(l || {}).forEach(k => { if (!chaves.includes(k)) chaves.push(k); }));
+    // colunas que vêm primeiro (op.primeiras), na ordem pedida; o resto na ordem da API
+    const prim = (this.op.primeiras || []).filter(k => chaves.includes(k));
+    chaves.splice(0, chaves.length, ...prim, ...chaves.filter(k => !prim.includes(k)));
     this.colunas = chaves.map(k => {
       const vals = this.linhas.map(l => l[k]).filter(v => v !== null && v !== undefined && String(v).trim() !== '' && typeof v !== 'object');
       let tipo = 'texto', inteiro = false;
       // sem casas decimais só quantidades/contagens; valor em dinheiro sempre com centavos
       const eQuantidade = /^QT|QTDE|QUANT|PE[CÇ]AS|^DIAS|DIAS\b|MESES|PRIORIDADE|^OS$|PARCELAS$|REGISTROS/i.test(k) && !/VALOR|R\$|CART[AÃ]O A RECEBER/i.test(k);
-      if (vals.length && vals.every(v => typeof v === 'number')) { tipo = 'num'; inteiro = eQuantidade && vals.every(v => Number.isInteger(v)); }
+      // documentos e códigos (inscrição estadual, CPF/CNPJ, nota, duplicata, banco…) são sempre texto
+      const eIdentificador = /INSC|^RG|CPF|CNPJ|^CEP|FONE|CELULAR|DUPLICATA|NOTAFISCAL|^NF$|^COD|CODIGO|^N?BANCO$|AGENCIA|CHEQUE|CONTRATO|^ID$|SEQUENCIAL|IDENTIFICACAO/i.test(k);
+      const numeroLongo = vals.length && vals.every(v => /^\d{9,}$/.test(String(v).replace(/[.\-\/\s]/g, '')) && !/,\d{1,2}$/.test(String(v)));
+      if (eIdentificador || numeroLongo) tipo = 'texto';
+      else if (vals.length && vals.every(v => typeof v === 'number')) { tipo = 'num'; inteiro = eQuantidade && vals.every(v => Number.isInteger(v)); }
       else if (vals.length && vals.every(v => /^-?\d{1,3}(\.\d{3})*(,\d+)?$|^-?\d+([.,]\d+)?$/.test(String(v).trim()))) {
         // só inteiros e nome que não é de valor/quantidade (loja, nº de nota, duplicata, código...) = texto, sem centavos
         const inteiros = vals.every(v => /^-?\d+$/.test(String(v).trim()));
