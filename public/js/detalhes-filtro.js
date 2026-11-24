@@ -131,7 +131,7 @@ function desenharCorpoDetalhes(lista) {
     tot.bruto += parseNumeroBR(item.VALORBRUTOPRODUTO);
     tot.desconto += parseNumeroBR(item.DESCPRODUTO);
     tot.liquido += parseNumeroBR(item.LIQUIDOPRODUTO);
-    const os = item.OS || item.CODIGODAVENDA; if (os) tot.os.add(String(os));
+    const os = item.OS || item.CODIGODAVENDA; if (os && !(typeof ehLinhaDevolucao === 'function' && ehLinhaDevolucao(item))) tot.os.add(String(os));
     if (item.CLIENTE) tot.clientes.add(String(item.CLIENTE));
     if (item.VENDEDOR) tot.vendedores.add(String(item.VENDEDOR));
     if (item.LOJA) tot.lojas.add(String(item.LOJA));

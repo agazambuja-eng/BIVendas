@@ -22,6 +22,40 @@ app.get("/", (req, res) => {
 registrarRotasUsuarios(app);
 
 // 1. Rota Principal da Grid (ProdutosPorOSGRID)
+// Com DEVOLUCOES: true, junta as devoluções do período (linhas negativas de tipo DEVOLUCAO, que a
+// GRID não traz) no mesmo formato da GRID. Assim o líquido do BI bate com o "Líquido Produto" do
+// relatório de vendas do SavWin. Trocas NÃO entram aqui: o crédito delas já vem como desconto na OS da troca.
+const HEADERS_API_CR = {
+  "Content-Type": "application/json",
+  "Authorization": "Bearer 4AE83C98E8315579579F297C8F8BDE2C6ACF269E57D85DD37EF2647DCA77733",
+  "Identificador": "09983-0000"
+};
+async function postarApiCR(rota, body, nome) {
+  const response = await fetch(`https://api.savwinweb.com.br/api/APIRelatoriosCR/${rota}`, { method: "POST", headers: HEADERS_API_CR, body: JSON.stringify(body) });
+  if (!response.ok) throw new Error(`Erro na API externa (${nome}): Status ${response.status}`);
+  return response.json();
+}
+const numeroApi = v => { const t = String(v ?? "").trim(); if (!t) return 0; const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t); return isFinite(n) ? n : 0; };
+
+/** Linha de devolução (ProdutosPorOS) -> mesmo formato das linhas da GRID. */
+function devolucaoNoFormatoGrid(d, grifePorCodigo) {
+  const cod = String(d.CODIGOPRODUTO ?? "").trim();
+  const g = grifePorCodigo.get(cod) || {};
+  return {
+    LOJA: d.LOJANOME || "", OS: String(d.CODIGODAVENDA ?? ""), CODIGODAVENDA: String(d.CODIGODAVENDA ?? ""),
+    DATA: String(d.DATAVENDA || "").slice(0, 10), HORA: d.HORAVENDA || "",
+    CODCLIENTE: d.CLISEQUENCIAL || "", CODIGOCLIENTE: d.CLISEQUENCIAL || "", CLIENTE: d.CLIENTE || "", CPFCNPJ: d.CPFCLIENTE || "",
+    PAGADOR: d.CLIENTEPAGADOR || "", VENDEDOR: d.VENDEDOR || "", VENDEDOR2: d.VENDEDOR2 || "", VENDEDOR3: d.VENDEDOR3 || "",
+    CODIGO: cod, PRODUTO: d.FANTASIAPRODUTO || "", DESCRICAO: d.DESCRICAOPRODUTO || "",
+    GRIFE: g.GRIFE ?? d.GRIFE ?? "", LINHA: g.LINHA ?? d.LINHADEPRODUTO ?? "", FABRICANTELENTES: g.FABRICANTELENTES ?? d.FABRICANTEPRODUTO ?? "",
+    QUANTIDADE: d.QUANTIDADETOTAL ?? "0", VALORBRUTOPRODUTO: d.VALORBRUTO ?? "0", DESCPRODUTO: d.DESCONTOVALORPRODUTO ?? "0",
+    LIQUIDOPRODUTO: d.PRECOTOTALPRODUTO ?? "0", CUSTO: d.CUSTOPRODUTOS ?? "0", VLRLIQUIDOVENDA: d.VALORLIQUIDOTOTALVENDA ?? "0",
+    MEDICO: d.MEDICO || "", TIPOVENDA: "DEVOLUCAO", INDICACAO: d.TIPOINDICACAO || "",
+    NCM: d.NCMCODIGO || "", NCMDESCRICAO: d.NCMDESCRICAO || "", UPC: d.UPCPRODUTO || "", USUARIO: d.USUARIO || "",
+    STATUSCUPOM: d.STATUSCUPOMFISCAL || "", TAXAADM: d.TAXAADM ?? "0", EHDEVOLUCAO: "DEV", ORIGEMLINHA: "DEVOLUCAO"
+  };
+}
+
 app.post("/consulta", exigirUsuario("acessar_bi"), restringirLojas, async (req, res) => {
   const body = {
     DATAINICIAL: req.body.DATAINICIAL || "",
@@ -30,24 +64,31 @@ app.post("/consulta", exigirUsuario("acessar_bi"), restringirLojas, async (req, 
     TIPODATA: req.body.TIPODATA || "VENDA",
     TIPOVENDA: req.body.TIPOVENDA || ""
   };
+  const comDevolucoes = req.body.DEVOLUCOES === true;
 
   try {
-    const response = await fetch("https://api.savwinweb.com.br/api/APIRelatoriosCR/ProdutosPorOSGRID", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer 4AE83C98E8315579579F297C8F8BDE2C6ACF269E57D85DD37EF2647DCA77733",
-        "Identificador": "09983-0000"
-      },
-      body: JSON.stringify(body)
-    });
+    const [data, devol] = await Promise.all([
+      postarApiCR("ProdutosPorOSGRID", body, "Grid"),
+      comDevolucoes
+        ? postarApiCR("ProdutosPorOS", { ...body, TIPOVENDA: "DEVOLUCAO" }, "Devoluções").catch(e => ({ erro: e.message }))
+        : null
+    ]);
+    if (!comDevolucoes || !Array.isArray(data)) return res.json(data);
 
-    if (!response.ok) {
-      throw new Error(`Erro na API externa (Grid): Status ${response.status}`);
+    if (devol && devol.erro) {
+      console.error("Devoluções não carregadas (/consulta):", devol.erro);
+      res.set("X-Devolucoes", "erro");
+      return res.json(data);
     }
-
-    const data = await response.json();
-    res.json(data);
+    // a API ignora o filtro de tipo: separa só as devoluções (valor ou quantidade negativos)
+    const ehDev = d => String(d.TIPOVENDA || "").trim().toUpperCase() === "DEVOLUCAO";
+    const jaTem = data.some(i => String(i.TIPOVENDA || "").trim().toUpperCase() === "DEVOLUCAO");
+    const linhas = jaTem ? [] : (Array.isArray(devol) ? devol : []).filter(d => ehDev(d) && (numeroApi(d.PRECOTOTALPRODUTO) < 0 || numeroApi(d.QUANTIDADETOTAL) < 0));
+    // grife/linha como na GRID (pelo código do produto vendido), para somar no mesmo grupo
+    const grifePorCodigo = new Map();
+    data.forEach(i => { const c = String(i.CODIGO ?? "").trim(); if (c && !grifePorCodigo.has(c)) grifePorCodigo.set(c, { GRIFE: i.GRIFE, LINHA: i.LINHA, FABRICANTELENTES: i.FABRICANTELENTES }); });
+    res.set("X-Devolucoes", String(linhas.length));
+    res.json(linhas.length ? data.concat(linhas.map(d => devolucaoNoFormatoGrid(d, grifePorCodigo))) : data);
   } catch (error) {
     console.error("Erro no servidor (/consulta):", error.message);
     res.status(500).json({ error: error.message });

@@ -97,7 +97,8 @@ async function buscarVendasPeriodo(periodo, consulta) {
       DATAFINAL: isoParaBR(periodo.fim),
       LOJAS: consulta.lojas,
       TIPODATA: consulta.tipodata || 'VENDA',
-      TIPOVENDA: ''
+      TIPOVENDA: '',
+      DEVOLUCOES: true          // mesmo critério do período atual: devoluções abatem o líquido
     })
   });
   if (!resp.ok) {
