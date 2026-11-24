@@ -4,7 +4,34 @@
  * (editável), com botão Reconsultar.
  */
 const cmvEstado = { carregando: false, quando: '', lojasConsultadas: '' };
-const cmvGrade = new GradeExcel('cmvGrade', { nomeArquivo: 'contas_a_pagar', vazio: 'Nenhuma conta a pagar no período.' });
+/* Relatório: STATUS logo depois da LOJA e, ao consultar, já filtrado em EM ABERTO e RENEGOCIAÇÃO.
+ * O filtro de PLANO DE CONTAS é um só para o Relatório e a Análise (muda num, muda no outro). */
+const cmvGrade = new GradeExcel('cmvGrade', {
+  nomeArquivo: 'contas_a_pagar', vazio: 'Nenhuma conta a pagar no período.', primeiras: ['LOJA', 'STATUS'],
+  aoFiltrar: g => cmvSincronizarPlano(g)
+});
+/** Situações que entram já marcadas no Relatório. */
+const CMV_SITUACOES_PADRAO = /ABERT|RENEG/i;
+function cmvStatusPadrao() {
+  const col = cmvGrade.colunas.find(c => /^STATUS$/i.test(c.chave));
+  if (!col) return;
+  const valores = [...new Set(cmvGrade.linhas.map(l => cmvGrade.texto(col, l)))];
+  const fora = valores.filter(v => !CMV_SITUACOES_PADRAO.test(v));
+  if (fora.length) cmvGrade.filtros[col.chave] = new Set(fora); else delete cmvGrade.filtros[col.chave];
+}
+/** Copia o filtro de plano de contas de uma grade para a outra e guarda no navegador. */
+function cmvSincronizarPlano(origem) {
+  const k = (typeof cmvAn !== 'undefined' && cmvAn.campos && cmvAn.campos.plano) || 'PLANOCONTAS';
+  const destino = origem === cmvGrade ? (typeof cmvFonte !== 'undefined' ? cmvFonte : null) : cmvGrade;
+  if (!destino) return;
+  if (origem.filtros[k] && origem.filtros[k].size) destino.filtros[k] = new Set(origem.filtros[k]); else delete destino.filtros[k];
+  try {
+    const guardado = JSON.parse(localStorage.getItem('bi_cmv_filtros') || '{}');
+    if (origem.filtros[k] && origem.filtros[k].size) guardado[k] = [...origem.filtros[k]]; else delete guardado[k];
+    localStorage.setItem('bi_cmv_filtros', JSON.stringify(guardado));
+  } catch { /* sem armazenamento */ }
+  destino.renderizar();
+}
 
 const cmvISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 function cmvPeriodoPadrao() {
@@ -56,6 +83,9 @@ async function cmvConsultar() {
     cmvEstado.quando = new Date().toISOString();
     cmvEstado.lojasConsultadas = lojas.join(', ');
     cmvGrade.definir(j.linhas || []);
+    cmvStatusPadrao();
+    { const kp = 'PLANOCONTAS'; try { const g = JSON.parse(localStorage.getItem('bi_cmv_filtros') || '{}'); if (Array.isArray(g[kp]) && g[kp].length) cmvGrade.filtros[kp] = new Set(g[kp]); } catch { /* sem armazenamento */ } }
+    cmvGrade.renderizar();
     cmvAnaliseDefinir(j.linhas || []);
     if (typeof cmvIaRegistrarDaConsulta === 'function') { if (!cmvIa.configCarregada) cmvIaCarregarConfig().then(cmvIaRegistrarDaConsulta); else cmvIaRegistrarDaConsulta(); }
     if (typeof cmvIaAoAbrir === 'function' && document.getElementById('cmvPainelIa')?.style.display !== 'none') cmvIaAoAbrir();
@@ -101,6 +131,7 @@ try { cmvAn.escolhidos = JSON.parse(localStorage.getItem('bi_cmv_campos') || '{}
 const cmvFonte = new GradeExcel('cmvAnaliseFonteOculta', {
   aoFiltrar: g => {
     try { localStorage.setItem('bi_cmv_filtros', JSON.stringify(Object.fromEntries(Object.entries(g.filtros).map(([k, s]) => [k, [...s]])))); } catch { /* sem armazenamento */ }
+    cmvSincronizarPlano(g);      // o mesmo filtro de plano vale no Relatório
   }
 });
 cmvFonte.renderizar = () => cmvAnaliseRenderizar();
@@ -183,7 +214,8 @@ function cmvAnaliseRenderizar() {
   const totMes = ms.map(m => [...lojas.values()].reduce((t, x) => t + (x.get(m) || 0), 0));
   const totGeral = totMes.reduce((a, b) => a + b, 0);
   const nPlanos = plano ? new Set(cmvFonte.linhas.map(l => cmvFonte.texto({ chave: plano, tipo: 'texto' }, l))).size : 0;
-  const desm = plano && cmvFonte.filtros[plano] ? cmvFonte.filtros[plano].size : 0;
+  const presentes = plano ? new Set(cmvFonte.linhas.map(l => cmvFonte.texto({ chave: plano, tipo: 'texto' }, l))) : new Set();
+  const desm = plano && cmvFonte.filtros[plano] ? [...cmvFonte.filtros[plano]].filter(p => presentes.has(p)).length : 0;
   const btn = (k, rot) => k ? `<button type="button" class="cmv-filtro-btn${cmvFonte.filtros[k] && cmvFonte.filtros[k].size ? ' ativo' : ''}" onclick="cmvFonte.abrirFiltro(event, ${escHTML(JSON.stringify(k))})">${rot} ▾</button>` : '';
   const ordemLojas = [...lojas.keys()].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
   el.innerHTML = `
