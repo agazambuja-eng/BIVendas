@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conexão SavWin · BI Vendas</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Configurações<span>conexão SavWin por usuário</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+  <nav class="submenu-config so-logado" id="submenuConfig"></nav>
+
+  <main class="acesso-conteudo so-logado">
+    <div class="usuarios-cabecalho"><h2>Conexão SavWin por usuário</h2></div>
+    <div id="cfgbiMsg" class="acesso-msg"></div>
+    <section id="abaSavwin">
+      <p class="acesso-ajuda">Acesso ao SavWin usado no Estoque encalhado e na Comissão. O BI testa o login antes de gravar; a senha fica cifrada e nunca aparece de volta. Cada usuário também pode cadastrar o próprio em "🔌 Conexão SavWin".</p>
+      <div class="tabela-card">
+        <table class="tabela-usuarios">
+          <thead><tr><th>Usuário</th><th>Identificador</th><th>Login SavWin</th><th>Situação</th><th>Ações</th></tr></thead>
+          <tbody id="corpoSavwin"><tr><td colspan="5">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="modalSavwin" class="acesso-modal-fundo">
+    <form class="acesso-modal" autocomplete="off" onsubmit="return cfgSalvarSavwin(event)">
+      <h3 id="tituloSavwin">Conexão SavWin</h3>
+      <label>Identificador <input type="text" id="svIdent" required placeholder="ex.: 09983-ONE" autocomplete="off"></label>
+      <label>Login <input type="text" id="svLogin" required autocomplete="off"></label>
+      <label>Senha <input type="password" id="svSenha" autocomplete="new-password"></label>
+      <div id="svMsg" class="acesso-msg"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" id="svRemover" onclick="cfgRemoverSavwin()">Remover acesso</button>
+        <button type="button" class="acesso-btn-sec" onclick="document.getElementById('modalSavwin').style.display = 'none'">Cancelar</button>
+        <button type="submit" class="acesso-btn" id="svSalvar">Testar e salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/conexao-savwin-usuarios.js"></script>
+</body>
+</html>

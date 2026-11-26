@@ -18,7 +18,6 @@
     <div class="cfgbi-abas" id="cfgbiAbas">
       <button type="button" data-a="planos" class="ativo" onclick="cfgAba('planos')">📂 Planos de contas</button>
       <button type="button" data-a="usuarios" onclick="cfgAba('usuarios')">🔒 Planos por usuário</button>
-      <button type="button" data-a="savwin" onclick="cfgAba('savwin')">🔌 Conexão SavWin por usuário</button>
       <button type="button" data-a="ia" onclick="cfgAba('ia')">🤖 IA</button>
     </div>
     <div id="cfgbiMsg" class="acesso-msg"></div>
@@ -86,16 +85,6 @@
       </div>
     </section>
 
-    <!-- 3. Conexão SavWin de cada usuário -->
-    <section id="abaSavwin" class="cfgbi-aba" style="display: none;">
-      <p class="acesso-ajuda">Acesso ao SavWin usado no Estoque encalhado e na Comissão. O BI testa o login antes de gravar; a senha fica cifrada e nunca aparece de volta. Cada usuário também pode cadastrar o próprio em "🔌 Conexão SavWin".</p>
-      <div class="tabela-card">
-        <table class="tabela-usuarios">
-          <thead><tr><th>Usuário</th><th>Identificador</th><th>Login SavWin</th><th>Situação</th><th>Ações</th></tr></thead>
-          <tbody id="corpoSavwin"><tr><td colspan="5">Carregando...</td></tr></tbody>
-        </table>
-      </div>
-    </section>
     <!-- 4. Parâmetros da IA -->
     <section id="abaIa" class="cfgbi-aba" style="display: none;">
       <p class="acesso-ajuda">Parâmetros das análises com IA (Gemini). As <b>chaves da API</b> continuam guardadas no Render, fora do banco. O servidor confere tudo a cada pedido; mudanças valem em até 1 minuto.</p>
@@ -125,21 +114,6 @@
       </div>
     </section>
   </main>
-
-  <div id="modalSavwin" class="acesso-modal-fundo">
-    <form class="acesso-modal" autocomplete="off" onsubmit="return cfgSalvarSavwin(event)">
-      <h3 id="tituloSavwin">Conexão SavWin</h3>
-      <label>Identificador <input type="text" id="svIdent" required placeholder="ex.: 09983-ONE" autocomplete="off"></label>
-      <label>Login <input type="text" id="svLogin" required autocomplete="off"></label>
-      <label>Senha <input type="password" id="svSenha" autocomplete="new-password"></label>
-      <div id="svMsg" class="acesso-msg"></div>
-      <div class="acesso-botoes">
-        <button type="button" class="acesso-btn-sec" id="svRemover" onclick="cfgRemoverSavwin()">Remover acesso</button>
-        <button type="button" class="acesso-btn-sec" onclick="document.getElementById('modalSavwin').style.display = 'none'">Cancelar</button>
-        <button type="submit" class="acesso-btn" id="svSalvar">Testar e salvar</button>
-      </div>
-    </form>
-  </div>
 
   <script src="/js/supabase-config.js"></script>
   <script src="/js/auth.js"></script>

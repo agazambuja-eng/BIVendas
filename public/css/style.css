@@ -768,6 +768,18 @@ th.filtrada { color: #5ee7ff !important; }
 #gradeArmacoes .cl-grafico { flex-basis: 40%; }
 #gradeArmacoes .cl-lista li { gap: 5px; padding: 2px 4px; }
 #gradeArmacoes .arm-lista li .arm-un { min-width: 34px; margin-left: 2px; font-size: 10px; }
+/* lista em colunas: grife | % | valor | qtde */
+/* rosca em cima e a lista com as colunas embaixo, em largura total */
+#gradeArmacoes .cl-corpo { flex-direction: column; align-items: stretch; }
+#gradeArmacoes .cl-corpo .cl-grafico { flex: 0 0 auto; width: 100%; height: 170px; }
+#gradeArmacoes .cl-lado .cl-lista { max-height: 196px; }
+#gradeArmacoes .arm-lista li { display: grid; grid-template-columns: 10px minmax(0, 1fr) 46px 92px 46px; gap: 5px; }
+#gradeArmacoes .arm-lista li b { text-align: right; }
+#gradeArmacoes .arm-lista li .arm-rs { font-style: normal; font-size: 10.5px; color: #c9cff5; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#gradeArmacoes .arm-lista li .arm-un { min-width: 0; margin-left: 0; text-align: right; }
+#gradeArmacoes .arm-lista li.arm-cab { position: sticky; top: 0; z-index: 1; background: #141a45; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; color: #8a93c9; padding-top: 0; }
+#gradeArmacoes .arm-lista li.arm-cab b, #gradeArmacoes .arm-lista li.arm-cab .arm-rs { color: #8a93c9; font-weight: 600; text-shadow: none; }
+#gradeArmacoes .arm-lista li.arm-sem { display: block; }
 /* conexão SavWin */
 .ep-ponto.ep-off { background: #6f78a8; }
 .ep-ponto.ep-erro { background: #ff5c8a; box-shadow: 0 0 8px #ff5c8a; }

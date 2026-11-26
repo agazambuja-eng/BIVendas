@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metas · BI Vendas</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/acesso.css">
+</head>
+<body class="acesso-pagina">
+  <header class="acesso-topo so-logado">
+    <h1>Configurações<span>metas por loja</span></h1>
+    <nav class="barra-usuario" id="barraUsuario"></nav>
+  </header>
+  <nav class="submenu-config so-logado" id="submenuConfig"></nav>
+
+  <main class="acesso-conteudo so-logado metas-config">
+    <div class="usuarios-cabecalho"><h2>Metas por loja</h2></div>
+    <p class="acesso-ajuda">Meta da loja e metas do vendedor (Bronze, Prata e Ouro, por turno) de cada mês comercial (26 a 25). É o mesmo cadastro do ⚙ dentro do BI.</p>
+    <div id="modalConfigMetas" class="tabela-card metas-config-card">
+      <div id="cfgMetasMensagem" class="cfg-mensagem" style="display: none;"></div>
+
+      <!-- Cadastro de metas -->
+      <div id="cfgAreaMetas" style="display: none; flex-direction: column; gap: 14px;">
+
+        <form class="cfg-form" id="cfgFormMetas" onsubmit="cfgSalvar(event)">
+          <div id="cfgFormTitulo" class="cfg-form-titulo">Incluir meta</div>
+          <div class="cfg-grid">
+            <label class="cfg-label">Loja <select id="cfgCodigo" onchange="cfgSugerirDescricao(true)"><option value="">Selecione a loja...</option></select></label>
+            <label class="cfg-label cfg-col2">Descrição <input type="text" id="cfgDescricao" maxlength="120" placeholder="Nome da loja"></label>
+            <label class="cfg-label">Data inicial da meta <input type="date" id="cfgDataInicio"></label>
+            <label class="cfg-label">Data final da meta <input type="date" id="cfgDataFim"></label>
+            <label class="cfg-label">Meta da loja (R$) <input type="text" id="cfgValorMeta" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="185.000,00"></label>
+            <div class="cfg-subtitulo cfg-col3">🌙 Meta do vendedor · <b>Tarde</b> <small>(vale para todos quando a loja não tem meta da manhã)</small></div>
+            <label class="cfg-label">🥉 Tarde Bronze (R$) <input type="text" id="cfgValorMetaBronze" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="90.000,00"></label>
+            <label class="cfg-label">🥈 Tarde Prata (R$) <input type="text" id="cfgValorMetaPrata" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="110.000,00"></label>
+            <label class="cfg-label">🥇 Tarde Ouro (R$) <input type="text" id="cfgValorMetaOuro" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="130.000,00"></label>
+            <div class="cfg-subtitulo cfg-col3">☀️ Meta do vendedor · <b>Manhã</b> <small>(opcional · deixe vazio se a loja não separa por turno)</small></div>
+            <label class="cfg-label">🥉 Manhã Bronze (R$) <input type="text" id="cfgValorMetaManhaBronze" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="60.000,00"></label>
+            <label class="cfg-label">🥈 Manhã Prata (R$) <input type="text" id="cfgValorMetaManhaPrata" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="70.000,00"></label>
+            <label class="cfg-label">🥇 Manhã Ouro (R$) <input type="text" id="cfgValorMetaManhaOuro" class="cfg-moeda" inputmode="decimal" autocomplete="off" placeholder="80.000,00"></label>
+          </div>
+          <div class="cfg-link-vendedores">👥 O turno de cada vendedor (manhã ou tarde) fica no <a href="/vendedores.html">cadastro de vendedores</a>.</div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
+            <button type="button" id="cfgBtnCancelarEdicao" class="btn-secundario" onclick="cfgLimparFormulario(); cfgCarregarMetas();" style="display: none;">Cancelar alteração</button>
+            <button type="submit" id="cfgBtnSalvar">Incluir</button>
+          </div>
+        </form>
+
+        <div>
+          <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px;">
+            <label class="cfg-label" style="flex: 0 0 210px;">Ver mês (período de 26 a 25)
+              <input type="month" id="cfgFiltroCompetencia" onchange="cfgLimparFormulario(); cfgCarregarMetas();">
+            </label>
+            <button type="button" id="cfgBtnCopiar" class="btn-secundario cfg-btn-pequeno" onclick="cfgCopiarMesAnterior()" title="Copia as metas do mês anterior para as lojas que ainda não têm meta neste mês">📋 Copiar do mês anterior</button>
+          </div>
+          <div id="cfgTituloLista" style="font-weight: bold; font-size: 13px; color: #333; margin-bottom: 6px;"></div>
+          <div style="border: 1px solid #e0e0e0; border-radius: 4px; overflow: auto; max-height: 60vh;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead style="background: #f5f5f5; position: sticky; top: 0;">
+                <tr>
+                  <th style="padding: 6px 8px; text-align: left;">Loja</th>
+                  <th style="padding: 6px 8px; text-align: left;">Período</th>
+                  <th style="padding: 6px 8px; text-align: right;">Meta loja</th>
+                  <th style="padding: 6px 8px; text-align: right;" title="Tarde (em cima) e Manhã (embaixo, se houver)">🥉 Bronze</th>
+                  <th style="padding: 6px 8px; text-align: right;">🥈 Prata</th>
+                  <th style="padding: 6px 8px; text-align: right;">🥇 Ouro</th>
+                  <th style="padding: 6px 8px; text-align: center;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="cfgTabelaMetasCorpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/periodo-comercial.js"></script>
+  <script src="/js/metas-config.js"></script>
+  <script src="/js/config-metas.js"></script>
+  <script>
+    (async () => {
+      await exigirLogin();
+      montarBarraUsuario(document.getElementById('barraUsuario'));
+      montarSubmenuConfig(document.getElementById('submenuConfig'), 'metas');
+      if (!podeConfigMetas()) { location.replace('/inicio.html?semAcesso=criar_metas'); return; }
+      await abrirConfigMetas();
+    })();
+  </script>
+</body>
+</html>
