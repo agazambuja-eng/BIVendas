@@ -6,9 +6,10 @@
  *    chave secreta do Supabase.
  */
 
-const PERMS_TODAS = ['acessar_bi', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras', 'configurar_bi', 'gerenciar_usuarios'];
-/** "Configuração do BI" só existe depois do 14_permissao_configurar_bi.sql (coluna pode_configurar_bi). */
-let PERMS = PERMS_TODAS.filter(p => p !== 'configurar_bi');
+const PERMS_TODAS = ['acessar_bi', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras', 'configurar_bi', 'conexao_savwin', 'gerenciar_usuarios'];
+/** Permissões que dependem de SQL: configurar_bi (14_permissao_configurar_bi.sql) e conexao_savwin (15_permissao_conexao_savwin.sql). */
+const PERMS_COLUNA_NOVA = ['configurar_bi', 'conexao_savwin'];
+let PERMS = PERMS_TODAS.filter(p => !PERMS_COLUNA_NOVA.includes(p));
 const CHIPS = {
   acessar_bi: '📊 BI',
   criar_metas: '➕ Metas',
@@ -17,6 +18,7 @@ const CHIPS = {
   solicitar_compras: '🛒 Solicita',
   aprovar_compras: '✅ Aprova compras',
   configurar_bi: '🛠️ Config. BI',
+  conexao_savwin: '🔌 Conexão SavWin',
   gerenciar_usuarios: '⚙️ Administrador'
 };
 
@@ -73,10 +75,9 @@ async function carregarUsuarios() {
     mensagem('msgUsuarios', 'Lojas por usuário indisponíveis. Rode database/06_lojas_por_usuario.sql no Supabase.', 'erro');
   }
   usuarios = resUsu.data || [];
-  const temColunaConfigBI = usuarios.some(u => Object.prototype.hasOwnProperty.call(u, 'pode_configurar_bi'));
-  PERMS = PERMS_TODAS.filter(p => p !== 'configurar_bi' || temColunaConfigBI);
-  const chk = $('perm_configurar_bi');
-  if (chk) chk.closest('label').style.display = temColunaConfigBI ? '' : 'none';
+  const temColuna = p => usuarios.some(u => Object.prototype.hasOwnProperty.call(u, 'pode_' + p));
+  PERMS = PERMS_TODAS.filter(p => !PERMS_COLUNA_NOVA.includes(p) || temColuna(p));
+  PERMS_COLUNA_NOVA.forEach(p => { const chk = $('perm_' + p); if (chk) chk.closest('label').style.display = temColuna(p) ? '' : 'none'; });
   lojasPorUsuario = {};
   (resLojasUsu.data || []).forEach(r => {
     (lojasPorUsuario[r.usuario_id] = lojasPorUsuario[r.usuario_id] || []).push(Number(r.loja_codigo));
