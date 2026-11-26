@@ -26,7 +26,7 @@ function exigirAba(aba) {
   };
 }
 
-const PERMISSOES = ['acessar_bi', 'gerenciar_usuarios', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras', 'configurar_bi'];
+const PERMISSOES = ['acessar_bi', 'gerenciar_usuarios', 'criar_metas', 'alterar_metas', 'excluir_metas', 'solicitar_compras', 'aprovar_compras', 'configurar_bi', 'conexao_savwin'];
 
 function chaveSecreta() {
   return String(process.env.SUPABASE_SECRET_KEY || '').trim();

@@ -11,7 +11,7 @@ const IMP_PERMS = {               // cabeçalho normalizado -> permissão
   'acessar bi': 'acessar_bi', 'incluir metas': 'criar_metas', 'criar metas': 'criar_metas',
   'alterar metas': 'alterar_metas', 'excluir metas': 'excluir_metas',
   'solicitar compras': 'solicitar_compras', 'aprovar compras': 'aprovar_compras',
-  'configuracao do bi': 'configurar_bi', 'config bi': 'configurar_bi', 'administrador': 'gerenciar_usuarios'
+  'configuracao do bi': 'configurar_bi', 'config bi': 'configurar_bi', 'conexao savwin': 'conexao_savwin', 'administrador': 'gerenciar_usuarios'
 };
 const IMP_ABAS = {                // nome digitado (normalizado) -> aba
   dashboard: 'dashboard', 'dashboard executivo': 'dashboard', metas: 'metas',

@@ -1,5 +1,5 @@
 /**
- * Configurações › 🔌 Conexão SavWin por usuário (só administrador).
+ * Configurações › 🔌 Conexão SavWin por usuário (administrador ou permissão "Conexão SavWin").
  * Acesso ao SavWin usado no Estoque encalhado e na Comissão: /savwin/conexao-usuario
  * (o servidor testa o login e grava a senha cifrada; ela nunca volta para a tela).
  */
@@ -66,10 +66,13 @@ async function cfgRemoverSavwin() {
   await exigirLogin();
   montarBarraUsuario($c('barraUsuario'));
   montarSubmenuConfig($c('submenuConfig'), 'savwin');
-  if (!temPermissao('gerenciar_usuarios')) { location.replace('/inicio.html?semAcesso=gerenciar_usuarios'); return; }
-  const { data, error } = await supabaseBI.from('usuarios').select('*').order('nome');
-  if (error) cfgMsg('Erro ao carregar usuários: ' + error.message, 'erro');
-  cfg.usuarios = (data || []).filter(u => u.ativo !== false);
+  if (!podeConexaoSavwinUsuarios()) { location.replace('/inicio.html?semAcesso=conexao_savwin'); return; }
+  try {
+    const resp = await fetchAutenticado('/savwin/conexao-usuarios');
+    const j = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(j.error || `Erro ${resp.status}`);
+    cfg.usuarios = (Array.isArray(j) ? j : []).map(u => ({ ...u, senhasav: u.configurada ? 'x' : null }));
+  } catch (e) { cfgMsg('Erro ao carregar usuários: ' + e.message, 'erro'); }
   cfgDesenharSavwin();
   $c('modalSavwin').addEventListener('click', e => { if (e.target.id === 'modalSavwin') e.target.style.display = 'none'; });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') $c('modalSavwin').style.display = 'none'; });

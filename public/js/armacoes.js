@@ -276,12 +276,12 @@ function desenharCartoesGrifes(cards) {
 
   grade.innerHTML = cards.length ? cards.map((c, i) => {
     const lista = c.grifes.length ? c.grifes.map((g, k) => `
-        <li class="${k === 0 ? 'cl-destaque' : ''}" title="${escHTML(g.nome)}: ${formatarMoedaBR(g.liquido)} · ${g.qtd.toLocaleString('pt-BR')} un.">
+        <li class="${k === 0 ? 'cl-destaque' : ''}" title="${escHTML(g.nome)}: ${formatarMoedaBR(g.liquido)} · ${g.qtd.toLocaleString('pt-BR')} un.${g.qtd ? ` · médio ${formatarMoedaBR(g.liquido / g.qtd)}/peça` : ''}">
           <i style="background:${coresGrife[g.nome]}; box-shadow: 0 0 8px ${coresGrife[g.nome]};"></i>
           <span>${escHTML(g.nome)}</span>
-          <b>${pctTxt(vA(g), c.total)}</b><em class="arm-rs">${formatarMoedaBR(g.liquido)}</em><em class="arm-un">${g.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</em>
+          <b>${pctTxt(vA(g), c.total)}</b><em class="arm-rs">${formatarMoedaBR(g.liquido)}</em><em class="arm-rs arm-medio">${g.qtd ? formatarMoedaBR(g.liquido / g.qtd) : '—'}</em><em class="arm-un">${g.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} un.</em>
         </li>`).join('') : '<li class="arm-sem">Sem vendas.</li>';
-    const cabecalho = c.grifes.length ? '<li class="arm-cab"><i></i><span>Grife</span><b>%</b><em class="arm-rs">Valor</em><em class="arm-un">Qtde</em></li>' : '';
+    const cabecalho = c.grifes.length ? '<li class="arm-cab"><i></i><span>Grife</span><b>%</b><em class="arm-rs">Valor</em><em class="arm-rs arm-medio" title="Valor médio por peça (valor ÷ qtde)">Médio</em><em class="arm-un">Qtde</em></li>' : '';
     return `<div class="cl-card ${c.onClick ? 'arm-clicavel' : ''}" data-i="${i}" style="animation-delay:${i * 70}ms; border-top: 3px solid ${c.cor};"
         ${c.onClick ? 'title="Clique para ver por loja"' : ''}>
       <div class="cl-card-topo">

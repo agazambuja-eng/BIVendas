@@ -18,7 +18,8 @@ const NOMES_PERMISSOES = {
   excluir_metas: 'Excluir metas',
   solicitar_compras: 'Solicitar compras',
   aprovar_compras: 'Aprovar compras',
-  configurar_bi: 'Configuração do BI'
+  configurar_bi: 'Configuração do BI',
+  conexao_savwin: 'Conexão SavWin'
 };
 
 function emailDoLogin(login) {
@@ -229,7 +230,8 @@ function podeConfigVendedores() {
 function podeCompras() { return temPermissao('solicitar_compras') || temPermissao('aprovar_compras'); }
 function podeConfigBI() { return temPermissao('gerenciar_usuarios') || temPermissao('configurar_bi'); }
 function podeConfigMetas() { return temPermissao('acessar_bi') && ['criar_metas', 'alterar_metas', 'excluir_metas'].some(p => temPermissao(p)); }
-function podeAlgumaConfig() { return podeConfigUsuarios() || podeConfigVendedores() || podeConfigBI() || podeConfigMetas(); }
+function podeConexaoSavwinUsuarios() { return temPermissao('gerenciar_usuarios') || temPermissao('conexao_savwin'); }
+function podeAlgumaConfig() { return podeConfigUsuarios() || podeConfigVendedores() || podeConfigBI() || podeConfigMetas() || podeConexaoSavwinUsuarios(); }
 
 /** Abas "⚙ Configurações › Usuários | Vendedores" no topo das páginas de configuração. */
 function montarSubmenuConfig(elemento, ativo) {
@@ -238,7 +240,7 @@ function montarSubmenuConfig(elemento, ativo) {
     { id: 'usuarios', href: '/usuarios.html', texto: '👤 Usuários', pode: podeConfigUsuarios() },
     { id: 'vendedores', href: '/vendedores.html', texto: '👥 Vendedores', pode: podeConfigVendedores() },
     { id: 'bi', href: '/configuracao-bi.html', texto: '📊 Configuração do BI', pode: podeConfigBI() },
-    { id: 'savwin', href: '/conexao-savwin-usuarios.html', texto: '🔌 Conexão SavWin', pode: podeConfigUsuarios() },
+    { id: 'savwin', href: '/conexao-savwin-usuarios.html', texto: '🔌 Conexão SavWin', pode: podeConexaoSavwinUsuarios() },
     { id: 'metas', href: '/metas-config.html', texto: '🎯 Metas', pode: podeConfigMetas() }
   ].filter(i => i.pode);
   elemento.innerHTML = `<a href="/configuracoes.html" class="submenu-raiz">⚙️ Configurações</a><span class="submenu-sep">›</span>` +

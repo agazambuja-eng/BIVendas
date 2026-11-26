@@ -343,8 +343,30 @@ function registrarRotasPainelSavwin(app, { exigirUsuario, restringirLojas, exigi
     }
   });
 
-  /** Administrador cadastra / troca / remove o acesso SavWin de OUTRO usuário (testa o login antes de gravar). */
-  app.post('/savwin/conexao-usuario', exigirUsuario('gerenciar_usuarios'), async (req, res) => {
+  /** Administrador ou quem tem a permissão "Conexão SavWin" (pode_conexao_savwin). */
+  const exigirGestorConexao = [exigirUsuario(), (req, res, next) => {
+    const u = req.usuario || {};
+    if (u.pode_gerenciar_usuarios === true || u.pode_conexao_savwin === true) return next();
+    res.status(403).json({ error: 'Sem permissão para a Conexão SavWin dos usuários.' });
+  }];
+
+  /** Lista os usuários ativos e a situação da conexão SavWin (a senha nunca sai do servidor). */
+  app.get('/savwin/conexao-usuarios', ...exigirGestorConexao, async (req, res) => {
+    try {
+      if (typeof chamarSupabaseAdmin !== 'function') throw new Error('Servidor sem acesso de leitura ao Supabase.');
+      const linhas = await chamarSupabaseAdmin('/rest/v1/usuarios?select=id,nome,login,ativo,identificadorsav,loginsav,senhasav&order=nome', { method: 'GET' });
+      res.json((Array.isArray(linhas) ? linhas : []).filter(u => u.ativo !== false).map(u => ({
+        id: u.id, nome: u.nome, login: u.login, identificadorsav: u.identificadorsav || null, loginsav: u.loginsav || null,
+        configurada: !!(u.identificadorsav && u.loginsav && u.senhasav)
+      })));
+    } catch (err) {
+      console.error('Falha ao listar conexões SavWin:', err.message);
+      res.status(500).json({ error: 'Não foi possível listar os usuários: ' + err.message });
+    }
+  });
+
+  /** Cadastra / troca / remove o acesso SavWin de OUTRO usuário (testa o login antes de gravar). */
+  app.post('/savwin/conexao-usuario', ...exigirGestorConexao, async (req, res) => {
     try {
       if (typeof chamarSupabaseAdmin !== 'function') throw new Error('Servidor sem acesso de gravação ao Supabase.');
       const b = req.body || {};
