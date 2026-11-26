@@ -3,7 +3,7 @@
  *  1. Planos de contas (mercadoria) e linhas de produto (compra para estoque): configuracoes_bi.cmv_compras
  *     + catálogo de nomes (catalogo_planos_contas / catalogo_linhas_produto); importar CSV/Excel.
  *  2. Planos de contas por usuário: configuracoes_bi.cmv_planos_por_usuario = { usuarioId: [planos] } (vazio = todos).
- *  3. Conexão SavWin de cada usuário: /savwin/conexao-usuario (o servidor testa o login e grava cifrado).
+ *  3. Parâmetros da IA. (A conexão SavWin de cada usuário fica em conexao-savwin-usuarios.html.)
  */
 const $c = id => document.getElementById(id);
 const CFG_PADRAO = { linhas: ['ARMACAO RX', 'ARMACAO SUN', 'ARMACAO CLIPON'], planos: [], cmvAlvo: 40, reserva: 10, cobertura: 3 };
@@ -19,7 +19,6 @@ function cfgAba(a) {
   document.querySelectorAll('#cfgbiAbas button').forEach(b => b.classList.toggle('ativo', b.dataset.a === a));
   $c('abaPlanos').style.display = a === 'planos' ? '' : 'none';
   $c('abaUsuarios').style.display = a === 'usuarios' ? '' : 'none';
-  $c('abaSavwin').style.display = a === 'savwin' ? '' : 'none';
   $c('abaIa').style.display = a === 'ia' ? '' : 'none';
   cfgMsg('');
 }
@@ -208,60 +207,6 @@ async function cfgSalvarPlanosUsuario() {
   }
 }
 
-// ------------------------------------------------------------------ 3. conexão SavWin
-let svAlvo = null;
-function cfgDesenharSavwin() {
-  $c('corpoSavwin').innerHTML = cfg.usuarios.map(u => {
-    const ok = !!(u.identificadorsav && u.loginsav && u.senhasav);
-    return `<tr><td><strong>${escHTML(u.nome)}</strong><br><small>${escHTML(u.login)}</small></td>
-      <td>${escHTML(u.identificadorsav || '—')}</td><td>${escHTML(u.loginsav || '—')}</td>
-      <td><span class="situacao ${ok ? 'ativo' : 'inativo'}">${ok ? 'Configurada' : 'Sem acesso'}</span></td>
-      <td class="acoes"><button type="button" onclick="cfgAbrirSavwin('${u.id}')">${ok ? 'Alterar' : 'Cadastrar'}</button></td></tr>`;
-  }).join('') || '<tr><td colspan="5">Nenhum usuário.</td></tr>';
-}
-function cfgAbrirSavwin(id) {
-  const u = cfg.usuarios.find(x => x.id === id);
-  if (!u) return;
-  svAlvo = u;
-  const ok = !!(u.loginsav && u.senhasav);
-  $c('tituloSavwin').textContent = `Conexão SavWin · ${u.nome}`;
-  $c('svIdent').value = u.identificadorsav || ''; $c('svLogin').value = u.loginsav || ''; $c('svSenha').value = '';
-  $c('svSenha').placeholder = ok ? 'em branco = manter a senha cadastrada' : 'senha do SavWin';
-  $c('svSenha').required = !ok;
-  $c('svRemover').style.display = ok ? '' : 'none';
-  $c('svMsg').textContent = '';
-  $c('modalSavwin').style.display = 'flex';
-}
-async function cfgPostSavwin(corpo) {
-  const resp = await fetchAutenticado('/savwin/conexao-usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
-  const j = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(j.error || `Erro ${resp.status}`);
-  return j;
-}
-async function cfgSalvarSavwin(ev) {
-  if (ev) ev.preventDefault();
-  const bt = $c('svSalvar'); bt.disabled = true; bt.textContent = 'Testando no SavWin…';
-  try {
-    const j = await cfgPostSavwin({ usuarioId: svAlvo.id, identificador: $c('svIdent').value, login: $c('svLogin').value, senha: $c('svSenha').value });
-    Object.assign(svAlvo, { identificadorsav: j.identificador, loginsav: j.usuarioSavwin, senhasav: svAlvo.senhasav || 'x' });
-    $c('modalSavwin').style.display = 'none';
-    cfgDesenharSavwin();
-    cfgMsg(`✅ Conexão SavWin de ${svAlvo.nome} testada e salva.`, 'ok');
-  } catch (e) { $c('svMsg').className = 'acesso-msg erro'; $c('svMsg').textContent = e.message; }
-  finally { $c('svSenha').value = ''; bt.disabled = false; bt.textContent = 'Testar e salvar'; }
-  return false;
-}
-async function cfgRemoverSavwin() {
-  if (!svAlvo || !confirm(`Remover o acesso SavWin de ${svAlvo.nome}?`)) return;
-  try {
-    await cfgPostSavwin({ usuarioId: svAlvo.id, remover: true });
-    Object.assign(svAlvo, { identificadorsav: null, loginsav: null, senhasav: null });
-    $c('modalSavwin').style.display = 'none';
-    cfgDesenharSavwin();
-    cfgMsg(`Acesso SavWin de ${svAlvo.nome} removido.`, 'ok');
-  } catch (e) { $c('svMsg').className = 'acesso-msg erro'; $c('svMsg').textContent = e.message; }
-}
-
 // ------------------------------------------------------------------ 4. parâmetros da IA
 const RELATORIOS_IA = [
   ['precos', '🤖 Preço na web', 'Modal de preço de cada produto (lupa 🤖).', true],
@@ -320,13 +265,12 @@ async function cfgSalvarIa() {
   if (!podeConfigBI()) { location.replace('/inicio.html?semAcesso=gerenciar_usuarios'); return; }
   if (!ehAdmin()) {   // quem só aprova compras: só a aba de planos
     // quem tem só "Configuração do BI": planos de contas e parâmetros da IA (sem a lista de usuários)
-    document.querySelectorAll('#cfgbiAbas button[data-a="usuarios"], #cfgbiAbas button[data-a="savwin"]').forEach(b => { b.style.display = 'none'; });
+    document.querySelectorAll('#cfgbiAbas button[data-a="usuarios"]').forEach(b => { b.style.display = 'none'; });
     const blocoUsuariosIa = $c('iaUsuarios') && $c('iaUsuarios').closest('.cfgbi-bloco');
     if (blocoUsuariosIa) blocoUsuariosIa.style.display = 'none';
   }
   await cfgCarregar();
   cfgDesenharListas();
-  if (ehAdmin()) { cfgListaUsuarios(); cfgDesenharSavwin(); }
+  if (ehAdmin()) cfgListaUsuarios();
   cfgDesenharIa();
-  $c('modalSavwin').addEventListener('click', e => { if (e.target.id === 'modalSavwin') e.target.style.display = 'none'; });
 })();

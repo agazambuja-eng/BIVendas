@@ -468,3 +468,32 @@ html:has(body.compras-escuro) { background: #080b1f; }
 .cfgbi-bloco label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
 .cfgbi-bloco label.check { flex-direction: row; align-items: center; font-weight: normal; }
 .cfgbi-bloco textarea, .cfgbi-bloco input[type=text], .cfgbi-bloco input[type=number] { font: inherit; font-weight: normal; padding: 7px 9px; border: 1px solid #ccd3dd; border-radius: 6px; resize: vertical; }
+
+/* ===== Configurações › Metas (mesmo cadastro do ⚙ do BI, tema claro) ===== */
+.metas-config-card { padding: 16px; display: block; }
+.metas-config .cfg-mensagem { border: 1px solid; border-radius: 6px; padding: 8px 10px; font-size: 13px; margin-bottom: 10px; }
+.metas-config .cfg-form { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; }
+.metas-config .cfg-form-titulo { font-weight: 700; font-size: 14px; color: var(--azul); margin-bottom: 8px; }
+.metas-config .cfg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.metas-config .cfg-col2 { grid-column: span 2; }
+.metas-config .cfg-col3 { grid-column: 1 / -1; }
+.metas-config .cfg-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: #555; margin: 0; }
+.metas-config .cfg-label input, .metas-config .cfg-label select { font-weight: normal; padding: 8px 9px; border: 1px solid #c9d1da; border-radius: 6px; font-size: 13px; font-family: inherit; background: #fff; box-sizing: border-box; width: 100%; }
+.metas-config .cfg-subtitulo { font-size: 12.5px; color: #444; margin-top: 4px; padding-top: 8px; border-top: 1px dashed #d0d7e2; }
+.metas-config .cfg-subtitulo small { color: #888; font-weight: normal; }
+.metas-config .cfg-manha { color: #b07a00; }
+.metas-config .cfg-link-vendedores { font-size: 12px; color: #666; margin-top: 8px; }
+.metas-config .cfg-link-vendedores a { color: var(--azul); }
+.metas-config button#cfgBtnSalvar { background: var(--azul); color: #fff; border: 0; border-radius: 6px; padding: 9px 18px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.metas-config .btn-secundario { background: #e9ecef; color: #333; border: 0; border-radius: 6px; padding: 9px 14px; cursor: pointer; font-family: inherit; }
+.metas-config .cfg-btn-pequeno { padding: 7px 10px; font-size: 12px; }
+.metas-config .cfg-btn-mini { background: #f1f3f5; color: #333; padding: 3px 7px; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; margin: 0 2px; }
+.metas-config .cfg-btn-mini:hover { background: #e2e6ea; }
+.metas-config .cfg-btn-perigo:hover { background: #fdecea; border-color: #f5c2c0; }
+.metas-config #cfgTabelaMetasCorpo tr td { border-bottom: 1px solid #f0f2f5; }
+@media (max-width: 700px) {
+  .metas-config .cfg-grid { grid-template-columns: 1fr; }
+  .metas-config .cfg-col2 { grid-column: auto; }
+}
+.metas-config #cfgAreaMetas > * { width: 100%; max-width: none; box-sizing: border-box; }
+.metas-config #modalConfigMetas { flex-direction: column; } .metas-config #cfgAreaMetas { width: 100%; }

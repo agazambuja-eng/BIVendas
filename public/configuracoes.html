@@ -29,10 +29,19 @@
       <a class="inicio-opcao config" id="opcaoConfigBI" href="/configuracao-bi.html" style="display: none;">
         <div class="icone">📊</div>
         <h2>Configuração do BI</h2>
-        <p>Planos de contas (importar e classificar), planos por usuário e conexão SavWin de cada usuário.</p>
+        <p>Planos de contas (importar e classificar), planos por usuário e parâmetros da IA.</p>
+      </a>
+      <a class="inicio-opcao config" id="opcaoSavwin" href="/conexao-savwin-usuarios.html" style="display: none;">
+        <div class="icone">🔌</div>
+        <h2>Conexão SavWin</h2>
+        <p>Acesso ao SavWin de cada usuário (Estoque encalhado e Comissão). O BI testa o login antes de gravar.</p>
+      </a>
+      <a class="inicio-opcao vendedores" id="opcaoMetas" href="/metas-config.html" style="display: none;">
+        <div class="icone">🎯</div>
+        <h2>Metas</h2>
+        <p>Meta de cada loja e metas do vendedor (Bronze, Prata e Ouro, manhã e tarde) por mês comercial.</p>
       </a>
     </div>
-    <p class="acesso-ajuda" style="margin-top: 18px;">As metas por loja continuam no ⚙ dentro do BI.</p>
   </main>
 
   <script src="/js/supabase-config.js"></script>
@@ -45,6 +54,8 @@
       document.getElementById('opcaoUsuarios').style.display = podeConfigUsuarios() ? '' : 'none';
       document.getElementById('opcaoVendedores').style.display = podeConfigVendedores() ? '' : 'none';
       document.getElementById('opcaoConfigBI').style.display = podeConfigBI() ? '' : 'none';
+      document.getElementById('opcaoSavwin').style.display = podeConfigUsuarios() ? '' : 'none';
+      document.getElementById('opcaoMetas').style.display = podeConfigMetas() ? '' : 'none';
     })();
   </script>
 </body>
