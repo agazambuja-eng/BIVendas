@@ -207,6 +207,16 @@ button.chip:hover { border-color: currentColor; }
 .inicio-opcao.vendedores { border-left-color: #e8a100; }
 .acesso-modal.largo.importar { max-width: 820px; width: calc(100% - 32px); }
 .acesso-modal.importar .tabela-usuarios select { min-width: 150px; }
+.importar-acoes a.acesso-btn-sec { text-decoration: none; display: inline-block; }
+.importar-acoes label.imp-escolher { color: #fff; cursor: pointer; margin: 0; }
+.imp-previa { max-height: 46vh; overflow: auto; margin-bottom: 8px; }
+.imp-previa .tabela-usuarios td { padding: 6px 8px; font-size: 12px; }
+.imp-previa .chip { font-size: 11px; }
+.imp-previa tr.imp-erro td, .imp-previa tr.imp-falhou td { background: #fdecec; }
+.imp-previa tr.imp-ignorar td { color: #9aa0a6; }
+.imp-previa tr.imp-ok td { background: #eaf7ee; }
+.imp-previa td.imp-obs { color: #b3261e; max-width: 260px; }
+.imp-previa tr.imp-ok td.imp-obs, .imp-previa tr.imp-atualizar td.imp-obs { color: #555; }
 
 /* Submenu de Configurações */
 .submenu-config { display: flex; align-items: center; gap: 6px; max-width: 1000px; margin: 0 auto; padding: 12px 16px 0; font-size: 14px; flex-wrap: wrap; }

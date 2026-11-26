@@ -20,6 +20,7 @@
       <div class="usuarios-filtros">
         <input type="search" id="buscaUsuario" placeholder="Buscar por nome ou login..." oninput="renderizarUsuarios()">
         <label><input type="checkbox" id="mostrarInativos" onchange="renderizarUsuarios()"> Mostrar inativos</label>
+        <button type="button" class="acesso-btn-sec" onclick="abrirImportarUsuarios()" title="Cadastrar vários usuários de uma vez a partir de uma planilha">📥 Importar Excel</button>
         <button type="button" class="acesso-btn" onclick="abrirFormUsuario()">+ Novo usuário</button>
       </div>
     </div>
@@ -112,8 +113,29 @@
     </form>
   </div>
 
+  <!-- Importar usuários por Excel -->
+  <div id="modalImportar" class="acesso-modal-fundo">
+    <div class="acesso-modal largo importar">
+      <h3>Importar usuários do Excel</h3>
+      <p class="acesso-ajuda">Preencha o modelo (uma linha por usuário) e carregue aqui. Não coloque senha na planilha: o BI gera uma senha provisória para cada usuário novo, e no fim você baixa um Excel com login e senha para entregar.</p>
+      <div class="importar-acoes">
+        <a class="acesso-btn-sec" href="/modelos/modelo-usuarios.xlsx" download>⬇ Baixar modelo</a>
+        <label class="acesso-btn imp-escolher">📂 Escolher planilha<input type="file" id="impArquivo" accept=".xlsx,.xls,.csv" hidden onchange="impLerArquivo(this)"></label>
+        <label class="check"><input type="checkbox" id="impAtualizar" onchange="impAvaliar()"> Atualizar usuários que já existem (acessos, lojas e abas)</label>
+      </div>
+      <div id="msgImportar" class="acesso-msg"></div>
+      <div id="impPrevia"></div>
+      <div class="acesso-botoes">
+        <button type="button" class="acesso-btn-sec" onclick="if (!imp.rodando) fecharModal('modalImportar')">Fechar</button>
+        <button type="button" class="acesso-btn-sec" id="btnImpResultado" style="display:none" onclick="impBaixarResultado()">⬇ Baixar logins e senhas</button>
+        <button type="button" class="acesso-btn" id="btnImpExecutar" disabled onclick="impExecutar()">Importar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/supabase-config.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/usuarios.js"></script>
+  <script src="/js/usuarios-importar.js"></script>
 </body>
 </html>
